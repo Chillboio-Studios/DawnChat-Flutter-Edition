@@ -5,6 +5,11 @@ on:
     branches: [master, main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.2.3). When set, a GitHub release v<version> is created with all build artifacts."
+        required: false
+        type: string
 
 env:
   FLUTTER_VERSION: "3.47.9"
@@ -128,7 +133,7 @@ jobs:
       - run: flutter pub get
       - run: flutter build macos --release ${{ env.FIREBASE_DEFINES }}
       - name: Package app
-        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/project.app dawnchat-macos.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/DawnChat.app dawnchat-macos.zip
       - uses: actions/upload-artifact@v4
         with:
           name: dawnchat-macos
@@ -184,10 +189,36 @@ jobs:
       - run: flutter build linux --release
       - name: Package
         run: tar -C build/linux/x64/release/bundle -czf dawnchat-linux.tar.gz .
+      - name: Package AppImage
+        run: |
+          mkdir -p AppDir
+          cp -r build/linux/x64/release/bundle/* AppDir/
+          cp assets/branding/android-chrome-512x512.png AppDir/dawnchat.png
+          cat > AppDir/dawnchat.desktop <<'EOF'
+          [Desktop Entry]
+          Name=DawnChat
+          Exec=DawnChat
+          Icon=dawnchat
+          Type=Application
+          Categories=Network;InstantMessaging;
+          Comment=A User-First chat application
+          EOF
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/DawnChat" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          curl -sL -o appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir DawnChat-x86_64.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: dawnchat-linux
-          path: project/dawnchat-linux.tar.gz
+          path: |
+            project/dawnchat-linux.tar.gz
+            project/DawnChat-x86_64.AppImage
 
   web:
     name: Web
@@ -210,3 +241,39 @@ jobs:
         with:
           name: dawnchat-web
           path: project/build/web
+
+  release:
+    name: Release
+    if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+    needs: [android, ios, macos, windows, linux, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect release assets
+        working-directory: .
+        run: |
+          mkdir -p release-assets
+          cp artifacts/dawnchat-android/flutter-apk/app-release.apk release-assets/dawnchat-android.apk
+          cp artifacts/dawnchat-android/bundle/release/app-release.aab release-assets/dawnchat-android.aab
+          cp artifacts/dawnchat-ios/dawnchat-ios-unsigned.ipa release-assets/ 2>/dev/null || cp artifacts/dawnchat-ios/* release-assets/
+          cp artifacts/dawnchat-macos/dawnchat-macos.zip release-assets/
+          cp artifacts/dawnchat-windows/dawnchat-windows.zip release-assets/
+          cp artifacts/dawnchat-linux/dawnchat-linux.tar.gz release-assets/
+          cp artifacts/dawnchat-linux/DawnChat-x86_64.AppImage release-assets/
+          (cd artifacts/dawnchat-web && zip -qry ../../release-assets/dawnchat-web.zip .)
+          ls -la release-assets
+      - name: Create GitHub release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "DawnChat v${{ inputs.version }}" \
+            --generate-notes \
+            release-assets/*
