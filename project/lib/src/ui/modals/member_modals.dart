@@ -218,7 +218,7 @@ Future<void> showServerIdentity(BuildContext context, String serverId, String us
                     children: [
                       FilledButton.tonal(
                         onPressed: () async {
-                          final r = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+                          final r = await FilePicker.pickFiles(type: FileType.image, withData: true);
                           final f = r?.files.firstOrNull;
                           if (f?.bytes != null) set(() => newAvatar = (name: f!.name, bytes: f.bytes!, mime: null));
                         },

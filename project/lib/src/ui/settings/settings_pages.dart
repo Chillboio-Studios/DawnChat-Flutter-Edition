@@ -542,7 +542,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _upload(String tag, String field, {bool profile = false}) async {
     final store = context.read<ClientStore>();
-    final res = await FilePicker.platform.pickFiles(
+    final res = await FilePicker.pickFiles(
       type: FileType.image,
       withData: true,
     );

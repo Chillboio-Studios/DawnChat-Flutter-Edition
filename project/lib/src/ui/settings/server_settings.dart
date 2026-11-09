@@ -226,7 +226,7 @@ class _OverviewState extends State<_Overview> {
 
   Future<void> _upload(String tag, String field) async {
     final store = context.read<ClientStore>();
-    final res = await FilePicker.platform.pickFiles(
+    final res = await FilePicker.pickFiles(
       type: FileType.image,
       withData: true,
     );
@@ -335,7 +335,7 @@ class _EmojisState extends State<_Emojis> {
           icon: const Icon(Icons.add),
           label: const Text('Upload emoji'),
           onPressed: () async {
-            final res = await FilePicker.platform.pickFiles(
+            final res = await FilePicker.pickFiles(
               type: FileType.image,
               withData: true,
             );

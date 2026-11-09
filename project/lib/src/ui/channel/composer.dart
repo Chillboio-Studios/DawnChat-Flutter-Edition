@@ -83,7 +83,7 @@ void addDraftFiles(BuildContext context, String channelId, List<({String name, U
 }
 
 Future<void> pickFilesInto(BuildContext context, String channelId) async {
-  final res = await FilePicker.platform.pickFiles(allowMultiple: true, withData: true);
+  final res = await FilePicker.pickFiles(allowMultiple: true, withData: true);
   if (res == null || !context.mounted) return;
   addDraftFiles(context, channelId, [
     for (final f in res.files)
