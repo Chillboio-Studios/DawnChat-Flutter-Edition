@@ -27,6 +27,10 @@ custom-frame regression reported after upgrading to 0.6 (clicking the bottom
 message bar causes the window to lose focus). tray_manager stays on the
 previous 0.5.x backend too. file_picker 11.0.3 is retained because it aligns
 Android Java and Kotlin JVM targets; pasteboard and mime support clipboard images.
+With AGP 9, file_picker assumes built-in Kotlin is enabled. While the app keeps
+`android.builtInKotlin=false` for older plugins, the root Android Gradle script
+explicitly applies the Kotlin plugin to file_picker and targets JVM 17. Remove
+that compatibility block when migrating the whole Android build to built-in Kotlin.
 Desktop code is conditionally exported so these libraries are not compiled
 into the web app.
 
