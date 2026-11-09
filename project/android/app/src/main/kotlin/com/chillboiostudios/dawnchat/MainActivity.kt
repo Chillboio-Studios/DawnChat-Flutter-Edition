@@ -1,4 +1,4 @@
-package com.example.project
+package com.chillboiostudios.dawnchat
 
 import io.flutter.embedding.android.FlutterActivity
 
