@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 
 import 'src/api/client_store.dart';
 import 'src/app.dart';
+import 'src/core/i18n.dart';
 import 'src/desktop/desktop.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/state/settings_store.dart';
@@ -21,6 +22,7 @@ Future<void> main(List<String> args) async {
   if (kIsWeb) usePathUrlStrategy();
   if (!kIsWeb) await RustLib.init();
   final settings = await SettingsStore.load();
+  await I18n.load(settings.lang);
   if (isDesktop) {
     launchAtStartup.setup(
       appName: 'DawnChat',

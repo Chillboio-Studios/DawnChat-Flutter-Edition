@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api/client_store.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
+import '../core/i18n.dart';
 
 Future<void> openUrl(String url) async {
   final uri = Uri.tryParse(url);
@@ -18,14 +19,14 @@ Future<void> openUrl(String url) async {
 void showSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(SnackBar(content: Text(tr(message))));
 }
 
 String errorText(Object e) => e.toString();
 
 Future<void> copyText(BuildContext context, String text) async {
   await Clipboard.setData(ClipboardData(text: text));
-  if (context.mounted) showSnack(context, 'Copied');
+  if (context.mounted) showSnack(context, 'Copied!');
 }
 
 class Wordmark extends StatefulWidget {
@@ -394,7 +395,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.sm),
     child: Text(
-      text,
+      tr(text),
       style: (small ? context.tt.titleSmall : context.tt.titleMedium)?.copyWith(
         fontWeight: FontWeight.w600,
       ),
@@ -469,16 +470,16 @@ Future<bool> confirm(
   final res = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
-      title: Text(title),
-      content: Text(body),
+      title: Text(tr(title)),
+      content: Text(tr(body)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(c, false),
-          child: const Text('Cancel'),
+          child: Text(tr('Cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(c, true),
-          child: Text(action),
+          child: Text(tr(action)),
         ),
       ],
     ),
@@ -497,20 +498,20 @@ Future<String?> promptText(
   return showDialog<String>(
     context: context,
     builder: (c) => AlertDialog(
-      title: Text(title),
+      title: Text(tr(title)),
       content: TextField(
         controller: ctl,
         autofocus: true,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: label == null ? null : tr(label)),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(c),
-          child: const Text('Cancel'),
+          child: Text(tr('Cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(c, ctl.text.trim()),
-          child: Text(action),
+          child: Text(tr(action)),
         ),
       ],
     ),

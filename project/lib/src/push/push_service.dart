@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../api/client_store.dart';
+import '../core/i18n.dart';
 import '../rust/api/push.dart' as rust_push;
 import '../state/settings_store.dart';
 import '../ui/widgets.dart';
@@ -138,7 +139,7 @@ class PushService extends ChangeNotifier {
         if (context.mounted) {
           showSnack(
             context,
-            'Failed to enable notifications. DawnChat does not have notification permission.',
+            tr('Failed to enable notifications. DawnChat does not have notification permission.'),
           );
         }
       }
@@ -153,7 +154,7 @@ class PushService extends ChangeNotifier {
       if (!ok && context.mounted) {
         showSnack(
           context,
-          'Failed to enable push notifications. Please try again later.',
+          tr('Failed to enable push notifications. Please try again later.'),
         );
       }
     } else {

@@ -16,6 +16,7 @@ import '../../theme/tokens.dart';
 import '../widgets.dart';
 import 'embeds.dart';
 import 'markdown_view.dart';
+import '../../core/i18n.dart';
 
 const _klipyKey = String.fromEnvironment('KLIPY_API_KEY');
 const _gifboxDismissKey = 'gifbox-explainer-dismissed';
@@ -274,7 +275,7 @@ class _EmojiPickerState extends State<_EmojiPicker> {
       }
       slivers.add(
         SliverToBoxAdapter(
-          child: Container(height: 40, alignment: Alignment.centerLeft, padding: const EdgeInsets.symmetric(horizontal: Gap.md), child: const Text('Default')),
+          child: Container(height: 40, alignment: Alignment.centerLeft, padding: const EdgeInsets.symmetric(horizontal: Gap.md), child: Text(tr('Default'))),
         ),
       );
       grid([for (final e in d.all) _Unicode(e.shorthands.first, e.emoji)]);
@@ -527,7 +528,7 @@ class _GifPickerState extends State<_GifPicker> {
                         alignment: Alignment.bottomLeft,
                         padding: const EdgeInsets.all(Gap.md),
                         decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [cs.primary, cs.tertiary])),
-                        child: const Text('Trending GIFs', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                        child: Text(tr('Trending GIFs'), style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
                       ),
                       () => _setFilter('trending'),
                     ),
@@ -564,11 +565,11 @@ class _GifPickerState extends State<_GifPicker> {
           final gifs = snap.data ?? const [];
           if (gifs.isEmpty) {
             return provider == _Provider.klipy
-                ? const _Centered(title: 'No KLIPY GIFs found', body: null, credit: true)
+                ? _Centered(title: tr('No GIFs found'), body: null, credit: true)
                 : _Centered(
-                    title: 'No GIFs found',
-                    body: "Can't find the perfect GIF? Head to Gifbox and upload your own for everyone to use.",
-                    action: FilledButton(onPressed: () => openUrl(gifboxUploadUrl), child: const Text('Upload to Gifbox')),
+                    title: tr('No GIFs found'),
+                    body: tr("Can't find the perfect GIF? Head to Gifbox and upload your own for everyone to use."),
+                    action: FilledButton(onPressed: () => openUrl(gifboxUploadUrl), child: Text(tr('Upload to Gifbox'))),
                   );
           }
           return CustomScrollView(
@@ -602,8 +603,8 @@ class _GifPickerState extends State<_GifPicker> {
                         padding: const EdgeInsets.symmetric(vertical: Gap.l),
                         child: Column(
                           children: [
-                            Text('Got a better GIF? Share it with everyone on Gifbox.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                            TextButton(onPressed: () => openUrl(gifboxUploadUrl), child: const Text('Upload to Gifbox')),
+                            Text(tr('Got a better GIF? Share it with everyone on Gifbox.'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                            TextButton(onPressed: () => openUrl(gifboxUploadUrl), child: Text(tr('Upload to Gifbox'))),
                           ],
                         ),
                       ),
@@ -633,8 +634,8 @@ class _GifPickerState extends State<_GifPicker> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(onPressed: () => openUrl(gifboxInfoUrl), child: const Text('Learn more')),
-                    FilledButton(onPressed: () => settings.setSectionState(_gifboxDismissKey, true), child: const Text('Got it')),
+                    TextButton(onPressed: () => openUrl(gifboxInfoUrl), child: Text(tr('Learn more'))),
+                    FilledButton(onPressed: () => settings.setSectionState(_gifboxDismissKey, true), child: Text(tr('Got it'))),
                   ],
                 ),
               ],

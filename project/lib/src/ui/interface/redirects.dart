@@ -14,6 +14,7 @@ import '../widgets.dart';
 import 'discover_embed_stub.dart'
     if (dart.library.js_interop) 'discover_embed_web.dart';
 import 'home_page.dart';
+import '../../core/i18n.dart';
 
 /// Sends the user back to where they last were (PWA start / after dialogs).
 class _GoLast extends StatefulWidget {
@@ -113,7 +114,7 @@ Future<void> _showInvite(BuildContext context, String code) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
+            child: Text(tr('Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
@@ -178,12 +179,12 @@ Future<void> _showBot(BuildContext context, String id) async {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Cancel'),
+              child: Text(tr('Cancel')),
             ),
             if (picked != null)
               FilledButton(
                 onPressed: () => Navigator.pop(c, true),
-                child: const Text('Add'),
+                child: Text(tr('Add')),
               ),
           ],
         ),
@@ -277,7 +278,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final embed = kIsWeb ? buildWebEmbed(_src, _onMessage) : null;
     return Column(
       children: [
-        const PageHeader(icon: Icon(Icons.explore), title: Text('Discover')),
+        PageHeader(icon: Icon(Icons.explore), title: Text(tr('Discover'))),
         Expanded(
           child: embed ??
               (_controller != null
@@ -289,7 +290,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                           const Wordmark(width: 240),
                           const SizedBox(height: 16),
                           Text(
-                            'Find a community based on your hobbies or interests.',
+                            tr('Find a community based on your hobbies or interests.'),
                             style: TextStyle(color: cs.onSurfaceVariant),
                           ),
                           const SizedBox(height: 16),

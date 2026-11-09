@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:DawnChat/src/rust/frb_generated.dart';
+import 'package:dawnchat/src/rust/frb_generated.dart';
 import 'package:integration_test/integration_test.dart';
 
 void main() {

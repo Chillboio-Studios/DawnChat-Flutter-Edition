@@ -10,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
 import 'settings_pages.dart';
+import '../../core/i18n.dart';
 
 class SettingsEntry {
   const SettingsEntry({
@@ -58,68 +59,68 @@ List<SettingsCategory> userSettingsList(BuildContext context) {
   final store = context.read<ClientStore>();
   final video = store.api.config?.video ?? true;
   return [
-    SettingsCategory(title: 'User Settings', [
-      const SettingsEntry(
+    SettingsCategory(title: tr('User Settings'), [
+      SettingsEntry(
         id: 'account',
         icon: Icons.manage_accounts_outlined,
-        title: 'My Account',
+        title: tr('My Account'),
         hidden: true,
       ),
-      const SettingsEntry(
+      SettingsEntry(
         id: 'profile',
         icon: Icons.account_circle_outlined,
-        title: 'Profile',
+        title: tr('Profile'),
       ),
-      const SettingsEntry(
+      SettingsEntry(
         id: 'sessions',
         icon: Icons.verified_user_outlined,
-        title: 'Sessions',
+        title: tr('Sessions'),
       ),
     ]),
-    const SettingsCategory(title: 'DawnChat', [
+    SettingsCategory(title: 'DawnChat', [
       SettingsEntry(
         id: 'bots',
         icon: Icons.smart_toy_outlined,
-        title: 'My Bots',
+        title: tr('My Bots'),
       ),
       SettingsEntry(
         id: 'feedback',
         icon: Icons.rate_review_outlined,
-        title: 'Feedback',
+        title: tr('Feedback'),
       ),
     ]),
-    SettingsCategory(title: 'Client Settings', [
+    SettingsCategory(title: tr('Client Settings'), [
       SettingsEntry(
         id: 'voice',
         icon: Icons.mic_none,
         title: video ? 'Voice & Video' : 'Voice',
       ),
-      const SettingsEntry(
+      SettingsEntry(
         id: 'appearance',
         icon: Icons.palette_outlined,
-        title: 'Appearance',
+        title: tr('Appearance'),
       ),
-      const SettingsEntry(
+      SettingsEntry(
         id: 'notifications',
         icon: Icons.notifications_none,
-        title: 'Notifications',
+        title: tr('Notifications'),
       ),
-      const SettingsEntry(
+      SettingsEntry(
         id: 'language',
         icon: Icons.language,
-        title: 'Language',
+        title: tr('Language'),
       ),
       SettingsEntry(
         id: 'native',
         icon: Icons.desktop_windows_outlined,
-        title: 'Desktop',
+        title: tr('Desktop'),
         hidden: !isDesktopPlatform,
       ),
     ]),
     SettingsCategory([
       SettingsEntry(
         icon: Icons.campaign_outlined,
-        title: "What's New",
+        title: tr("What's New"),
         onTap: (c) => showChangelog(c),
       ),
       const SettingsEntry(
@@ -127,19 +128,19 @@ List<SettingsCategory> userSettingsList(BuildContext context) {
         title: 'We are a stoatchat based instance, View Source Code',
         href: sourceCodeUrl,
       ),
-      const SettingsEntry(
+      SettingsEntry(
         id: 'advanced',
         icon: Icons.science_outlined,
-        title: 'Advanced',
+        title: tr('Advanced'),
       ),
-      const SettingsEntry(
+      SettingsEntry(
         icon: Icons.coffee_outlined,
-        title: 'Donate',
+        title: tr('Donate'),
         href: donationUrl,
       ),
       SettingsEntry(
         icon: Icons.logout,
-        title: 'Log Out',
+        title: tr('Log Out'),
         destructive: true,
         onTap: (c) async {
           final s = c.read<ClientStore>();
@@ -279,10 +280,10 @@ class _Sidebar extends StatelessWidget {
         _AccountCard(
           selected: page == 'account',
           onTap: () => onSelect(
-            const SettingsEntry(
+            SettingsEntry(
               id: 'account',
               icon: Icons.person,
-              title: 'My Account',
+              title: tr('My Account'),
             ),
           ),
         ),

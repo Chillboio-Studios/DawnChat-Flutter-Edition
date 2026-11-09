@@ -26,6 +26,7 @@ import '../messaging/media_picker.dart';
 import '../messaging/message_tile.dart';
 import '../modals/app_dialog.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 const _imageTypes = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp'};
 
@@ -543,9 +544,9 @@ class _MessageComposerState extends State<MessageComposer> {
             const SizedBox(width: 14),
           Expanded(
             child: timedOut
-                ? const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text("You are timed out and can't send messages right now.", style: TextStyle(fontSize: 14)))
+                ? Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text(tr("You are timed out and can't send messages right now."), style: TextStyle(fontSize: 14)))
                 : !canSendPerm
-                ? const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text("You don't have permission to send messages in this channel.", style: TextStyle(fontSize: 14)))
+                ? Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text(tr("You don't have permission to send messages in this channel."), style: TextStyle(fontSize: 14)))
                 : TextField(
                     controller: _ctl,
                     focusNode: _focus,
@@ -575,7 +576,7 @@ class _MessageComposerState extends State<MessageComposer> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (!canSend) SizedBox(width: 42, height: 42, child: IconButton(tooltip: 'GIFs', icon: const Icon(Icons.gif_box_outlined), onPressed: () => _openPicker(PickerTab.gif))),
-                    SizedBox(width: 42, height: 42, child: IconButton(tooltip: 'Emoji', icon: const Icon(Icons.mood), onPressed: () => _openPicker(PickerTab.emoji))),
+                    SizedBox(width: 42, height: 42, child: IconButton(tooltip: tr('Emoji'), icon: const Icon(Icons.mood), onPressed: () => _openPicker(PickerTab.emoji))),
                   ],
                 ),
               ],
@@ -707,7 +708,7 @@ class _ReplyPreview extends StatelessWidget {
         child: Row(
           spacing: 8,
           children: [
-            const Text('Replying to'),
+            Text(tr('Replying to')),
             Expanded(child: MessageReply(channelId: channelId, messageId: reply.id, serverId: serverId, noDecorations: true)),
             if (!self)
               InkWell(

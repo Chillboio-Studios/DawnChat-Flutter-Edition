@@ -6,6 +6,7 @@ import '../../theme/tokens.dart';
 import '../messaging/markdown_view.dart';
 import '../widgets.dart';
 import 'app_dialog.dart';
+import '../../core/i18n.dart';
 
 Future<void> showChannelInfo(BuildContext context, Json channel) {
   final type = channel['channel_type'];
@@ -22,7 +23,7 @@ Future<void> showAddMembersToGroup(BuildContext context, Json group) {
   var filter = '';
   return showAppDialog<void>(
     context,
-    title: 'Add friends to group',
+    title: tr('Add friends to group'),
     maxWidth: 420,
     content: StatefulBuilder(
       builder: (c, set) {
@@ -38,7 +39,7 @@ Future<void> showAddMembersToGroup(BuildContext context, Json group) {
           height: 360,
           child: Column(
             children: [
-              TextField(decoration: const InputDecoration(hintText: 'Search for users...'), onChanged: (v) => set(() => filter = v)),
+              TextField(decoration: InputDecoration(hintText: tr('Search for users...')), onChanged: (v) => set(() => filter = v)),
               const SizedBox(height: Gap.md),
               Expanded(
                 child: ListView(
@@ -60,8 +61,8 @@ Future<void> showAddMembersToGroup(BuildContext context, Json group) {
       },
     ),
     actions: [
-      const DlgAction('Close'),
-      DlgAction('Add', onPressed: () async {
+      DlgAction(tr('Close')),
+      DlgAction(tr('Add'), onPressed: () async {
         for (final u in selected) {
           await store.api.put('/channels/${group['_id']}/recipients/$u');
         }

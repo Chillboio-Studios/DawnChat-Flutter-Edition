@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../net_image.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:provider/provider.dart';
 
@@ -16,6 +15,7 @@ import '../menus/context_menu.dart';
 import '../menus/user_menu.dart';
 import '../widgets.dart';
 import 'time_utils.dart';
+import '../../core/i18n.dart';
 
 const _emojiPattern =
     r'(?:[\u{1F1E6}-\u{1F1FF}]{2}|[0-9#*]\uFE0F?\u20E3|(?:[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{00A9}\u{00AE}\u{203C}\u{2049}\u{2122}\u{2139}\u{3030}\u{303D}\u{3297}\u{3299}][\u{1F3FB}-\u{1F3FF}]?\uFE0F?(?:\u200D[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2640}\u{2642}][\u{1F3FB}-\u{1F3FF}]?\uFE0F?)*))';
@@ -65,9 +65,9 @@ class EmojiView extends StatelessWidget {
 }
 
 class _Syn extends md.InlineSyntax {
-  _Syn(String pattern, this.tag, {this.group = 1}) : super(pattern, startCharacter: null);
+  _Syn(String pattern, this.tag) : super(pattern, startCharacter: null);
   final String tag;
-  final int group;
+  final int group = 1;
   @override
   bool onMatch(md.InlineParser parser, Match match) {
     final el = md.Element.text(tag, match.group(group) ?? match.group(0)!);
@@ -197,7 +197,7 @@ Future<void> showLinkWarning(BuildContext context, Uri url, String display) asyn
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, set) => AlertDialog(
-        title: const Text('External links can be dangerous!'),
+        title: Text(tr('External links can be dangerous!')),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text.rich(TextSpan(children: [
             const TextSpan(text: 'Are you sure you want to go to '),
@@ -214,7 +214,7 @@ Future<void> showLinkWarning(BuildContext context, Uri url, String display) asyn
               controlAffinity: ListTileControlAffinity.leading,
               value: checked,
               onChanged: (v) => set(() => checked = v ?? false),
-              title: const Text('I understand the consequences'),
+              title: Text(tr('I understand the consequences')),
             ),
           ] else
             CheckboxListTile(
@@ -226,8 +226,8 @@ Future<void> showLinkWarning(BuildContext context, Uri url, String display) asyn
             ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Close')),
-          FilledButton(onPressed: (scrutiny == 2 && !checked) ? null : () => Navigator.pop(c, true), child: const Text('Continue')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Close'))),
+          FilledButton(onPressed: (scrutiny == 2 && !checked) ? null : () => Navigator.pop(c, true), child: Text(tr('Continue'))),
         ],
       ),
     ),
@@ -514,7 +514,7 @@ List<InlineSpan> _anchor(_Ctx c, String href, String text, List<md.Node> childre
     final remote = inApp.host != (c.store.host ?? dawnchatHost);
     if (inApp.channel != null) {
       final ch = c.store.channels[inApp.channel];
-      if (!remote && ch == null) return [WidgetSpan(alignment: PlaceholderAlignment.middle, child: const _Pill(icon: Icons.tag, label: 'Private Channel', primary: true))];
+      if (!remote && ch == null) return [WidgetSpan(alignment: PlaceholderAlignment.middle, child: _Pill(icon: Icons.tag, label: tr('Private Channel'), primary: true))];
       return [
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
@@ -533,7 +533,7 @@ List<InlineSpan> _anchor(_Ctx c, String href, String text, List<md.Node> childre
     }
     if (inApp.server != null) {
       final s = c.store.servers[inApp.server];
-      if (!remote && s == null) return [WidgetSpan(alignment: PlaceholderAlignment.middle, child: const _Pill(icon: Icons.people, label: 'Unknown Server', primary: true))];
+      if (!remote && s == null) return [WidgetSpan(alignment: PlaceholderAlignment.middle, child: _Pill(icon: Icons.people, label: tr('Unknown Server'), primary: true))];
       return [
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
@@ -577,7 +577,7 @@ class _Pill extends StatelessWidget {
         data: IconThemeData(color: fg, size: 14),
         child: DefaultTextStyle.merge(
           style: TextStyle(color: fg, fontWeight: FontWeight.w600),
-          child: Row(mainAxisSize: MainAxisSize.min, spacing: 4, children: [Icon(icon), Flexible(child: Text(label, overflow: TextOverflow.ellipsis)), ...trailing]),
+          child: Row(mainAxisSize: MainAxisSize.min, spacing: 4, children: [Icon(icon), Flexible(child: Text(tr(label), overflow: TextOverflow.ellipsis)), ...trailing]),
         ),
       ),
     );

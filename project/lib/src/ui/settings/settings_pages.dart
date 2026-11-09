@@ -24,6 +24,7 @@ import '../messaging/markdown_view.dart';
 import '../messaging/time_utils.dart';
 import '../widgets.dart';
 import 'settings_page.dart' show isDesktopPlatform;
+import '../../core/i18n.dart';
 
 class SettingsBody extends StatelessWidget {
   const SettingsBody({super.key, required this.page, required this.onNavigate});
@@ -80,8 +81,8 @@ class _Select<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return CategoryButton(
       icon: Icon(icon),
-      title: Text(title),
-      description: Text(options[value]?.$1 ?? ''),
+      title: Text(tr(title)),
+      description: Text(tr(options[value]?.$1 ?? '')),
       action: const Icon(Icons.unfold_more),
       onTap: () async {
         final picked = await showModalBottomSheet<T>(
@@ -107,8 +108,8 @@ class _Select<T> extends StatelessWidget {
                 ),
                 for (final e in options.entries)
                   ListTile(
-                    title: Text(e.value.$1),
-                    subtitle: e.value.$2 == null ? null : Text(e.value.$2!),
+                    title: Text(tr(e.value.$1)),
+                    subtitle: e.value.$2 == null ? null : Text(tr(e.value.$2!)),
                     trailing: e.key == value ? const Icon(Icons.check) : null,
                     onTap: () => Navigator.pop(c, e.key),
                   ),
@@ -229,13 +230,13 @@ class _AccountPageState extends State<AccountPage> {
           children: [
             CategoryButton(
               icon: const Icon(Icons.alternate_email),
-              title: const Text('Username'),
+              title: Text(tr('Username')),
               description: Text('${me?['username']}'),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
                 final name = await promptText(
                   context,
-                  'Change username',
+                  tr('Change username'),
                   label: 'New username',
                   initial: me?['username'] as String?,
                 );
@@ -252,7 +253,7 @@ class _AccountPageState extends State<AccountPage> {
             ),
             CategoryButton(
               icon: const Icon(Icons.mail_outline),
-              title: const Text('Email'),
+              title: Text(tr('Email')),
               description: Row(
                 children: [
                   Flexible(
@@ -296,14 +297,14 @@ class _AccountPageState extends State<AccountPage> {
             ),
             CategoryButton(
               icon: const Icon(Icons.password),
-              title: const Text('Password'),
+              title: Text(tr('Password')),
               description: const Text('•••••••••'),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
                 final newPw = await promptText(
                   context,
                   'Change password',
-                  label: 'New password',
+                  label: tr('New Password'),
                 );
                 if (newPw == null || newPw.isEmpty || !context.mounted) return;
                 final pw = await _password(
@@ -326,9 +327,9 @@ class _AccountPageState extends State<AccountPage> {
           children: [
             CategoryButton(
               icon: const Icon(Icons.verified_user_outlined),
-              title: const Text('Recovery Codes'),
-              description: const Text(
-                'Configure a way to get back into your account in case your 2FA is lost',
+              title: Text(tr('Recovery Codes')),
+              description: Text(
+                tr('Configure a way to get back into your account in case your 2FA is lost'),
               ),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
@@ -351,12 +352,12 @@ class _AccountPageState extends State<AccountPage> {
                   await showDialog<void>(
                     context: context,
                     builder: (c) => AlertDialog(
-                      title: const Text('Recovery Codes'),
+                      title: Text(tr('Recovery Codes')),
                       content: SelectableText((codes as List).join('\n')),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(c),
-                          child: const Text('Close'),
+                          child: Text(tr('Close')),
                         ),
                       ],
                     ),
@@ -367,7 +368,7 @@ class _AccountPageState extends State<AccountPage> {
             ),
             CategoryButton(
               icon: const Icon(Icons.lock_outline),
-              title: const Text('Authenticator App'),
+              title: Text(tr('Authenticator App')),
               description: Text(
                 _mfa?['authenticator_enabled'] == true
                     ? 'Remove one-time password authenticator'
@@ -415,9 +416,9 @@ class _AccountPageState extends State<AccountPage> {
           children: [
             CategoryButton(
               icon: Icon(Icons.block, color: cs.error),
-              title: const Text('Disable Account'),
-              description: const Text(
-                "You won't be able to access your account unless you contact support - however, your data will not be deleted.",
+              title: Text(tr('Disable Account')),
+              description: Text(
+                tr("You won't be able to access your account unless you contact support - however, your data will not be deleted."),
               ),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
@@ -440,8 +441,8 @@ class _AccountPageState extends State<AccountPage> {
                     ? 'Cannot delete account until servers are deleted or transferred'
                     : 'Delete Account',
               ),
-              description: const Text(
-                'Your account and all of your data (including your messages and friends list) will be queued for deletion. A confirmation email will be sent - you can cancel this within 7 days by contacting support.',
+              description: Text(
+                tr('Your account and all of your data (including your messages and friends list) will be queued for deletion. A confirmation email will be sent - you can cancel this within 7 days by contacting support.'),
               ),
               action: stillOwn ? null : const Icon(Icons.chevron_right),
               onTap: stillOwn
@@ -471,21 +472,21 @@ Future<String?> _password(BuildContext context, String title) async {
   return showDialog<String>(
     context: context,
     builder: (c) => AlertDialog(
-      title: Text(title),
+      title: Text(tr(title)),
       content: TextField(
         controller: ctl,
         obscureText: true,
         autofocus: true,
-        decoration: const InputDecoration(labelText: 'Password'),
+        decoration: InputDecoration(labelText: tr('Password')),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(c),
-          child: const Text('Cancel'),
+          child: Text(tr('Cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(c, ctl.text),
-          child: const Text('Confirm'),
+          child: Text(tr('Confirm')),
         ),
       ],
     ),
@@ -635,12 +636,12 @@ class _ProfilePageState extends State<ProfilePage> {
         _gap(16),
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Display name'),
+          decoration: InputDecoration(labelText: tr('Display Name')),
         ),
         _gap(16),
         TextField(
           controller: _status,
-          decoration: const InputDecoration(labelText: 'Custom status'),
+          decoration: InputDecoration(labelText: tr('Custom status')),
         ),
         _gap(16),
         TextField(
@@ -696,7 +697,7 @@ class _SessionsPageState extends State<SessionsPage> {
             await store.revokeAllSessions();
             _load();
           },
-          child: const Text('Log out all other sessions'),
+          child: Text(tr('Log out of all other sessions')),
         ),
         _gap(16),
         CategoryGroup(
@@ -760,13 +761,13 @@ class _BotsPageState extends State<BotsPage> {
       children: [
         FilledButton.icon(
           icon: const Icon(Icons.add),
-          label: const Text('Create a bot'),
+          label: Text(tr('Create Bot')),
           onPressed: () async {
             final name = await promptText(
               context,
-              'Create a bot',
+              tr('Create Bot'),
               label: 'Bot name',
-              action: 'Create',
+              action: tr('Create'),
             );
             if (name == null || name.isEmpty) return;
             try {
@@ -858,14 +859,14 @@ class _BotViewState extends State<BotView> {
             ),
             CategoryButton(
               icon: Icon(Icons.delete_outline, color: cs.error),
-              title: const Text('Delete bot'),
+              title: Text(tr('Delete Bot')),
               destructive: true,
               onTap: () async {
                 if (await confirm(
                   context,
                   'Delete bot?',
                   'This cannot be undone.',
-                  action: 'Delete',
+                  action: tr('Delete'),
                 )) {
                   await store.api.delete('/bots/${widget.id}');
                   widget.onBack();
@@ -889,8 +890,8 @@ class FeedbackPage extends StatelessWidget {
     final inLounge = store.servers.containsKey(loungeServerId);
     Widget link(IconData i, String t, String d, String url) => CategoryButton(
       icon: Icon(i),
-      title: Text(t),
-      description: Text(d),
+      title: Text(tr(t)),
+      description: Text(tr(d)),
       action: const Icon(Icons.open_in_new),
       onTap: () => openUrl(url),
     );
@@ -898,20 +899,20 @@ class FeedbackPage extends StatelessWidget {
       children: [
         link(
           Icons.star_outline,
-          'Submit feature suggestion',
-          'Suggest new DawnChat features on GitHub discussions.',
+          tr('Submit feature suggestion'),
+          tr('Suggest new DawnChat features on GitHub discussions.'),
           roadmapUrl,
         ),
         link(
           Icons.format_list_numbered,
-          'Feedback',
-          'Submit feedback',
+          tr('Feedback'),
+          tr('Submit feedback'),
           feedbackUrl,
         ),
         link(
           Icons.bug_report_outlined,
-          'Bug Tracker',
-          'View currently active bug reports here.',
+          tr('Bug Tracker'),
+          tr('View currently active bug reports here.'),
           bugTrackerUrl,
         ),
         CategoryButton(
@@ -919,8 +920,8 @@ class FeedbackPage extends StatelessWidget {
           title: Text(
             inLounge ? 'Go to the DawnChat Lounge' : 'Join the DawnChat Lounge',
           ),
-          description: const Text(
-            'You can report issues and discuss improvements with us directly here.',
+          description: Text(
+            tr('You can report issues and discuss improvements with us directly here.'),
           ),
           onTap: () {
             Navigator.of(context).pop();
@@ -990,14 +991,14 @@ class _VoicePageState extends State<VoicePage> {
           children: [
             _Select<String?>(
               icon: Icons.mic,
-              title: 'Select audio input',
+              title: tr('Select audio input'),
               value: s.audioInput,
               options: _opts('audioinput', 'Microphone'),
               onChanged: (v) => s.audioInput = v,
             ),
             _Select<String?>(
               icon: Icons.speaker,
-              title: 'Select audio output',
+              title: tr('Select audio output'),
               value: s.audioOutput,
               options: _opts('audiooutput', 'Speaker'),
               onChanged: (v) => s.audioOutput = v,
@@ -1005,7 +1006,7 @@ class _VoicePageState extends State<VoicePage> {
             if (video)
               _Select<String?>(
                 icon: Icons.videocam_outlined,
-                title: 'Select video input',
+                title: tr('Select video input'),
                 value: s.videoInput,
                 options: _opts('videoinput', 'Camera'),
                 onChanged: (v) => s.videoInput = v,
@@ -1035,12 +1036,12 @@ class _VoicePageState extends State<VoicePage> {
           divisions: 30,
           onChanged: (v) => s.outputVolume = v,
         ),
-        const SectionTitle('Voice Processing'),
+        SectionTitle(tr('Voice Processing')),
         CategoryGroup(
           children: [
             _Select<String>(
               icon: Icons.graphic_eq,
-              title: 'Select noise suppression',
+              title: tr('Select noise suppression'),
               value: s.noiseSuppression,
               options: const {
                 'disabled': ('Disabled', null),
@@ -1050,23 +1051,23 @@ class _VoicePageState extends State<VoicePage> {
               onChanged: (v) => s.noiseSuppression = v,
             ),
             CategoryButton(
-              title: const Text('Browser Echo Cancellation'),
+              title: Text(tr('Browser Echo Cancellation')),
               action: _Check(s.echoCancellation),
               onTap: () => s.echoCancellation = !s.echoCancellation,
             ),
             CategoryButton(
-              title: const Text('Automatic Gain Control'),
+              title: Text(tr('Automatic Gain Control')),
               action: _Check(s.autoGainControl),
               onTap: () => s.autoGainControl = !s.autoGainControl,
             ),
           ],
         ),
-        const SectionTitle('Screen Share Settings'),
+        SectionTitle(tr('Screen Share Settings')),
         CategoryGroup(
           children: [
             _Select<String>(
               icon: Icons.screen_share,
-              title: 'Select screen share quality',
+              title: tr('Select screen share quality'),
               value: s.screenShareQuality,
               options: const {
                 'low': ('720p at 30fps', null),
@@ -1076,7 +1077,7 @@ class _VoicePageState extends State<VoicePage> {
               onChanged: (v) => s.screenShareQuality = v,
             ),
             CategoryButton(
-              title: const Text('Always Ask for Screen Share Quality'),
+              title: Text(tr('Always Ask for Screen Share Quality')),
               action: _Check(s.screenShareQualityAsk),
               onTap: () => s.screenShareQualityAsk = !s.screenShareQualityAsk,
             ),
@@ -1117,7 +1118,7 @@ class AppearancePage extends StatelessWidget {
             )
           : null,
       segments: [
-        for (final i in items) ButtonSegment(value: i.$2, label: Text(i.$1)),
+        for (final i in items) ButtonSegment(value: i.$2, label: Text(tr(i.$1))),
       ],
       selected: {value},
       onSelectionChanged: (v) => onSel(v.first),
@@ -1229,14 +1230,14 @@ class AppearancePage extends StatelessWidget {
             small: true,
           ),
         ),
-        const SectionTitle('Display & Text', small: true),
+        SectionTitle(tr('Display & Text'), small: true),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           value: s.blur,
           onChanged: (v) => s.blur = v ?? true,
-          title: const Text(
-            'Enable transparency glass/blur effects (slow on older machines)',
+          title: Text(
+            tr('Enable transparency glass/blur effects (slow on older machines)'),
           ),
         ),
         Container(
@@ -1306,7 +1307,7 @@ class AppearancePage extends StatelessWidget {
           ),
         ),
         _gap(8),
-        Text('Message Size', style: context.tt.labelLarge),
+        Text(tr('Message Size'), style: context.tt.labelLarge),
         Slider(
           value: s.messageSize,
           min: 12,
@@ -1315,7 +1316,7 @@ class AppearancePage extends StatelessWidget {
           label: '${s.messageSize.round()}',
           onChanged: (v) => s.messageSize = v,
         ),
-        Text('Message Group Spacing', style: context.tt.labelLarge),
+        Text(tr('Message Group Spacing'), style: context.tt.labelLarge),
         Slider(
           value: s.messageGroupSpacing,
           min: 0,
@@ -1327,7 +1328,7 @@ class AppearancePage extends StatelessWidget {
         _gap(8),
         DropdownMenu<String>(
           width: 320,
-          label: const Text('Interface Font'),
+          label: Text(tr('Interface Font')),
           initialSelection: s.interfaceFont,
           dropdownMenuEntries: [
             for (final f in interfaceFonts)
@@ -1338,7 +1339,7 @@ class AppearancePage extends StatelessWidget {
         _gap(16),
         DropdownMenu<String>(
           width: 320,
-          label: const Text('Monospace Font'),
+          label: Text(tr('Monospace Font')),
           initialSelection: s.monospaceFont,
           dropdownMenuEntries: [
             for (final f in monospaceFonts)
@@ -1346,18 +1347,18 @@ class AppearancePage extends StatelessWidget {
           ],
           onSelected: (v) => v == null ? null : s.monospaceFont = v,
         ),
-        const SectionTitle('Chat Input', small: true),
+        SectionTitle(tr('Chat Input'), small: true),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           value: s.showSendButton,
           onChanged: (v) => s.showSendButton = v ?? true,
-          title: const Text('Show send message button'),
+          title: Text(tr('Show send message button')),
         ),
         _gap(8),
         DropdownMenu<String>(
           width: 320,
-          label: const Text('Emoji Pack (affects your messages only)'),
+          label: Text(tr('Emoji Pack (affects your messages only)')),
           initialSelection: s.unicodeEmoji,
           dropdownMenuEntries: [
             for (final p in unicodeEmojiPacks)
@@ -1412,7 +1413,7 @@ class NotificationsPage extends StatelessWidget {
                 s.desktopNotifications != 'unsupported')
               CategoryButton(
                 icon: const Icon(Icons.notifications_none),
-                title: const Text('Enable Desktop Notifications'),
+                title: Text(tr('Enable Desktop Notifications')),
                 description: Text(
                   isDesktopPlatform || !kIsWeb
                       ? 'Receive notifications while the app is open and in the background.'
@@ -1423,9 +1424,9 @@ class NotificationsPage extends StatelessWidget {
               ),
             CategoryButton(
               icon: const Icon(Icons.mark_unread_chat_alt_outlined),
-              title: const Text('Enable Push Notifications'),
-              description: const Text(
-                'Receive push notifications while the app is closed.',
+              title: Text(tr('Enable Push Notifications')),
+              description: Text(
+                tr('Receive push notifications while the app is closed.'),
               ),
               action: _Check(s.pushNotifications == 'allowed'),
               onTap: () => push.togglePush(context),
@@ -1434,7 +1435,7 @@ class NotificationsPage extends StatelessWidget {
         ),
         if (s.desktopNotifications != 'unsupported' ||
             push.desktopSupported) ...[
-          const SectionTitle('Sounds'),
+          SectionTitle(tr('Sounds')),
           CategoryGroup(
             children: [
               for (final e in labels.entries)
@@ -1445,7 +1446,7 @@ class NotificationsPage extends StatelessWidget {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.volume_up_outlined, size: 18),
-                        tooltip: 'Play sound',
+                        tooltip: tr('Play sound'),
                         onPressed: () => sounds.play(e.key, force: true),
                       ),
                       _Check(s.soundEnabled(e.key)),
@@ -1481,7 +1482,7 @@ class LanguagePage extends StatelessWidget {
           children: [
             _Select<String>(
               icon: Icons.language,
-              title: 'Select your language',
+              title: tr('Select your language'),
               value: langs.containsKey(s.lang) ? s.lang : 'en',
               options: langs,
               onChanged: (v) => s.lang = v,
@@ -1493,7 +1494,7 @@ class LanguagePage extends StatelessWidget {
           children: [
             _Select<String>(
               icon: Icons.calendar_month_outlined,
-              title: 'Date format',
+              title: tr('Date format'),
               value: s.dateFormat,
               options: {
                 'DD/MM/YYYY': (
@@ -1513,7 +1514,7 @@ class LanguagePage extends StatelessWidget {
             ),
             _Select<String>(
               icon: Icons.schedule,
-              title: 'Time format',
+              title: tr('Time format'),
               value: s.timeFormat,
               options: const {
                 'HH:mm': ('24 hours', null),
@@ -1528,9 +1529,9 @@ class LanguagePage extends StatelessWidget {
           children: [
             CategoryButton(
               icon: const Icon(Icons.translate),
-              title: const Text('Contribute a language'),
-              description: const Text(
-                'Help contribute to an existing or new language',
+              title: Text(tr('Contribute a language')),
+              description: Text(
+                tr('Help contribute to an existing or new language'),
               ),
               action: const Icon(Icons.open_in_new),
               onTap: () => openUrl(translationsUrl),
@@ -1585,8 +1586,8 @@ class _NativePageState extends State<NativePage> {
       ValueChanged<bool> set,
     ) => CategoryButton(
       icon: Icon(icon),
-      title: Text(title),
-      description: Text(desc),
+      title: Text(tr(title)),
+      description: Text(tr(desc)),
       action: _Check(v),
       onTap: () => set(!v),
     );
@@ -1596,8 +1597,8 @@ class _NativePageState extends State<NativePage> {
         CategoryGroup(
           children: [
             toggle(
-              'Start with Computer',
-              'Launch DawnChat when you log into your computer.',
+              tr('Start with Computer'),
+              tr('Launch DawnChat when you log into your computer.'),
               Icons.exit_to_app,
               _autostart,
               (v) async {
@@ -1611,22 +1612,22 @@ class _NativePageState extends State<NativePage> {
             ),
             if (_autostart)
               toggle(
-                'Start Minimised to Tray',
-                'DawnChat will start in the system tray.',
+                tr('Start Minimised to Tray'),
+                tr('DawnChat will start in the system tray.'),
                 Icons.minimize,
                 s.startMinimisedToTray,
                 (v) => s.startMinimisedToTray = v,
               ),
             toggle(
-              'Minimise to Tray',
-              'Instead of closing, DawnChat will hide in your tray.',
+              tr('Minimise to Tray'),
+              tr('Instead of closing, DawnChat will hide in your tray.'),
               Icons.cancel_presentation,
               s.minimiseToTray,
               (v) => s.minimiseToTray = v,
             ),
             toggle(
-              'Custom window frame',
-              'Let DawnChat use its own custom titlebar.',
+              tr('Custom window frame'),
+              tr('Let DawnChat use its own custom titlebar.'),
               Icons.web_asset,
               s.customFrame,
               (v) => s.customFrame = v,
@@ -1637,22 +1638,22 @@ class _NativePageState extends State<NativePage> {
         CategoryGroup(
           children: [
             toggle(
-              'Discord RPC',
-              'Rep DawnChat using Discord rich presence.',
+              tr('Discord RPC'),
+              tr('Rep DawnChat using Discord rich presence.'),
               Icons.groups_2,
               s.discordRpc,
               (v) => s.discordRpc = v,
             ),
             toggle(
-              'Spellchecker',
-              'Show corrections and suggestions as you type.',
+              tr('Spellchecker'),
+              tr('Show corrections and suggestions as you type.'),
               Icons.spellcheck,
               s.spellchecker,
               (v) => s.spellchecker = v,
             ),
             toggle(
-              'Hardware Acceleration',
-              'Use the graphics card to improve performance.',
+              tr('Hardware Acceleration'),
+              tr('Use the graphics card to improve performance.'),
               Icons.speed,
               s.hardwareAcceleration,
               (v) => s.hardwareAcceleration = v,
@@ -1666,7 +1667,7 @@ class _NativePageState extends State<NativePage> {
             children: [
               CategoryButton(
                 icon: const Icon(Icons.desktop_windows_outlined),
-                title: const Text('DawnChat for Desktop'),
+                title: Text(tr('DawnChat for Desktop')),
                 description: Text('Version: ${snap.data?.version ?? ''}'),
               ),
             ],
@@ -1689,7 +1690,7 @@ class AdvancedPage extends StatelessWidget {
       controlAffinity: ListTileControlAffinity.leading,
       value: v,
       onChanged: (x) => set(x ?? false),
-      title: Text(t),
+      title: Text(tr(t)),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1762,7 +1763,7 @@ Future<void> showChangelog(BuildContext context) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: const Text('Close'),
+            child: Text(tr('Close')),
           ),
         ],
       ),

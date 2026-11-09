@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/i18n.dart';
+
 const interfaceFonts = <String>[
   'Atkinson Hyperlegible',
   'Bitter',
@@ -145,7 +147,7 @@ class SettingsStore extends ChangeNotifier {
   set adminPanel(bool v) => _set('settings.advanced:admin_panel', v);
 
   // --- locale ---
-  String get lang => _get('locale.lang', 'en');
+  String get lang => _get('locale.lang', preferredLanguageCode());
   set lang(String v) => _set('locale.lang', v);
   String get dateFormat => _get('locale.dateFormat', 'DD/MM/YYYY');
   set dateFormat(String v) => _set('locale.dateFormat', v);

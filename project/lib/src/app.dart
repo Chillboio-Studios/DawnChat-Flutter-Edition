@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'api/client_store.dart';
+import 'core/i18n.dart';
 import 'desktop/desktop.dart';
 import 'push/push_service.dart';
 import 'router.dart';
@@ -31,6 +32,7 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.settings.addListener(_syncLanguage);
     widget.store.init();
     _push.sounds = _sounds;
     _push.init();
@@ -43,8 +45,13 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    widget.settings.removeListener(_syncLanguage);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _syncLanguage() {
+    if (widget.settings.lang != I18n.code) I18n.load(widget.settings.lang);
   }
 
   @override
@@ -63,7 +70,10 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
           final platform = MediaQuery.platformBrightnessOf(context);
           final theme = buildTheme(s, platform);
           final rtl = appLanguageIsRtl(s.lang);
-          return MaterialApp.router(
+          return ValueListenableBuilder<int>(
+            valueListenable: I18n.revision,
+            builder: (context, rev, _) => MaterialApp.router(
+            key: ValueKey(rev),
             title: 'DawnChat',
             debugShowCheckedModeBanner: false,
             theme: theme,
@@ -87,6 +97,7 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
                   child: Titlebar(child: child ?? const SizedBox.shrink()),
                 ),
               ),
+            ),
             ),
           );
         },

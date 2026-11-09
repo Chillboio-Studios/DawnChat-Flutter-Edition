@@ -9,6 +9,7 @@ import '../../api/client_store.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
 import 'app_dialog.dart';
+import '../../core/i18n.dart';
 
 Widget _userHeader(String userId, String text, {List<Widget> extra = const []}) => Column(
   mainAxisSize: MainAxisSize.min,
@@ -28,7 +29,7 @@ Future<void> showTimeoutMember(BuildContext context, String serverId, String use
   const options = {60: '1 min', 300: '5 min', 600: '10 min', 3600: '1 hr', 86400: '1 day', 604800: '1 wk'};
   return showAppDialog<void>(
     context,
-    title: 'Timeout Member',
+    title: tr('Timeout Member'),
     content: StatefulBuilder(
       builder: (c, set) => Column(
         mainAxisSize: MainAxisSize.min,
@@ -36,7 +37,7 @@ Future<void> showTimeoutMember(BuildContext context, String serverId, String use
         children: [
           Center(child: _userHeader(userId, '${_username(store, userId)} will not be able to interact with the server until the timeout expires.')),
           const SizedBox(height: Gap.lg),
-          const Text('Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(tr('Duration'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           const SizedBox(height: Gap.s),
           SegmentedButton<int>(
             showSelectedIcon: false,
@@ -48,8 +49,8 @@ Future<void> showTimeoutMember(BuildContext context, String serverId, String use
       ),
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Timeout', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Timeout'), onPressed: () async {
         await store.api.patch('/servers/$serverId/members/$userId', {'timeout': DateTime.now().toUtc().add(Duration(seconds: seconds)).toIso8601String()});
         return null;
       }),
@@ -61,11 +62,11 @@ Future<void> showRemoveTimeout(BuildContext context, String serverId, String use
   final store = context.read<ClientStore>();
   return showAppDialog<void>(
     context,
-    title: 'Remove Timeout',
+    title: tr('Remove Timeout'),
     content: Center(child: _userHeader(userId, "${_username(store, userId)}'s timeout will be removed and they will be able to interact with the server again.")),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Remove Timeout', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Remove Timeout'), onPressed: () async {
         await store.api.patch('/servers/$serverId/members/$userId', {'remove': ['Timeout']});
         return null;
       }),
@@ -77,11 +78,11 @@ Future<void> showKickMember(BuildContext context, String serverId, String userId
   final store = context.read<ClientStore>();
   return showAppDialog<void>(
     context,
-    title: 'Kick Member',
+    title: tr('Kick Member'),
     content: Center(child: _userHeader(userId, 'You are about to kick ${_username(store, userId)}')),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Kick', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Kick'), onPressed: () async {
         await store.api.delete('/servers/$serverId/members/$userId');
         return null;
       }),
@@ -106,15 +107,15 @@ Future<void> showBanMember(BuildContext context, String serverId, String userId,
             child: _userHeader(
               userId,
               'You are about to ban ${_username(store, userId)}',
-              extra: [if (!isMember) const Text('This user is not part of the server and may already be banned')],
+              extra: [if (!isMember) Text(tr('This user is not part of the server and may already be banned'))],
             ),
           ),
           const SizedBox(height: Gap.lg),
-          TextField(controller: reason, maxLength: 1024, decoration: const InputDecoration(labelText: 'Reason', hintText: 'User broke a certain rule…')),
+          TextField(controller: reason, maxLength: 1024, decoration: InputDecoration(labelText: tr('Reason'), hintText: tr('User broke a certain rule…'))),
           if (isMember)
             DropdownButtonFormField<int>(
               initialValue: deleteSeconds,
-              decoration: const InputDecoration(labelText: 'Delete Message History'),
+              decoration: InputDecoration(labelText: tr('Delete Message History')),
               items: [for (final e in deletes.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
               onChanged: (v) => set(() => deleteSeconds = v ?? 0),
             ),
@@ -122,8 +123,8 @@ Future<void> showBanMember(BuildContext context, String serverId, String userId,
       ),
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Ban', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Ban'), onPressed: () async {
         await store.api.put('/servers/$serverId/bans/$userId', {'reason': reason.text, if (isMember) 'delete_message_seconds': deleteSeconds});
         return null;
       }),
@@ -135,11 +136,11 @@ Future<void> showRemoveGroupMember(BuildContext context, Json group, String user
   final store = context.read<ClientStore>();
   return showAppDialog<void>(
     context,
-    title: 'Remove Member',
+    title: tr('Remove Member'),
     content: Center(child: _userHeader(userId, 'Are you sure you want to remove ${store.displayName(userId)} from ${group['name']}?')),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Remove', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Remove'), onPressed: () async {
         await store.api.delete('/channels/${group['_id']}/recipients/$userId');
         return null;
       }),
@@ -162,7 +163,7 @@ Future<void> showDeleteChannel(BuildContext context, Json channel, {void Functio
           : "Once it's deleted, there's no going back.",
     ),
     actions: [
-      const DlgAction('Cancel'),
+      DlgAction(tr('Cancel')),
       DlgAction(type == 'Group' ? 'Leave' : type == 'DirectMessage' ? 'Close' : 'Delete', destructive: true, onPressed: () async {
         await store.api.delete('/channels/${channel['_id']}');
         if (type == 'Group' || type == 'TextChannel' || type == 'VoiceChannel') {
@@ -221,7 +222,7 @@ Future<void> showServerIdentity(BuildContext context, String serverId, String us
                           final f = r?.files.firstOrNull;
                           if (f?.bytes != null) set(() => newAvatar = (name: f!.name, bytes: f.bytes!, mime: null));
                         },
-                        child: const Text('Server Avatar'),
+                        child: Text(tr('Server Avatar')),
                       ),
                       if (hadAvatar || newAvatar != null)
                         TextButton(
@@ -229,7 +230,7 @@ Future<void> showServerIdentity(BuildContext context, String serverId, String us
                             newAvatar = null;
                             removeAvatar = true;
                           }),
-                          child: const Text('Remove'),
+                          child: Text(tr('Remove')),
                         ),
                     ],
                   ),
@@ -238,14 +239,14 @@ Future<void> showServerIdentity(BuildContext context, String serverId, String us
             ),
             const SizedBox(height: Gap.lg),
           ],
-          TextField(controller: nickname, maxLength: 32, decoration: InputDecoration(labelText: 'Nickname', hintText: store.user(userId)?['display_name'] as String?)),
-          if (self) TextField(controller: pronouns, maxLength: 24, decoration: const InputDecoration(labelText: 'Pronouns')),
+          TextField(controller: nickname, maxLength: 32, decoration: InputDecoration(labelText: tr('Nickname'), hintText: store.user(userId)?['display_name'] as String?)),
+          if (self) TextField(controller: pronouns, maxLength: 24, decoration: InputDecoration(labelText: tr('Pronouns'))),
         ],
       ),
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Save', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Save'), onPressed: () async {
         final remove = <String>[];
         final body = <String, dynamic>{};
         if (nickname.text != initialNick) {

@@ -9,7 +9,7 @@ import '../../theme/tokens.dart';
 import '../settings/settings_page.dart';
 import '../widgets.dart';
 import '../modals/server_modals.dart';
-import 'interface_shell.dart';
+import '../../core/i18n.dart';
 
 /// Primary page header shared by Home, Friends and channels.
 class PageHeader extends StatelessWidget {
@@ -138,14 +138,14 @@ class HomePage extends StatelessWidget {
     final left = [
       tile(
         Icons.add_circle,
-        'Create a group or server',
-        'Invite all of your friends, some cool bots, and throw a big party.',
+        tr('Create a group or server'),
+        tr('Invite all of your friends, some cool bots, and throw a big party.'),
         () => showCreateOrJoinServer(context),
       ),
       tile(
         Icons.groups_3,
         inLounge ? 'Go to the DawnChat Lounge' : 'Join the DawnChat Lounge',
-        'You can report issues and discuss improvements with us directly here.',
+        tr('You can report issues and discuss improvements with us directly here.'),
         () async {
           if (inLounge) {
             context.goPath('/server/$loungeServerId');
@@ -156,35 +156,35 @@ class HomePage extends StatelessWidget {
       ),
       tile(
         Icons.payments,
-        'Donate to DawnChat',
-        'Support the project by donating - thank you!',
+        tr('Donate to DawnChat'),
+        tr('Support the project by donating - thank you!'),
         () => openUrl(donationUrl),
       ),
     ];
     final right = [
       tile(
         Icons.explore,
-        'Discover DawnChat',
-        'Find a community based on your hobbies or interests.',
+        tr('Discover DawnChat'),
+        tr('Find a community based on your hobbies or interests.'),
         () => context.goPath('/discover'),
       ),
       tile(
         Icons.rate_review,
-        'Give feedback on DawnChat',
-        'Let us know how we can improve our app by giving us feedback.',
+        tr('Give feedback on DawnChat'),
+        tr('Let us know how we can improve our app by giving us feedback.'),
         () => showSettings(context, page: 'feedback'),
       ),
       tile(
         Icons.settings,
-        'Open settings',
-        'You can also click the gear icon in the bottom left.',
+        tr('Open settings'),
+        tr('You can also click the gear icon in the bottom left.'),
         () => showSettings(context),
       ),
     ];
 
     return Column(
       children: [
-        const PageHeader(icon: Icon(Icons.home), title: Text('Home')),
+        PageHeader(icon: Icon(Icons.home), title: Text(tr('Home'))),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 12),
@@ -350,10 +350,10 @@ class _FriendsPageState extends State<FriendsPage> {
       children: [
         PageHeader(
           icon: const Icon(Icons.group),
-          title: const Text('Friends'),
+          title: Text(tr('Friends')),
           actions: [
             IconButton(
-              tooltip: 'Add friend',
+              tooltip: tr('Add friend'),
               icon: const Icon(Icons.person_add_alt_1),
               onPressed: () async {
                 final name = await promptText(

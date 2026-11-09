@@ -14,6 +14,7 @@ import '../settings/server_settings.dart';
 import '../widgets.dart';
 import 'context_menu.dart';
 import 'notification_menu.dart';
+import '../../core/i18n.dart';
 
 bool channelUnread(ClientStore store, String id) => store.isUnread(id);
 
@@ -53,12 +54,12 @@ List<MenuItem> serverMenu(BuildContext context, String serverId) {
 
   return [
     if (serverUnread(store, serverId)) ...[
-      MenuItem.button('Mark as read', icon: Icons.mark_chat_read_outlined, onTap: () => markServerRead(store, serverId)),
+      MenuItem.button(tr('Mark as read'), icon: Icons.mark_chat_read_outlined, onTap: () => markServerRead(store, serverId)),
       const MenuItem.divider(),
     ],
     mute,
     MenuItem.sub(
-      'Add to folder',
+      tr('Add to folder'),
       icon: Icons.folder_outlined,
       onTap: () {
         store.ordering.createFolder('New Folder', [serverId]);
@@ -70,37 +71,37 @@ List<MenuItem> serverMenu(BuildContext context, String serverId) {
             store.ordering.addToFolder(f.id, serverId);
             store.refresh();
           }),
-        MenuItem.button('New folder', icon: Icons.create_new_folder_outlined, onTap: () {
+        MenuItem.button(tr('New folder'), icon: Icons.create_new_folder_outlined, onTap: () {
           store.ordering.createFolder('New Folder', [serverId]);
           store.refresh();
         }),
       ],
     ),
     if (inFolder != null)
-      MenuItem.button('Remove from folder', icon: Icons.folder_off_outlined, onTap: () {
+      MenuItem.button(tr('Remove from folder'), icon: Icons.folder_off_outlined, onTap: () {
         store.ordering.removeFromFolder(serverId);
         store.refresh();
       }),
     const MenuItem.divider(),
     MenuItem.sub(
-      'Notifications',
+      tr('Notifications'),
       icon: Icons.notifications_outlined,
       children: [
-        MenuItem.button('All Messages', icon: Icons.notifications_active_outlined, trailing: radio(level == 'all'), onTap: () => setLevel('all')),
-        MenuItem.button('Mentions Only', icon: Icons.alternate_email, trailing: radio(level == 'mention'), onTap: () => setLevel('mention')),
-        MenuItem.button('None', icon: Icons.notifications_off_outlined, trailing: radio(level == 'none'), onTap: () => setLevel('none')),
+        MenuItem.button(tr('All Messages'), icon: Icons.notifications_active_outlined, trailing: radio(level == 'all'), onTap: () => setLevel('all')),
+        MenuItem.button(tr('Mentions Only'), icon: Icons.alternate_email, trailing: radio(level == 'mention'), onTap: () => setLevel('mention')),
+        MenuItem.button(tr('None'), icon: Icons.notifications_off_outlined, trailing: radio(level == 'none'), onTap: () => setLevel('none')),
       ],
     ),
     const MenuItem.divider(),
-    if (inviteChannel != null) MenuItem.button('Create invite', icon: Icons.person_add_outlined, onTap: () => showCreateInvite(context, inviteChannel['_id'] as String)),
-    if (canIdentity) MenuItem.button('Edit your identity', icon: Icons.face, onTap: () => showServerIdentity(context, serverId, store.userId!)),
-    if (canSettings) MenuItem.button('Open server settings', icon: Icons.settings_outlined, onTap: () => showServerSettings(context, serverId)),
+    if (inviteChannel != null) MenuItem.button(tr('Create invite'), icon: Icons.person_add_outlined, onTap: () => showCreateInvite(context, inviteChannel['_id'] as String)),
+    if (canIdentity) MenuItem.button(tr('Edit your identity'), icon: Icons.face, onTap: () => showServerIdentity(context, serverId, store.userId!)),
+    if (canSettings) MenuItem.button(tr('Open server settings'), icon: Icons.settings_outlined, onTap: () => showServerSettings(context, serverId)),
     if (inviteChannel != null || canIdentity || canSettings) const MenuItem.divider(),
-    MenuItem.button('Report server', icon: Icons.report_outlined, destructive: true, onTap: () => showReportDialog(context, type: 'Server', id: serverId)),
-    if (!isOwner) MenuItem.button('Leave server', icon: Icons.logout, destructive: true, onTap: () => showLeaveServer(context, serverId)),
+    MenuItem.button(tr('Report server'), icon: Icons.report_outlined, destructive: true, onTap: () => showReportDialog(context, type: 'Server', id: serverId)),
+    if (!isOwner) MenuItem.button(tr('Leave server'), icon: Icons.logout, destructive: true, onTap: () => showLeaveServer(context, serverId)),
     if (settings.adminPanel && settings.copyId) const MenuItem.divider(),
-    if (settings.adminPanel) MenuItem.button('Admin Panel', icon: Icons.shield_outlined, onTap: () => openUrl(adminInspectUrl('server', serverId))),
-    if (settings.copyId) MenuItem.button('Copy server ID', icon: Icons.badge_outlined, onTap: () => copyText(context, serverId)),
+    if (settings.adminPanel) MenuItem.button(tr('Admin Panel'), icon: Icons.shield_outlined, onTap: () => openUrl(adminInspectUrl('server', serverId))),
+    if (settings.copyId) MenuItem.button(tr('Copy server ID'), icon: Icons.badge_outlined, onTap: () => copyText(context, serverId)),
   ];
 }
 
@@ -125,27 +126,27 @@ List<MenuItem> channelMenu(BuildContext context, Json channel) {
   return [
     if (unread || canInvite) ...[
       if (unread)
-        MenuItem.button('Mark as read', icon: Icons.mark_chat_read_outlined, onTap: () {
+        MenuItem.button(tr('Mark as read'), icon: Icons.mark_chat_read_outlined, onTap: () {
           final last = channel['last_message_id'] as String?;
           if (last != null) store.ack(id, last);
         }),
-      if (canInvite) MenuItem.button('Create invite', icon: Icons.group_add_outlined, onTap: () => showCreateInvite(context, id)),
+      if (canInvite) MenuItem.button(tr('Create invite'), icon: Icons.group_add_outlined, onTap: () => showCreateInvite(context, id)),
       const MenuItem.divider(),
     ],
     ...notificationMenu(context, store, 'channel', id),
     const MenuItem.divider(),
     if (canManageServerChannels) ...[
-      MenuItem.button('Create channel', icon: Icons.library_add_outlined, onTap: () => showCreateChannel(context, sid!, categoryId: categoryOf())),
-      MenuItem.button('Create category', icon: Icons.library_add_outlined, onTap: () => showCreateCategory(context, sid!)),
+      MenuItem.button(tr('Create channel'), icon: Icons.library_add_outlined, onTap: () => showCreateChannel(context, sid, categoryId: categoryOf())),
+      MenuItem.button(tr('Create category'), icon: Icons.library_add_outlined, onTap: () => showCreateCategory(context, sid)),
     ],
     if (canManage) ...[
-      MenuItem.button('Open channel settings', icon: Icons.settings_outlined, onTap: () => showChannelSettings(context, id)),
+      MenuItem.button(tr('Open channel settings'), icon: Icons.settings_outlined, onTap: () => showChannelSettings(context, id)),
       MenuItem.button(type == 'Group' ? 'Leave group' : 'Delete channel', icon: type == 'Group' ? Icons.logout : Icons.delete_outline, destructive: true, onTap: () => showDeleteChannel(context, channel)),
     ],
     if (canManageServerChannels || canManage) const MenuItem.divider(),
-    if (settings.adminPanel) MenuItem.button('Admin Panel', icon: Icons.shield_outlined, onTap: () => openUrl(adminInspectUrl('channel', id))),
-    MenuItem.button('Copy link', icon: Icons.share_outlined, onTap: () => copyText(context, context.fullHref('${sid != null ? '/server/$sid' : ''}/channel/$id'))),
-    if (settings.copyId) MenuItem.button('Copy channel ID', icon: Icons.badge_outlined, onTap: () => copyText(context, id)),
+    if (settings.adminPanel) MenuItem.button(tr('Admin Panel'), icon: Icons.shield_outlined, onTap: () => openUrl(adminInspectUrl('channel', id))),
+    MenuItem.button(tr('Copy link'), icon: Icons.share_outlined, onTap: () => copyText(context, context.fullHref('${sid != null ? '/server/$sid' : ''}/channel/$id'))),
+    if (settings.copyId) MenuItem.button(tr('Copy channel ID'), icon: Icons.badge_outlined, onTap: () => copyText(context, id)),
   ];
 }
 
@@ -157,7 +158,7 @@ List<MenuItem> categoryMenu(BuildContext context, String serverId, Map<String, d
   final canManage = store.canInServer(serverId, Perm.manageChannel);
   return [
     if (unread) ...[
-      MenuItem.button('Mark as read', icon: Icons.mark_chat_read_outlined, onTap: () {
+      MenuItem.button(tr('Mark as read'), icon: Icons.mark_chat_read_outlined, onTap: () {
         for (final cid in channelIds) {
           final last = store.channels[cid]?['last_message_id'] as String?;
           if (last != null && store.isUnread(cid)) store.ack(cid, last);
@@ -166,14 +167,14 @@ List<MenuItem> categoryMenu(BuildContext context, String serverId, Map<String, d
       const MenuItem.divider(),
     ],
     if (canManage) ...[
-      MenuItem.button('Create channel', icon: Icons.library_add_outlined, onTap: () => showCreateChannel(context, serverId, categoryId: category['id'] as String)),
-      MenuItem.button('Create category', icon: Icons.library_add_outlined, onTap: () => showCreateCategory(context, serverId)),
-      MenuItem.button('Rename category', icon: Icons.edit_outlined, onTap: () => showEditCategory(context, serverId, category['id'] as String, category['title'] as String? ?? '')),
-      MenuItem.button('Delete category', icon: Icons.delete_outline, destructive: true, onTap: () => showDeleteCategory(context, serverId, category['id'] as String)),
+      MenuItem.button(tr('Create channel'), icon: Icons.library_add_outlined, onTap: () => showCreateChannel(context, serverId, categoryId: category['id'] as String)),
+      MenuItem.button(tr('Create category'), icon: Icons.library_add_outlined, onTap: () => showCreateCategory(context, serverId)),
+      MenuItem.button(tr('Rename category'), icon: Icons.edit_outlined, onTap: () => showEditCategory(context, serverId, category['id'] as String, category['title'] as String? ?? '')),
+      MenuItem.button(tr('Delete category'), icon: Icons.delete_outline, destructive: true, onTap: () => showDeleteCategory(context, serverId, category['id'] as String)),
     ],
     if (settings.copyId) ...[
       const MenuItem.divider(),
-      MenuItem.button('Copy category ID', icon: Icons.badge_outlined, onTap: () => copyText(context, category['id'] as String)),
+      MenuItem.button(tr('Copy category ID'), icon: Icons.badge_outlined, onTap: () => copyText(context, category['id'] as String)),
     ],
   ];
 }
@@ -181,9 +182,9 @@ List<MenuItem> categoryMenu(BuildContext context, String serverId, Map<String, d
 List<MenuItem> folderMenu(BuildContext context, ServerFolder folder) {
   final store = context.read<ClientStore>();
   return [
-    MenuItem.button('Edit folder', icon: Icons.drive_file_rename_outline, onTap: () => showEditFolder(context, folder)),
+    MenuItem.button(tr('Edit folder'), icon: Icons.drive_file_rename_outline, onTap: () => showEditFolder(context, folder)),
     const MenuItem.divider(),
-    MenuItem.button('Delete folder', icon: Icons.delete_outline, destructive: true, onTap: () {
+    MenuItem.button(tr('Delete folder'), icon: Icons.delete_outline, destructive: true, onTap: () {
       store.ordering.deleteFolder(folder.id);
       store.refresh();
     }),
@@ -194,7 +195,7 @@ List<MenuItem> serverSidebarMenu(BuildContext context, String serverId) {
   final store = context.read<ClientStore>();
   if (!store.canInServer(serverId, Perm.manageChannel)) return const [];
   return [
-    MenuItem.button('Create channel', icon: Icons.library_add_outlined, onTap: () => showCreateChannel(context, serverId)),
-    MenuItem.button('Create category', icon: Icons.library_add_outlined, onTap: () => showCreateCategory(context, serverId)),
+    MenuItem.button(tr('Create channel'), icon: Icons.library_add_outlined, onTap: () => showCreateChannel(context, serverId)),
+    MenuItem.button(tr('Create category'), icon: Icons.library_add_outlined, onTap: () => showCreateCategory(context, serverId)),
   ];
 }

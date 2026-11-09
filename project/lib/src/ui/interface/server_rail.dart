@@ -19,6 +19,7 @@ import '../modals/server_modals.dart';
 import '../settings/settings_page.dart';
 import '../widgets.dart';
 import 'interface_shell.dart' show NavTarget;
+import '../../core/i18n.dart';
 
 String lastServerPath(SettingsStore s, String serverId) => s.raw<String>('layout.server.$serverId') ?? '/server/$serverId';
 
@@ -218,7 +219,7 @@ class _ServerRailState extends State<ServerRail> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(s['name'] as String? ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: cs.onInverseSurface)),
-              if (muted) Text('Muted', style: TextStyle(fontSize: 12, color: cs.onInverseSurface.withValues(alpha: .7))),
+              if (muted) Text(tr('Muted'), style: TextStyle(fontSize: 12, color: cs.onInverseSurface.withValues(alpha: .7))),
             ],
           ),
           onTap: () => context.goPath(lastServerPath(settings, serverId)),
@@ -382,7 +383,7 @@ class _ServerRailState extends State<ServerRail> {
           ),
           Container(height: 1, color: cs.outlineVariant.withValues(alpha: .0)),
           entry(
-            tooltip: 'Settings',
+            tooltip: tr('Settings'),
             onTap: () => showSettings(context),
             child: Container(width: 42, height: 42, decoration: BoxDecoration(color: cs.surfaceContainerHighest, shape: BoxShape.circle), child: Icon(Icons.settings, color: cs.onSurface)),
           ),
@@ -400,11 +401,6 @@ class _ServerRailState extends State<ServerRail> {
     final store = context.read<ClientStore>();
     final me = store.me ?? const {};
     final text = (me['status'] as Map?)?['text'] as String?;
-    MenuItem presence(String p, String label, {IconData? info}) => MenuItem.button(
-      label,
-      icon: Icons.circle,
-      onTap: () => store.setStatus(p, text: text),
-    );
     return [
       MenuItem.custom(
         InkWell(
@@ -431,19 +427,19 @@ class _ServerRailState extends State<ServerRail> {
         ),
       ),
       const MenuItem.divider(),
-      MenuItem.custom(_PresenceRow(label: 'Online', presence: 'Online', onTap: () => store.setStatus('Online', text: text))),
-      MenuItem.custom(_PresenceRow(label: 'Idle', presence: 'Idle', onTap: () => store.setStatus('Idle', text: text))),
-      MenuItem.custom(_PresenceRow(label: 'Focus', presence: 'Focus', hint: 'Only mentions will notify you', onTap: () => store.setStatus('Focus', text: text))),
-      MenuItem.custom(_PresenceRow(label: 'Do Not Disturb', presence: 'Busy', hint: 'You will not receive any notifications', onTap: () => store.setStatus('Busy', text: text))),
-      MenuItem.custom(_PresenceRow(label: 'Invisible', presence: 'Invisible', onTap: () => store.setStatus('Invisible', text: text))),
+      MenuItem.custom(_PresenceRow(label: tr('Online'), presence: 'Online', onTap: () => store.setStatus('Online', text: text))),
+      MenuItem.custom(_PresenceRow(label: tr('Idle'), presence: 'Idle', onTap: () => store.setStatus('Idle', text: text))),
+      MenuItem.custom(_PresenceRow(label: tr('Focus'), presence: 'Focus', hint: tr('Only mentions will notify you'), onTap: () => store.setStatus('Focus', text: text))),
+      MenuItem.custom(_PresenceRow(label: tr('Do Not Disturb'), presence: 'Busy', hint: tr('You will not receive any notifications'), onTap: () => store.setStatus('Busy', text: text))),
+      MenuItem.custom(_PresenceRow(label: tr('Invisible'), presence: 'Invisible', onTap: () => store.setStatus('Invisible', text: text))),
       const MenuItem.divider(),
       if (text == null || text.isEmpty)
-        MenuItem.button('Add status text', icon: Icons.edit_note, onTap: () => showCustomStatus(context))
+        MenuItem.button(tr('Add status text'), icon: Icons.edit_note, onTap: () => showCustomStatus(context))
       else ...[
         MenuItem.button(text, icon: Icons.edit_note, capitalise: false, onTap: () => showCustomStatus(context)),
-        MenuItem.button('Clear status', icon: Icons.delete_outline, onTap: () => store.setStatus((me['status'] as Map?)?['presence'] as String? ?? 'Online', clearText: true)),
+        MenuItem.button(tr('Clear status'), icon: Icons.delete_outline, onTap: () => store.setStatus((me['status'] as Map?)?['presence'] as String? ?? 'Online', clearText: true)),
       ],
-      if (store.settings.copyId) MenuItem.button('Copy user ID', icon: Icons.contact_page_outlined, onTap: () => copyText(context, store.userId!)),
+      if (store.settings.copyId) MenuItem.button(tr('Copy user ID'), icon: Icons.contact_page_outlined, onTap: () => copyText(context, store.userId!)),
     ];
   }
 }
@@ -465,7 +461,7 @@ class _PresenceRow extends StatelessWidget {
         spacing: 8,
         children: [
           SizedBox(width: 16, child: Center(child: Container(width: 10, height: 10, decoration: BoxDecoration(color: StatusColors.of(presence == 'Invisible' ? null : presence), shape: BoxShape.circle, border: presence == 'Invisible' ? Border.all(color: context.cs.outline, width: 2) : null)))),
-          Text(label, style: const TextStyle(fontSize: 14)),
+          Text(tr(label), style: const TextStyle(fontSize: 14)),
           if (hint != null) Tooltip(message: hint!, child: const Icon(Icons.info_outline, size: 12)),
         ],
       ),
@@ -498,11 +494,11 @@ Future<void> showCustomStatus(BuildContext context) {
   final ctl = TextEditingController(text: (store.me?['status'] as Map?)?['text'] as String? ?? '');
   return showAppDialog<void>(
     context,
-    title: 'Set custom status',
-    content: TextField(controller: ctl, maxLength: 128, autofocus: true, decoration: const InputDecoration(labelText: 'Custom Status')),
+    title: tr('Custom status'),
+    content: TextField(controller: ctl, maxLength: 128, autofocus: true, decoration: InputDecoration(labelText: tr('Custom status'))),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Save', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Save'), onPressed: () async {
         final presence = (store.me?['status'] as Map?)?['presence'] as String? ?? 'Online';
         await store.setStatus(presence, text: ctl.text.trim().isEmpty ? null : ctl.text.trim(), clearText: ctl.text.trim().isEmpty);
         return null;

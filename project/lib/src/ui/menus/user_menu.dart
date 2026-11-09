@@ -13,6 +13,7 @@ import '../profile/profile.dart';
 import '../widgets.dart';
 import 'context_menu.dart';
 import 'notification_menu.dart';
+import '../../core/i18n.dart';
 
 /// Opens the profile card (desktop) or full profile (phone) for a user.
 void openUserCard(BuildContext context, String userId, {String? serverId}) => showUserCard(context, userId, serverId: serverId);
@@ -43,7 +44,7 @@ class _VolumeSliderState extends State<_VolumeSlider> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(widget.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+        Text(tr(widget.label), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
         SizedBox(
           width: 220,
           child: Slider(
@@ -86,7 +87,7 @@ class _CheckRowState extends State<_CheckRow> {
           spacing: 8,
           children: [
             Icon(Icons.mic_off, size: 16, fill: on ? 1 : 0),
-            Expanded(child: Text(widget.label, style: const TextStyle(fontSize: 14))),
+            Expanded(child: Text(tr(widget.label), style: const TextStyle(fontSize: 14))),
             Icon(on ? Icons.check_box : Icons.check_box_outline_blank, size: 16),
           ],
         ),
@@ -148,59 +149,59 @@ List<MenuItem> userMenu(
 
   return [
     if (inVoice && !self && !isScreenshare) ...[
-      MenuItem.custom(_VolumeSlider(label: 'Volume', get: () => settings.userVolume(userId), set: (v) => settings.setUserVolume(userId, v))),
-      MenuItem.custom(_CheckRow(label: 'Mute', get: () => settings.userMuted(userId), set: (v) => settings.setUserMuted(userId, v))),
+      MenuItem.custom(_VolumeSlider(label: tr('Volume'), get: () => settings.userVolume(userId), set: (v) => settings.setUserVolume(userId, v))),
+      MenuItem.custom(_CheckRow(label: tr('Mute'), get: () => settings.userMuted(userId), set: (v) => settings.setUserMuted(userId, v))),
       const MenuItem.divider(),
     ],
     if (isScreenshare && !self) ...[
-      MenuItem.custom(_VolumeSlider(label: 'Screen Share Volume', get: () => settings.screenShareVolume(userId), set: (v) => settings.setScreenShareVolume(userId, v))),
-      MenuItem.custom(_CheckRow(label: 'Mute Screen Share', get: () => settings.screenShareMuted(userId), set: (v) => settings.setScreenShareMuted(userId, v))),
+      MenuItem.custom(_VolumeSlider(label: tr('Screen Share Volume'), get: () => settings.screenShareVolume(userId), set: (v) => settings.setScreenShareVolume(userId, v))),
+      MenuItem.custom(_CheckRow(label: tr('Mute Screen Share'), get: () => settings.screenShareMuted(userId), set: (v) => settings.setScreenShareMuted(userId, v))),
       const MenuItem.divider(),
     ],
-    MenuItem.button('Profile', icon: Icons.account_circle_outlined, onTap: () => showUserProfile(context, userId, serverId: sid)),
-    if (rel == 'Friend' || isBot) MenuItem.button('Message', icon: Icons.chat_bubble_outline, onTap: openDm),
-    if (channelType == 'TextChannel') MenuItem.button('Mention', icon: Icons.alternate_email, onTap: () => drafts.requestInsert('<@$userId>')),
+    MenuItem.button(tr('Profile'), icon: Icons.account_circle_outlined, onTap: () => showUserProfile(context, userId, serverId: sid)),
+    if (rel == 'Friend' || isBot) MenuItem.button(tr('Message'), icon: Icons.chat_bubble_outline, onTap: openDm),
+    if (channelType == 'TextChannel') MenuItem.button(tr('Mention'), icon: Icons.alternate_email, onTap: () => drafts.requestInsert('<@$userId>')),
     if (channelType == 'DirectMessage') ...[
       const MenuItem.divider(),
-      MenuItem.button('Close chat', icon: Icons.close, destructive: true, onTap: () => showDeleteChannel(context, ch!, onDone: () => context.goPath('/'))),
+      MenuItem.button(tr('Close chat'), icon: Icons.close, destructive: true, onTap: () => showDeleteChannel(context, ch!, onDone: () => context.goPath('/'))),
       ...notificationMenu(context, store, 'channel', ch!['_id'] as String),
     ],
     if (canEditIdentity() || canEditRoles()) ...[
       const MenuItem.divider(),
       if (canEditIdentity()) MenuItem.button(self ? 'Edit your identity' : 'Edit identity', icon: Icons.face, onTap: () => showServerIdentity(context, sid!, userId)),
-      if (canEditRoles()) MenuItem.button('Edit roles', icon: Icons.assignment_ind_outlined, onTap: () => showUserRoles(context, sid!, userId)),
+      if (canEditRoles()) MenuItem.button(tr('Edit roles'), icon: Icons.assignment_ind_outlined, onTap: () => showUserRoles(context, sid!, userId)),
     ],
     if (!self && !isBot && (rel == 'None' || rel == 'Incoming' || rel == 'Outgoing')) ...[
       const MenuItem.divider(),
-      if (rel == 'None') MenuItem.button('Add friend', icon: Icons.person_add_alt, onTap: () => _guarded(context, () => store.acceptFriend(userId))),
+      if (rel == 'None') MenuItem.button(tr('Add friend'), icon: Icons.person_add_alt, onTap: () => _guarded(context, () => store.acceptFriend(userId))),
       if (rel == 'Incoming') ...[
-        MenuItem.button('Accept friend request', icon: Icons.person_add_alt, onTap: () => _guarded(context, () => store.acceptFriend(userId))),
-        MenuItem.button('Reject friend request', icon: Icons.cancel_outlined, destructive: true, onTap: () => _guarded(context, () => store.removeFriend(userId))),
+        MenuItem.button(tr('Accept friend request'), icon: Icons.person_add_alt, onTap: () => _guarded(context, () => store.acceptFriend(userId))),
+        MenuItem.button(tr('Reject friend request'), icon: Icons.cancel_outlined, destructive: true, onTap: () => _guarded(context, () => store.removeFriend(userId))),
       ],
-      if (rel == 'Outgoing') MenuItem.button('Cancel friend request', icon: Icons.cancel_outlined, destructive: true, onTap: () => _guarded(context, () => store.removeFriend(userId))),
+      if (rel == 'Outgoing') MenuItem.button(tr('Cancel friend request'), icon: Icons.cancel_outlined, destructive: true, onTap: () => _guarded(context, () => store.removeFriend(userId))),
     ],
     if (canRemoveFromGroup || (member != null && (canTimeout || canKick || canBan))) ...[
       const MenuItem.divider(),
-      if (canRemoveFromGroup) MenuItem.button('Remove Member', icon: Icons.person_remove_outlined, destructive: true, onTap: () => showRemoveGroupMember(context, ch!, userId)),
-      if (canTimeout && !inTimeout) MenuItem.button('Timeout Member', icon: Icons.timer_outlined, destructive: true, onTap: () => showTimeoutMember(context, sid!, userId)),
-      if (canTimeout && inTimeout) MenuItem.button('Remove Timeout', icon: Icons.timer_off_outlined, destructive: true, onTap: () => showRemoveTimeout(context, sid!, userId)),
-      if (canKick) MenuItem.button('Kick member', icon: Icons.person_remove_outlined, destructive: true, onTap: () => showKickMember(context, sid!, userId)),
-      if (canBan) MenuItem.button('Ban member', icon: Icons.do_not_disturb_on_outlined, destructive: true, onTap: () => showBanMember(context, sid!, userId)),
+      if (canRemoveFromGroup) MenuItem.button(tr('Remove Member'), icon: Icons.person_remove_outlined, destructive: true, onTap: () => showRemoveGroupMember(context, ch!, userId)),
+      if (canTimeout && !inTimeout) MenuItem.button(tr('Timeout Member'), icon: Icons.timer_outlined, destructive: true, onTap: () => showTimeoutMember(context, sid!, userId)),
+      if (canTimeout && inTimeout) MenuItem.button(tr('Remove Timeout'), icon: Icons.timer_off_outlined, destructive: true, onTap: () => showRemoveTimeout(context, sid!, userId)),
+      if (canKick) MenuItem.button(tr('Kick member'), icon: Icons.person_remove_outlined, destructive: true, onTap: () => showKickMember(context, sid!, userId)),
+      if (canBan) MenuItem.button(tr('Ban member'), icon: Icons.do_not_disturb_on_outlined, destructive: true, onTap: () => showBanMember(context, sid!, userId)),
     ],
     if (canBanNonMember) ...[
       const MenuItem.divider(),
-      MenuItem.button('Ban user', icon: Icons.do_not_disturb_on_outlined, destructive: true, onTap: () => showBanMember(context, sid!, userId, isMember: false)),
+      MenuItem.button(tr('Ban user'), icon: Icons.do_not_disturb_on_outlined, destructive: true, onTap: () => showBanMember(context, sid, userId, isMember: false)),
     ],
     if (!self) ...[
       const MenuItem.divider(),
-      if (rel == 'Friend') MenuItem.button('Remove friend', icon: Icons.person_remove_outlined, destructive: true, onTap: () => _guarded(context, () => store.removeFriend(userId))),
-      if (rel != 'Blocked') MenuItem.button('Block user', icon: Icons.block, destructive: true, onTap: () => _guarded(context, () => store.blockUser(userId))),
-      if (rel == 'Blocked') MenuItem.button('Unblock user', icon: Icons.add_circle_outline, onTap: () => _guarded(context, () => store.unblockUser(userId))),
+      if (rel == 'Friend') MenuItem.button(tr('Remove friend'), icon: Icons.person_remove_outlined, destructive: true, onTap: () => _guarded(context, () => store.removeFriend(userId))),
+      if (rel != 'Blocked') MenuItem.button(tr('Block user'), icon: Icons.block, destructive: true, onTap: () => _guarded(context, () => store.blockUser(userId))),
+      if (rel == 'Blocked') MenuItem.button(tr('Unblock user'), icon: Icons.add_circle_outline, onTap: () => _guarded(context, () => store.unblockUser(userId))),
       if (user['privileged'] != true)
-        MenuItem.button('Report user', icon: Icons.report_outlined, destructive: true, onTap: () => showReportDialog(context, type: 'User', id: userId, contextMessageId: contextMessage?['_id'] as String?)),
+        MenuItem.button(tr('Report user'), icon: Icons.report_outlined, destructive: true, onTap: () => showReportDialog(context, type: 'User', id: userId, contextMessageId: contextMessage?['_id'] as String?)),
     ],
     if (settings.adminPanel || settings.copyId) const MenuItem.divider(),
-    if (settings.adminPanel) MenuItem.button('Admin Panel', icon: Icons.admin_panel_settings_outlined, onTap: () => openUrl(adminInspectUrl('user', userId))),
-    if (settings.copyId) MenuItem.button('Copy user ID', icon: Icons.badge_outlined, onTap: () => copyText(context, userId)),
+    if (settings.adminPanel) MenuItem.button(tr('Admin Panel'), icon: Icons.admin_panel_settings_outlined, onTap: () => openUrl(adminInspectUrl('user', userId))),
+    if (settings.copyId) MenuItem.button(tr('Copy user ID'), icon: Icons.badge_outlined, onTap: () => copyText(context, userId)),
   ];
 }

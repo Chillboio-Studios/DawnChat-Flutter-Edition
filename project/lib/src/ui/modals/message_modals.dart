@@ -6,6 +6,7 @@ import '../../theme/tokens.dart';
 import '../messaging/message_tile.dart';
 import '../widgets.dart';
 import 'app_dialog.dart';
+import '../../core/i18n.dart';
 
 Future<void> deleteMessageFlow(BuildContext context, Json message, {bool quick = false}) {
   final store = context.read<ClientStore>();
@@ -13,12 +14,12 @@ Future<void> deleteMessageFlow(BuildContext context, Json message, {bool quick =
   if (quick) return store.deleteMessage(ch, id);
   return showAppDialog<void>(
     context,
-    title: 'Delete message',
+    title: tr('Delete message'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Are you sure you want to delete this?'),
+        Text(tr('Are you sure you want to delete this?')),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.md),
           child: IgnorePointer(child: MessageTile(message: message, serverId: store.channels[ch]?['server'] as String?, isLink: MessageLink.hide)),
@@ -26,8 +27,8 @@ Future<void> deleteMessageFlow(BuildContext context, Json message, {bool quick =
       ],
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Delete', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Delete'), onPressed: () async {
         await store.deleteMessage(ch, id);
         return null;
       }),
@@ -46,7 +47,7 @@ Future<void> pinMessageFlow(BuildContext context, Json message, {bool quick = fa
     title: pinned ? 'Unpin message' : 'Pin message',
     content: Text(pinned ? 'Are you sure you want to unpin this message?' : 'Are you sure you want to pin this message?'),
     actions: [
-      const DlgAction('Cancel'),
+      DlgAction(tr('Cancel')),
       DlgAction(pinned ? 'Unpin' : 'Pin', onPressed: () async {
         await toggle();
         return null;
@@ -126,19 +127,19 @@ Future<void> showReportDialog(BuildContext context, {required String type, requi
           DropdownButtonFormField<String>(
             initialValue: category.isEmpty ? null : category,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Reason for report'),
-            hint: const Text('Please select a reason'),
+            decoration: InputDecoration(labelText: tr('Reason for report')),
+            hint: Text(tr('Please select a reason')),
             items: [for (final e in reasons.entries) DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))],
             onChanged: (v) => set(() => category = v ?? ''),
           ),
           const SizedBox(height: 12),
-          TextField(controller: detail, decoration: const InputDecoration(labelText: 'Give us some detail'), minLines: 1, maxLines: 5),
+          TextField(controller: detail, decoration: InputDecoration(labelText: tr('Give us some detail')), minLines: 1, maxLines: 5),
         ],
       ),
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Report', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Report'), onPressed: () async {
         if (category.isEmpty || (category == 'NoneSpecified' && detail.text.trim().isEmpty)) {
           throw 'NoReasonProvided';
         }

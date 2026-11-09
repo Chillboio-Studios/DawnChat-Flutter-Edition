@@ -12,6 +12,7 @@ import '../settings/channel_settings.dart';
 import '../voice/voice_ui.dart';
 import '../widgets.dart';
 import 'interface_shell.dart';
+import '../../core/i18n.dart';
 
 class SidebarPanel extends StatelessWidget {
   const SidebarPanel({super.key, required this.target});
@@ -46,7 +47,7 @@ Future<void> showNotificationOptions(BuildContext context, String kind, String i
 
         Widget mute(String label, Duration? d) => ListTile(
               dense: true,
-              title: Text(label),
+              title: Text(tr(label)),
               onTap: () => apply(() => s.setMute(kind, id, d == null ? -1 : DateTime.now().add(d).millisecondsSinceEpoch)),
             );
 
@@ -58,15 +59,15 @@ Future<void> showNotificationOptions(BuildContext context, String kind, String i
                 groupValue: level,
                 onChanged: (v) => apply(() => s.setNotif(kind, id, v)),
                 child: Column(children: [
-                  const RadioListTile<String?>(title: Text('Default'), value: null),
-                  const RadioListTile<String?>(title: Text('All messages'), value: 'all'),
-                  const RadioListTile<String?>(title: Text('Mentions only'), value: 'mention'),
-                  const RadioListTile<String?>(title: Text('None'), value: 'none'),
+                  RadioListTile<String?>(title: Text(tr('Default')), value: null),
+                  RadioListTile<String?>(title: Text(tr('All Messages')), value: 'all'),
+                  RadioListTile<String?>(title: Text(tr('Mentions Only')), value: 'mention'),
+                  RadioListTile<String?>(title: Text(tr('None')), value: 'none'),
                 ]),
               ),
               const Divider(),
               if (muted)
-                ListTile(dense: true, title: const Text('Unmute'), leading: const Icon(Icons.notifications_active_outlined), onTap: () => apply(() => s.setMute(kind, id, null)))
+                ListTile(dense: true, title: Text(tr('Unmute')), leading: const Icon(Icons.notifications_active_outlined), onTap: () => apply(() => s.setMute(kind, id, null)))
               else ...[
                 mute('Mute for 15 minutes', const Duration(minutes: 15)),
                 mute('Mute for 1 hour', const Duration(hours: 1)),
@@ -76,7 +77,7 @@ Future<void> showNotificationOptions(BuildContext context, String kind, String i
               ],
             ]),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Done'))],
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Done')))],
         );
       },
     ),
@@ -95,12 +96,12 @@ Future<void> channelMenu(BuildContext context, Map<String, dynamic> c) async {
         children: [
           ListTile(
             leading: const Icon(Icons.settings_outlined),
-            title: const Text('Channel settings'),
+            title: Text(tr('Channel Settings')),
             onTap: () => Navigator.pop(s, 'settings'),
           ),
           ListTile(
             leading: const Icon(Icons.mark_chat_read_outlined),
-            title: const Text('Mark as read'),
+            title: Text(tr('Mark as read')),
             onTap: () => Navigator.pop(s, 'read'),
           ),
           ListTile(
@@ -111,7 +112,7 @@ Future<void> channelMenu(BuildContext context, Map<String, dynamic> c) async {
           if (store.settings.copyId)
             ListTile(
               leading: const Icon(Icons.copy),
-              title: const Text('Copy ID'),
+              title: Text(tr('Copy ID')),
               onTap: () => Navigator.pop(s, 'copy'),
             ),
           if (store.settings.adminPanel)
@@ -184,21 +185,21 @@ class HomeSidebar extends StatelessWidget {
           height: 48,
           margin: const EdgeInsets.all(Gap.md).copyWith(left: Gap.lg),
           alignment: Alignment.centerLeft,
-          child: const Text(
-            'Conversations',
+          child: Text(
+            tr('Conversations'),
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
         ),
         MenuButton(
           leading: const Icon(Icons.home_outlined),
-          title: const Text('Home'),
+          title: Text(tr('Home')),
           selected: path == '/app' || path == '/',
           onTap: () => context.goPath('/app'),
         ),
         const SizedBox(height: 5),
         MenuButton(
           leading: const Icon(Icons.group_outlined),
-          title: const Text('Friends'),
+          title: Text(tr('Friends')),
           selected: path == '/friends',
           trailing: pending > 0
               ? Container(
@@ -225,7 +226,7 @@ class HomeSidebar extends StatelessWidget {
         const SizedBox(height: 5),
         MenuButton(
           leading: const Icon(Icons.sticky_note_2_outlined),
-          title: const Text('Saved Notes'),
+          title: Text(tr('Saved Notes')),
           selected: saved != null && saved['_id'] == channelId,
           onTap: () async {
             if (saved != null) {
@@ -254,8 +255,8 @@ class HomeSidebar extends StatelessWidget {
     final name = await promptText(
       context,
       'Create a group',
-      label: 'Group name',
-      action: 'Create',
+      label: tr('Group Name'),
+      action: tr('Create'),
     );
     if (name == null || name.isEmpty) return;
     try {
@@ -464,7 +465,7 @@ class ServerSidebar extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.add),
-              title: const Text('Create channel'),
+              title: Text(tr('Create channel')),
               onTap: () => Navigator.pop(c, 'channel'),
             ),
             ListTile(
@@ -475,7 +476,7 @@ class ServerSidebar extends StatelessWidget {
             if (store.settings.copyId)
               ListTile(
                 leading: const Icon(Icons.copy),
-                title: const Text('Copy ID'),
+                title: Text(tr('Copy ID')),
                 onTap: () => Navigator.pop(c, 'copy'),
               ),
             ListTile(
@@ -503,7 +504,7 @@ class ServerSidebar extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(c),
-                child: const Text('Close'),
+                child: Text(tr('Close')),
               ),
             ],
           ),
@@ -515,9 +516,9 @@ class ServerSidebar extends StatelessWidget {
       case 'channel':
         final name = await promptText(
           context,
-          'Create channel',
-          label: 'Channel name',
-          action: 'Create',
+          tr('Create channel'),
+          label: tr('Channel Name'),
+          action: tr('Create'),
         );
         if (name == null || name.isEmpty || !context.mounted) return;
         try {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/client_store.dart';
 import '../messaging/time_utils.dart';
 import 'context_menu.dart';
+import '../../core/i18n.dart';
 
 Widget _radio(bool on, BuildContext context) =>
     Icon(on ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 20, color: Theme.of(context).colorScheme.onSurface);
@@ -64,7 +65,7 @@ List<MenuItem> notificationMenu(BuildContext context, ClientStore store, String 
         ],
       ),
     MenuItem.sub(
-      'Notifications',
+      tr('Notifications'),
       icon: Icons.notifications_outlined,
       children: [
         MenuItem.button(
@@ -73,9 +74,9 @@ List<MenuItem> notificationMenu(BuildContext context, ClientStore store, String 
           trailing: Builder(builder: (c) => _radio(own == null, c)),
           onTap: () => level(null),
         ),
-        MenuItem.button('All Messages', icon: Icons.notifications_active_outlined, trailing: Builder(builder: (c) => _radio(own == 'all', c)), onTap: () => level('all')),
-        MenuItem.button('Mentions Only', icon: Icons.alternate_email, trailing: Builder(builder: (c) => _radio(own == 'mention', c)), onTap: () => level('mention')),
-        MenuItem.button('None', icon: Icons.notifications_off_outlined, trailing: Builder(builder: (c) => _radio(own == 'none', c)), onTap: () => level('none')),
+        MenuItem.button(tr('All Messages'), icon: Icons.notifications_active_outlined, trailing: Builder(builder: (c) => _radio(own == 'all', c)), onTap: () => level('all')),
+        MenuItem.button(tr('Mentions Only'), icon: Icons.alternate_email, trailing: Builder(builder: (c) => _radio(own == 'mention', c)), onTap: () => level('mention')),
+        MenuItem.button(tr('None'), icon: Icons.notifications_off_outlined, trailing: Builder(builder: (c) => _radio(own == 'none', c)), onTap: () => level('none')),
       ],
     ),
   ];

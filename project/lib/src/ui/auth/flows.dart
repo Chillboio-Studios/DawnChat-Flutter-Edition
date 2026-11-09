@@ -10,6 +10,7 @@ import '../../state/settings_store.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
 import 'auth_page.dart';
+import '../../core/i18n.dart';
 
 String? _pendingEmail;
 
@@ -174,7 +175,7 @@ class _LinkButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (icon != null) ...[Icon(icon, size: 19), const SizedBox(width: 4)],
-          Text(label),
+          Text(tr(label)),
         ],
       ),
     ),
@@ -202,7 +203,7 @@ class _FlowLoginState extends State<FlowLogin> {
         settings.nextPath = null;
         context.go(context.href(next));
       });
-      return const FlowTitle('Logging you in…');
+      return FlowTitle(tr('Logging you in…'));
     }
 
     if (_mfa != null) {
@@ -217,17 +218,17 @@ class _FlowLoginState extends State<FlowLogin> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FlowTitle(
-          'Welcome back',
-          subtitle: 'Log in to pick up right where you left off.',
+        FlowTitle(
+          tr('Welcome back'),
+          subtitle: tr('Log in to pick up right where you left off.'),
         ),
         const SizedBox(height: 16),
         _FlowForm(
           fields: const ['email', 'password'],
-          submitLabel: 'Log in',
-          extra: const [
-            _LinkButton('Forgot password?', '/login/reset'),
-            _LinkButton('Resend verification', '/login/resend'),
+          submitLabel: tr('Log in'),
+          extra: [
+            _LinkButton(tr('Forgot password?'), '/login/reset'),
+            _LinkButton(tr('Resend verification'), '/login/resend'),
           ],
           onSubmit: (d) async {
             final mfa = await store.login(d['email']!, d['password']!);
@@ -277,7 +278,7 @@ class _MfaStepState extends State<_MfaStep> {
             child: SegmentedButton<String>(
               segments: [
                 for (final m in widget.methods)
-                  ButtonSegment(value: m, label: Text(m)),
+                  ButtonSegment(value: m, label: Text(tr(m))),
               ],
               selected: {method},
               onSelectionChanged: (s) => setState(() => method = s.first),
@@ -285,7 +286,7 @@ class _MfaStepState extends State<_MfaStep> {
           ),
         _FlowForm(
           fields: const ['token'],
-          submitLabel: 'Continue',
+          submitLabel: tr('Continue'),
           onSubmit: (d) async {
             final v = d['token']!;
             await store.loginMfa(widget.ticket, switch (method) {
@@ -316,10 +317,10 @@ class FlowToken extends StatelessWidget {
         const SizedBox(height: 16),
         _FlowForm(
           fields: const ['token'],
-          submitLabel: 'Log in',
+          submitLabel: tr('Log in'),
           onSubmit: (d) => store.loginWithToken(d['token']!),
-          footer: const [
-            _LinkButton('Back', '/login/auth', icon: Icons.arrow_back),
+          footer: [
+            _LinkButton(tr('Back'), '/login/auth', icon: Icons.arrow_back),
           ],
         ),
       ],
@@ -340,14 +341,14 @@ class FlowCreate extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FlowTitle(
-          'Join DawnChat',
-          subtitle: 'Set up your account and make yourself at home.',
+        FlowTitle(
+          tr('Join DawnChat'),
+          subtitle: tr('Set up your account and make yourself at home.'),
         ),
         const SizedBox(height: 16),
         _FlowForm(
           fields: ['email', 'new-password', if (inviteOnly) 'invite'],
-          submitLabel: 'Create account',
+          submitLabel: tr('Create account'),
           extra: [
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -369,13 +370,13 @@ class FlowCreate extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Your email stays private',
+                        Text(
+                          tr('Your email stays private'),
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "We only use it to verify your account and help you get back in if you're ever locked out. We'll never sell it or send you spam.",
+                          tr("We only use it to verify your account and help you get back in if you're ever locked out. We'll never sell it or send you spam."),
                           style: TextStyle(
                             color: cs.onSurfaceVariant,
                             fontSize: 13,
@@ -385,7 +386,7 @@ class FlowCreate extends StatelessWidget {
                         InkWell(
                           onTap: () => openUrl(termsUrl),
                           child: Text(
-                            'Privacy policy',
+                            tr('Privacy policy'),
                             style: TextStyle(color: cs.primary, fontSize: 13),
                           ),
                         ),
@@ -415,8 +416,8 @@ class FlowCreate extends StatelessWidget {
               await store.login(d['email']!, d['new-password']!);
             }
           },
-          footer: const [
-            _LinkButton('Back', '/login/auth', icon: Icons.arrow_back),
+          footer: [
+            _LinkButton(tr('Back'), '/login/auth', icon: Icons.arrow_back),
           ],
         ),
       ],
@@ -430,7 +431,7 @@ class FlowCheck extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const FlowTitle('Check your email'),
+      FlowTitle(tr('Check your email')),
       const SizedBox(height: 12),
       Text(
         _pendingEmail == null
@@ -451,14 +452,14 @@ class FlowResend extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FlowTitle(
-          'Resend verification',
+        FlowTitle(
+          tr('Resend verification'),
           subtitle: "We'll send a new verification link to your email.",
         ),
         const SizedBox(height: 16),
         _FlowForm(
           fields: const ['email'],
-          submitLabel: 'Resend',
+          submitLabel: tr('Resend'),
           onSubmit: (d) async {
             await store.api.post('/auth/account/reverify', {
               'email': d['email'],
@@ -466,8 +467,8 @@ class FlowResend extends StatelessWidget {
             _pendingEmail = d['email'];
             if (context.mounted) context.go(context.href('/login/check'));
           },
-          footer: const [
-            _LinkButton('Back', '/login/auth', icon: Icons.arrow_back),
+          footer: [
+            _LinkButton(tr('Back'), '/login/auth', icon: Icons.arrow_back),
           ],
         ),
       ],
@@ -483,8 +484,8 @@ class FlowReset extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FlowTitle(
-          'Reset password',
+        FlowTitle(
+          tr('Reset password'),
           subtitle: "Enter your email and we'll send you a reset link.",
         ),
         const SizedBox(height: 16),
@@ -498,8 +499,8 @@ class FlowReset extends StatelessWidget {
             _pendingEmail = d['email'];
             if (context.mounted) context.go(context.href('/login/check'));
           },
-          footer: const [
-            _LinkButton('Back', '/login/auth', icon: Icons.arrow_back),
+          footer: [
+            _LinkButton(tr('Back'), '/login/auth', icon: Icons.arrow_back),
           ],
         ),
       ],
@@ -520,7 +521,7 @@ class FlowConfirmReset extends StatelessWidget {
         const SizedBox(height: 16),
         _FlowForm(
           fields: const ['new-password'],
-          submitLabel: 'Reset password',
+          submitLabel: tr('Reset password'),
           onSubmit: (d) async {
             await store.api.patch('/auth/account/reset_password', {
               'token': token,
@@ -607,7 +608,7 @@ class DeleteAccountFlow extends StatelessWidget {
               if (context.mounted) showSnack(context, e.toString());
             }
           },
-          child: const Text('Delete account'),
+          child: Text(tr('Delete Account')),
         ),
       ],
     );

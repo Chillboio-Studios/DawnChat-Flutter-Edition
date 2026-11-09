@@ -11,6 +11,7 @@ import '../menus/user_menu.dart';
 import '../messaging/message_tile.dart';
 import '../../router.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 String userStatusText(ClientStore store, String userId) {
   final u = store.user(userId);
@@ -215,7 +216,7 @@ class _SearchSidebarState extends State<SearchSidebar> {
             padding: const EdgeInsets.only(bottom: Gap.md),
             child: SegmentedButton<String>(
               showSelectedIcon: false,
-              segments: const [ButtonSegment(value: 'Relevance', label: Text('Relevance')), ButtonSegment(value: 'Latest', label: Text('Latest')), ButtonSegment(value: 'Oldest', label: Text('Oldest'))],
+              segments: [ButtonSegment(value: 'Relevance', label: Text(tr('Relevance'))), ButtonSegment(value: 'Latest', label: Text(tr('Latest'))), ButtonSegment(value: 'Oldest', label: Text(tr('Oldest')))],
               selected: {sort},
               onSelectionChanged: (s) => setState(() => sort = s.first),
             ),

@@ -21,6 +21,7 @@ import '../widgets.dart';
 import 'embeds.dart';
 import 'markdown_view.dart';
 import 'time_utils.dart';
+import '../../core/i18n.dart';
 
 /// `isLink` of the web client: false, true, or "hide".
 enum MessageLink { none, link, hide }
@@ -275,7 +276,7 @@ class _MessageTileState extends State<MessageTile> {
         Row(
           spacing: 8,
           children: [
-            Text('Failed to send', style: TextStyle(fontSize: 12, color: cs.error)),
+            Text(tr('Failed to send'), style: TextStyle(fontSize: 12, color: cs.error)),
             _LinkText('Retry', () => store.retryMessage(channelId, m)),
             _LinkText('Delete', () => store.discardMessage(channelId, m['nonce'] as String)),
           ],
@@ -597,9 +598,9 @@ class _MessageReplyState extends State<MessageReply> {
 
     Widget body;
     if (blocked) {
-      body = Text('Blocked User', style: textStyle);
+      body = Text(tr('Blocked User'), style: textStyle);
     } else if (msg == null) {
-      body = Text('Message not loaded, click to jump', style: textStyle);
+      body = Text(tr('Message not loaded, click to jump'), style: textStyle);
     } else {
       final attachments = (msg['attachments'] as List?) ?? const [];
       final content = (msg['content'] as String?) ?? '';
@@ -924,7 +925,7 @@ class MessageDivider extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(60)),
-              child: Text('NEW', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onPrimary)),
+              child: Text(tr('NEW'), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onPrimary)),
             ),
           if (date != null)
             Container(

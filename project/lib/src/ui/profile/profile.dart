@@ -19,6 +19,7 @@ import '../modals/app_dialog.dart';
 import '../modals/member_modals.dart';
 import '../settings/settings_page.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 // stoat.js UserBadges bit flags
 const _badgeDeveloper = 1,
@@ -125,11 +126,11 @@ class ProfileGrid extends StatelessWidget {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.child, this.onTap, this.clip = true});
+  const _Card({required this.title, required this.child, this.onTap});
   final String title;
   final Widget child;
   final VoidCallback? onTap;
-  final bool clip;
+  final bool clip = true;
   @override
   Widget build(BuildContext context) {
     final cs = context.cs;
@@ -145,7 +146,7 @@ class _Card extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: Gap.sm,
             children: [
-              Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: cs.onSurface)),
+              Text(tr(title), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: cs.onSurface)),
               if (clip) Expanded(child: ClipRect(child: child)) else child,
             ],
           ),
@@ -281,12 +282,12 @@ class ProfileActions extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       spacing: Gap.md,
       children: [
-        if (rel == 'None' && !isBot) FilledButton.tonal(onPressed: () => run(() => store.acceptFriend(id)), child: const Text('Add Friend')),
+        if (rel == 'None' && !isBot) FilledButton.tonal(onPressed: () => run(() => store.acceptFriend(id)), child: Text(tr('Add friend'))),
         if (rel == 'Incoming') ...[
-          FilledButton.tonal(onPressed: () => run(() => store.acceptFriend(id)), child: const Text('Accept friend request')),
+          FilledButton.tonal(onPressed: () => run(() => store.acceptFriend(id)), child: Text(tr('Accept friend request'))),
           IconButton(onPressed: () => run(() => store.removeFriend(id)), icon: const Icon(Icons.cancel)),
         ],
-        if (rel == 'Outgoing') FilledButton.tonal(onPressed: () => run(() => store.removeFriend(id)), child: const Text('Cancel friend request')),
+        if (rel == 'Outgoing') FilledButton.tonal(onPressed: () => run(() => store.removeFriend(id)), child: Text(tr('Cancel friend request'))),
         if (rel == 'Friend')
           FilledButton.tonal(
             onPressed: () => run(() async {
@@ -294,9 +295,9 @@ class ProfileActions extends StatelessWidget {
               onClose();
               if (context.mounted) context.goPath('/channel/${dm['_id']}');
             }),
-            child: const Text('Message'),
+            child: Text(tr('Message')),
           ),
-        if (data.publicBot != null) FilledButton.tonal(onPressed: () => showAddBot(context, data.publicBot!), child: const Text('Add Bot')),
+        if (data.publicBot != null) FilledButton.tonal(onPressed: () => showAddBot(context, data.publicBot!), child: Text(tr('Add Bot'))),
         if (canEdit())
           IconButton(
             tooltip: 'Edit',
@@ -335,7 +336,7 @@ ProfileCell? _roles(BuildContext context, ProfileData d, String? sid) {
     span: 1,
     aspect: 1,
     child: _Card(
-      title: 'Roles',
+      title: tr('Roles'),
       onTap: () => showUserRoles(context, sid, d.userId),
       child: ListView(
         padding: EdgeInsets.zero,
@@ -357,7 +358,7 @@ ProfileCell? _roles(BuildContext context, ProfileData d, String? sid) {
 ProfileCell? _status(BuildContext context, ProfileData d) {
   final text = (d.user['status'] as Map?)?['text'] as String?;
   if (text == null || text.isEmpty) return null;
-  return ProfileCell(span: 1, aspect: 1, child: _Card(title: 'Status', child: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(fontSize: 14)))));
+  return ProfileCell(span: 1, aspect: 1, child: _Card(title: tr('Status'), child: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(fontSize: 14)))));
 }
 
 ProfileCell? _badges(BuildContext context, ProfileData d) {
@@ -370,7 +371,7 @@ ProfileCell? _badges(BuildContext context, ProfileData d) {
     span: 1,
     aspect: 1,
     child: _Card(
-      title: 'Badges',
+      title: tr('Badges'),
       child: SingleChildScrollView(
         child: Wrap(
           spacing: Gap.md,
@@ -382,7 +383,7 @@ ProfileCell? _badges(BuildContext context, ProfileData d) {
             if (bits & _badgeTranslator != 0) b('translator', 'Helped translate DawnChat'),
             if (bits & _badgeEarlyAdopter != 0) b('early_adopter', 'One of the first 1000 users!'),
             if (bits & _badgeModeration != 0) b('moderation', 'Platform Moderator'),
-            if (bits & _badgeResponsibleDisclosure != 0) Tooltip(message: 'Responsibly disclosed security issues', child: Icon(Icons.shield, size: 24, color: cs.onSurface)),
+            if (bits & _badgeResponsibleDisclosure != 0) Tooltip(message: tr('Responsibly disclosed security issues'), child: Icon(Icons.shield, size: 24, color: cs.onSurface)),
             if (bits & _badgeJoke1 != 0) ...[b('amog', 'irrelevant joke badge 1'), b('amorbus', 'irrelevant joke badge 2')],
             if (bits & _badgePaw != 0) b('paw', '🦊'),
             if (raccoon) b('raccoon', '🦝'),
@@ -405,7 +406,7 @@ ProfileCell _joined(BuildContext context, ProfileData d, String? sid) {
     span: 1,
     aspect: 1,
     child: _Card(
-      title: 'Joined',
+      title: tr('Joined'),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,7 +454,7 @@ class _OwnerCardState extends State<_OwnerCard> {
     final store = context.watch<ClientStore>();
     final u = store.user(widget.ownerId);
     return _Card(
-      title: 'Owner',
+      title: tr('Owner'),
       onTap: () => showUserProfile(context, widget.ownerId),
       child: Row(
         spacing: 8,
@@ -572,7 +573,7 @@ class _ProfileModalState extends State<_ProfileModal> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<ClientStore>();
+    context.watch<ClientStore>();
     return ListenableBuilder(
       listenable: data,
       builder: (c, _) {
@@ -708,7 +709,7 @@ Future<void> showMutualFriends(BuildContext context, List<String> users, {String
   final store = context.read<ClientStore>();
   return showAppDialog<void>(
     context,
-    title: 'Mutual Friends',
+    title: tr('Mutual Friends'),
     maxWidth: 420,
     content: SizedBox(
       width: 420,
@@ -731,7 +732,7 @@ Future<void> showMutualGroups(BuildContext context, List<Json> groups) {
   final store = context.read<ClientStore>();
   return showAppDialog<void>(
     context,
-    title: 'Mutual Groups',
+    title: tr('Mutual Groups'),
     maxWidth: 420,
     content: SizedBox(
       width: 420,
@@ -822,7 +823,7 @@ Future<void> showAddBot(BuildContext context, Json bot) {
   String? kind;
   return showAppDialog<void>(
     context,
-    title: 'Add Bot',
+    title: tr('Add Bot'),
     maxWidth: 420,
     content: StatefulBuilder(
       builder: (c, set) {
@@ -856,7 +857,7 @@ Future<void> showAddBot(BuildContext context, Json bot) {
                 child: SingleChildScrollView(child: RichContent(bot['description'] as String)),
               ),
             const SizedBox(height: Gap.md),
-            TextField(decoration: const InputDecoration(hintText: 'Search for groups...'), onChanged: (v) => set(() => filter = v)),
+            TextField(decoration: InputDecoration(hintText: tr('Search for groups...')), onChanged: (v) => set(() => filter = v)),
             SizedBox(
               height: 200,
               child: ListView(
@@ -882,8 +883,8 @@ Future<void> showAddBot(BuildContext context, Json bot) {
       },
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Add', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Add'), onPressed: () async {
         if (selected == null) return false;
         await store.api.post('/bots/${bot['_id']}/invite', {kind == 'server' ? 'server' : 'group': selected});
         return null;

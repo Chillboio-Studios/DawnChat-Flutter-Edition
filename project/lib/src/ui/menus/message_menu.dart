@@ -14,6 +14,7 @@ import '../messaging/markdown_view.dart';
 import '../modals/message_modals.dart';
 import '../widgets.dart';
 import 'context_menu.dart';
+import '../../core/i18n.dart';
 
 /// Converts a picker result (":ID:" for custom, raw unicode otherwise) into a reaction key.
 String reactionKey(String picked) => picked.startsWith(':') && picked.endsWith(':') ? picked.substring(1, picked.length - 1) : picked;
@@ -47,23 +48,23 @@ List<MenuItem> messageMenu(BuildContext context, Json message, {Map? file, Strin
 
   return [
     if (file != null) ...[
-      MenuItem.button('Open file', icon: Icons.open_in_new, onTap: () => openUrl(urls.previewUrl(file))),
-      MenuItem.button('Copy file link', icon: Icons.link, onTap: () => copyText(context, urls.previewUrl(file))),
-      MenuItem.button('Save file', icon: Icons.download, onTap: () => openUrl(urls.originalUrl(file))),
+      MenuItem.button(tr('Open file'), icon: Icons.open_in_new, onTap: () => openUrl(urls.previewUrl(file))),
+      MenuItem.button(tr('Copy file link'), icon: Icons.link, onTap: () => copyText(context, urls.previewUrl(file))),
+      MenuItem.button(tr('Save file'), icon: Icons.download, onTap: () => openUrl(urls.originalUrl(file))),
       const MenuItem.divider(),
     ],
     if (link != null) ...[
-      MenuItem.button('Copy link', icon: Icons.link, onTap: () => copyText(context, link)),
+      MenuItem.button(tr('Copy link'), icon: Icons.link, onTap: () => copyText(context, link)),
       const MenuItem.divider(),
     ],
     if (canSend)
-      MenuItem.button('Reply', icon: Icons.reply, onTap: () => context.read<DraftStore>().addReply(message, store.userId!)),
-    MenuItem.button('Mark as unread', icon: Icons.mark_chat_unread_outlined, onTap: () => store.markUnreadFrom(channelId, id)),
-    MenuItem.button('Copy text', icon: Icons.content_copy, onTap: () => copyText(context, message['content'] as String? ?? '')),
+      MenuItem.button(tr('Reply'), icon: Icons.reply, onTap: () => context.read<DraftStore>().addReply(message, store.userId!)),
+    MenuItem.button(tr('Mark as unread'), icon: Icons.mark_chat_unread_outlined, onTap: () => store.markUnreadFrom(channelId, id)),
+    MenuItem.button(tr('Copy text'), icon: Icons.content_copy, onTap: () => copyText(context, message['content'] as String? ?? '')),
     const MenuItem.divider(),
-    if (canReact) MenuItem.button('React', icon: Icons.emoji_emotions_outlined, onTap: () => reactToMessage(context, message)),
+    if (canReact) MenuItem.button(tr('React'), icon: Icons.emoji_emotions_outlined, onTap: () => reactToMessage(context, message)),
     if (self && canSend)
-      MenuItem.button('Edit message', icon: Icons.edit_outlined, onTap: () => context.read<DraftStore>().setEditing(channelId, id)),
+      MenuItem.button(tr('Edit message'), icon: Icons.edit_outlined, onTap: () => context.read<DraftStore>().setEditing(channelId, id)),
     if (isDm || canManage)
       MenuItem.button(
         message['pinned'] == true ? 'Unpin message' : 'Pin message',
@@ -72,7 +73,7 @@ List<MenuItem> messageMenu(BuildContext context, Json message, {Map? file, Strin
       ),
     if (reactions.isNotEmpty && canManage) ...[
       MenuItem.sub(
-        'Remove reaction',
+        tr('Remove reaction'),
         icon: Icons.delete_sweep_outlined,
         destructive: true,
         children: [
@@ -88,25 +89,25 @@ List<MenuItem> messageMenu(BuildContext context, Json message, {Map? file, Strin
             ),
         ],
       ),
-      MenuItem.button('Remove all reactions', icon: Icons.sentiment_dissatisfied_outlined, destructive: true, onTap: () => store.clearReactions(channelId, id)),
+      MenuItem.button(tr('Remove all reactions'), icon: Icons.sentiment_dissatisfied_outlined, destructive: true, onTap: () => store.clearReactions(channelId, id)),
     ],
     if (self || canManage)
       MenuItem.button(
-        'Delete message',
+        tr('Delete message'),
         icon: Icons.delete_outline,
         destructive: true,
         onTap: () => deleteMessageFlow(context, message, quick: HardwareKeyboard.instance.isShiftPressed),
       ),
     if (!self && !isSystem)
-      MenuItem.button('Report message', icon: Icons.report_outlined, destructive: true, onTap: () => showReportDialog(context, type: 'Message', id: id, message: message)),
+      MenuItem.button(tr('Report message'), icon: Icons.report_outlined, destructive: true, onTap: () => showReportDialog(context, type: 'Message', id: id, message: message)),
     const MenuItem.divider(),
     if (settings.adminPanel)
-      MenuItem.button('Admin Panel', icon: Icons.shield_outlined, onTap: () => openUrl(adminInspectUrl('message', id))),
+      MenuItem.button(tr('Admin Panel'), icon: Icons.shield_outlined, onTap: () => openUrl(adminInspectUrl('message', id))),
     MenuItem.button(
-      'Copy message link',
+      tr('Copy message link'),
       icon: Icons.share_outlined,
       onTap: () => copyText(context, context.fullHref('${serverId != null ? '/server/$serverId' : ''}/channel/$channelId/$id')),
     ),
-    if (settings.copyId) MenuItem.button('Copy message ID', icon: Icons.badge_outlined, onTap: () => copyText(context, id)),
+    if (settings.copyId) MenuItem.button(tr('Copy message ID'), icon: Icons.badge_outlined, onTap: () => copyText(context, id)),
   ];
 }

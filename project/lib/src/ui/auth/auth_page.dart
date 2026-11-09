@@ -10,6 +10,7 @@ import '../../router.dart';
 import '../../state/settings_store.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 enum BubbleMood { idle, typing, submitting, success, error }
 
@@ -216,8 +217,8 @@ class _Hero extends StatelessWidget {
                         shape: const StadiumBorder(),
                       ),
                       onPressed: () => openUrl(desktopDownloadUrl),
-                      child: const Text(
-                        'Download for desktop',
+                      child: Text(
+                        tr('Download for desktop'),
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),

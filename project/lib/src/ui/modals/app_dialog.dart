@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/tokens.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 class DlgAction {
   const DlgAction(this.text, {this.onPressed, this.destructive = false, this.enabled = true});
@@ -17,7 +18,7 @@ Future<T?> showAppDialog<T>(
   BuildContext context, {
   required String title,
   Widget? content,
-  List<DlgAction> actions = const [DlgAction('Close')],
+  List<DlgAction>? actions,
   double maxWidth = 560,
   bool scrollable = true,
   bool dismissible = true,
@@ -28,7 +29,7 @@ Future<T?> showAppDialog<T>(
     builder: (c) => _AppDialog(
       title: title,
       content: content,
-      actions: actions,
+      actions: actions ?? [DlgAction(tr('Close'))],
       maxWidth: maxWidth,
       scrollable: scrollable,
     ),
@@ -79,7 +80,7 @@ class _AppDialogState extends State<_AppDialog> {
     return AlertDialog(
       backgroundColor: cs.surfaceContainerHigh,
       shape: RoundedRectangleBorder(borderRadius: br(Radius_.xl)),
-      title: Text(widget.title),
+      title: Text(tr(widget.title)),
       titleTextStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(color: cs.onSurface),
       content: body == null ? null : ConstrainedBox(constraints: BoxConstraints(maxWidth: widget.maxWidth), child: body),
       actions: [
@@ -87,7 +88,7 @@ class _AppDialogState extends State<_AppDialog> {
           TextButton(
             style: a.destructive ? TextButton.styleFrom(foregroundColor: cs.error) : null,
             onPressed: busy || !a.enabled ? null : () => _run(a),
-            child: Text(a.text),
+            child: Text(tr(a.text)),
           ),
       ],
     );

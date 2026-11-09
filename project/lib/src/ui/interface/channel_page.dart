@@ -23,6 +23,7 @@ import '../settings/channel_settings.dart';
 import '../voice/voice_ui.dart';
 import '../widgets.dart';
 import 'home_page.dart' show PageHeader;
+import '../../core/i18n.dart';
 
 const _memberSidebarKey = 'member_sidebar';
 const _matureKey = 'mature';
@@ -205,7 +206,7 @@ class _ChannelHeader extends StatelessWidget {
               Container(height: 20, width: 1, margin: const EdgeInsets.symmetric(horizontal: 5), color: cs.outlineVariant),
               Expanded(
                 child: Tooltip(
-                  message: 'Click to show full description',
+                  message: tr('Click to show full description'),
                   child: InkWell(onTap: () => showChannelInfo(context, channel), child: Text(desc.split('\n').first, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ),
               ),
@@ -232,7 +233,7 @@ class _ChannelHeader extends StatelessWidget {
         );
       default:
         icon = const Icon(Icons.sticky_note_2_outlined);
-        title = const Text('Saved Notes');
+        title = Text(tr('Saved Notes'));
     }
 
     final canSettings = (type == 'Group' || sid != null) && store.canAny(id, [Perm.manageChannel, Perm.managePermissions]);
@@ -245,18 +246,18 @@ class _ChannelHeader extends StatelessWidget {
       subtitle: subtitle,
       actions: [
         if (store.isVoice(channel) && !inCall && store.can(id, Perm.connect))
-          IconButton(tooltip: 'Join the voice channel', icon: const Icon(Icons.call_outlined), onPressed: () => voice.connect(id)),
-        if (canSettings) IconButton(tooltip: 'Channel Settings', icon: const Icon(Icons.settings_outlined), onPressed: () => showChannelSettings(context, id)),
-        if (type == 'Group') IconButton(tooltip: 'Add friends to group', icon: const Icon(Icons.person_add_outlined), onPressed: () => showAddMembersToGroup(context, channel)),
+          IconButton(tooltip: tr('Join the voice channel'), icon: const Icon(Icons.call_outlined), onPressed: () => voice.connect(id)),
+        if (canSettings) IconButton(tooltip: tr('Channel Settings'), icon: const Icon(Icons.settings_outlined), onPressed: () => showChannelSettings(context, id)),
+        if (type == 'Group') IconButton(tooltip: tr('Add friends to group'), icon: const Icon(Icons.person_add_outlined), onPressed: () => showAddMembersToGroup(context, channel)),
         if (hasSidebar || type == 'DirectMessage' || type == 'SavedMessages')
           IconButton(
-            tooltip: 'View pinned messages',
+            tooltip: tr('View pinned messages'),
             icon: Icon(Icons.push_pin_outlined, color: mode == _SidebarMode.pins ? cs.primary : null),
             onPressed: () => onMode(mode == _SidebarMode.pins ? _SidebarMode.members : _SidebarMode.pins),
           ),
         if (hasSidebar)
           IconButton(
-            tooltip: 'View members',
+            tooltip: tr('View members'),
             icon: const Icon(Icons.group_outlined),
             onPressed: () {
               if (mode == _SidebarMode.members) {
@@ -270,9 +271,9 @@ class _ChannelHeader extends StatelessWidget {
         if (sc == ScreenClass.desktop || mode != _SidebarMode.members)
           _SearchBox(query: searchOpen ? query : '', onChanged: (v) => v.isEmpty ? onMode(_SidebarMode.members) : onMode(_SidebarMode.search, q: v))
         else
-          IconButton(tooltip: 'Search', icon: const Icon(Icons.search), onPressed: () => onMode(_SidebarMode.search)),
-        if (settings.copyId) IconButton(icon: const Icon(Icons.tag_outlined), tooltip: 'Copy ID', onPressed: () => copyText(context, id)),
-        if (settings.adminPanel) IconButton(icon: const Icon(Icons.admin_panel_settings_outlined), tooltip: 'Admin panel', onPressed: () => openUrl(adminInspectUrl('channel', id))),
+          IconButton(tooltip: tr('Search'), icon: const Icon(Icons.search), onPressed: () => onMode(_SidebarMode.search)),
+        if (settings.copyId) IconButton(icon: const Icon(Icons.tag_outlined), tooltip: tr('Copy ID'), onPressed: () => copyText(context, id)),
+        if (settings.adminPanel) IconButton(icon: const Icon(Icons.admin_panel_settings_outlined), tooltip: tr('Admin Panel'), onPressed: () => openUrl(adminInspectUrl('channel', id))),
       ],
     );
   }
@@ -377,19 +378,19 @@ class _AgeGateState extends State<_AgeGate> {
         if (restricted) {
           return gate([
             Text(snap.data?['countryCode'] == 'GB' ? 'This channel is not available in your region while we review options on legal compliance.' : 'This content is not available in your region.', textAlign: TextAlign.center),
-            TextButton(onPressed: () => context.canPop() ? context.pop() : context.goPath('/'), child: const Text('Back')),
+            TextButton(onPressed: () => context.canPop() ? context.pop() : context.goPath('/'), child: Text(tr('Back'))),
           ]);
         }
         if (confirmed && allowed) return widget.child;
         return gate([
-          const Text('This channel is marked as mature.'),
+          Text(tr('This channel is marked as mature.')),
           InkWell(
             onTap: () => settings.toggleSectionState(_matureKey, false),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Checkbox(value: confirmed, onChanged: (_) => settings.toggleSectionState(_matureKey, false)),
-                const Text('I confirm that I am at least 18 years old.'),
+                Text(tr('I confirm that I am at least 18 years old.')),
               ],
             ),
           ),
@@ -397,8 +398,8 @@ class _AgeGateState extends State<_AgeGate> {
             mainAxisSize: MainAxisSize.min,
             spacing: Gap.lg,
             children: [
-              TextButton(onPressed: () => context.canPop() ? context.pop() : context.goPath('/'), child: const Text('Back')),
-              FilledButton(onPressed: confirmed ? () => settings.setSectionState('${widget.contentId}-nsfw', true) : null, child: const Text('Enter Channel')),
+              TextButton(onPressed: () => context.canPop() ? context.pop() : context.goPath('/'), child: Text(tr('Back'))),
+              FilledButton(onPressed: confirmed ? () => settings.setSectionState('${widget.contentId}-nsfw', true) : null, child: Text(tr('Enter Channel'))),
             ],
           ),
         ]);

@@ -20,6 +20,7 @@ import '../interface/discover_embed_stub.dart'
     if (dart.library.js_interop) '../interface/discover_embed_web.dart';
 import '../widgets.dart';
 import 'markdown_view.dart';
+import '../../core/i18n.dart';
 
 
 String humanFileSize(num bytes) {
@@ -170,7 +171,7 @@ class _SpoilerBoxState extends State<_SpoilerBox> {
                           boxShadow: const [BoxShadow(color: Color(0x44000000), blurRadius: 8)],
                         ),
                         child: Text(
-                          'Click to show spoiler',
+                          tr('Click to show spoiler'),
                           style: TextStyle(color: cs.onInverseSurface, fontWeight: FontWeight.w600),
                         ),
                       ),

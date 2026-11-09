@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n.dart';
 import '../../theme/tokens.dart';
 
 /// One row in a context menu.
@@ -240,8 +241,8 @@ class _RowState extends State<_Row> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(i.capitalise ? _capitalise(i.label ?? '') : (i.label ?? ''), style: TextStyle(color: colour, fontSize: 14)),
-                    if (i.sublabel != null) Text(i.sublabel!, style: TextStyle(color: cs.outline, fontSize: 12)),
+                    Text(i.capitalise ? _capitalise(tr(i.label ?? '')) : tr(i.label ?? ''), style: TextStyle(color: colour, fontSize: 14)),
+                    if (i.sublabel != null) Text(tr(i.sublabel!), style: TextStyle(color: cs.outline, fontSize: 12)),
                   ],
                 ),
               ),

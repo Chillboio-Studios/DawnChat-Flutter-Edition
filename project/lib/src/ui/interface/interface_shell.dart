@@ -7,11 +7,11 @@ import '../../state/settings_store.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../voice/voice_manager.dart';
-import '../settings/settings_page.dart';
 import '../voice/voice_ui.dart';
 import '../widgets.dart';
 import 'server_rail.dart';
 import 'sidebars.dart';
+import '../../core/i18n.dart';
 
 /// Parsed in-app location used to pick sidebars.
 class NavTarget {
@@ -233,7 +233,7 @@ class _Offline extends StatelessWidget {
         const SizedBox(height: 24),
         const Text("Can't reach the server."),
         const SizedBox(height: 12),
-        FilledButton(onPressed: onRetry, child: const Text('Try again')),
+        FilledButton(onPressed: onRetry, child: Text(tr('Try again'))),
       ],
     ),
   );

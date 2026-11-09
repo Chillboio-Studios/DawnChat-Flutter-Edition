@@ -16,6 +16,7 @@ import '../menus/context_menu.dart';
 import '../menus/user_menu.dart';
 import '../profile/profile.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 enum BtnVariant { filled, tonal, standard, error }
 
@@ -73,7 +74,7 @@ class VoiceStatefulIcons extends StatelessWidget {
     final byUser = context.watch<SettingsStore>().userMuted(userId);
     return Row(mainAxisSize: MainAxisSize.min, spacing: 4, children: [
       if (byUser)
-        Tooltip(message: 'You muted this user.', child: Icon(Icons.mic_off, size: 16, color: cs.error))
+        Tooltip(message: tr('You muted this user.'), child: Icon(Icons.mic_off, size: 16, color: cs.error))
       else if (muted)
         const Icon(Icons.mic_off, size: 16),
       if (deafened) const Icon(Icons.headset_off, size: 16),
@@ -217,7 +218,7 @@ class _ScreenShareSettingsDialogState extends State<_ScreenShareSettingsDialog> 
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Screen Share Settings'),
+        title: Text(tr('Screen Share Settings')),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           RadioGroup<String>(
             groupValue: q,
@@ -233,11 +234,11 @@ class _ScreenShareSettingsDialogState extends State<_ScreenShareSettingsDialog> 
             controlAffinity: ListTileControlAffinity.leading,
             value: a,
             onChanged: (v) => setState(() => a = v ?? a),
-            title: const Text('Share audio'),
+            title: Text(tr('Share audio')),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel'))),
           FilledButton(onPressed: () => Navigator.pop(context, (q, a)), child: const Text('Share')),
         ],
       );
@@ -263,7 +264,7 @@ class VoiceActions extends StatelessWidget {
         VBtn(
           size: size,
           icon: Icons.north_west,
-          tooltip: 'Return to voice channel',
+          tooltip: tr('Return to voice channel'),
           onPressed: () {
             final c = store.channels[v.channelId];
             final sid = c?['server'];
@@ -271,7 +272,7 @@ class VoiceActions extends StatelessWidget {
           },
         ),
       if (!xs && v.layout == VoiceLayout.collapsed)
-        VBtn(size: size, icon: Icons.unfold_more, tooltip: 'Restore call window', onPressed: () => v.toggleLayout(VoiceLayout.collapsed)),
+        VBtn(size: size, icon: Icons.unfold_more, tooltip: tr('Restore call window'), onPressed: () => v.toggleLayout(VoiceLayout.collapsed)),
       VBtn(
         size: size,
         variant: v.microphone ? BtnVariant.filled : BtnVariant.tonal,
@@ -302,7 +303,7 @@ class VoiceActions extends StatelessWidget {
         tooltip: video ? (v.screenshare ? 'Stop sharing' : 'Share screen') : 'Coming soon! 👀',
         onPressed: video && (v.screenShareSupported || v.screenshare) ? () => toggleScreenshareUi(context, v) : null,
       ),
-      VBtn(size: size, variant: BtnVariant.error, icon: Icons.call_end, tooltip: 'End call', onPressed: v.disconnect),
+      VBtn(size: size, variant: BtnVariant.error, icon: Icons.call_end, tooltip: tr('End call'), onPressed: v.disconnect),
     ];
 
     final row = Row(mainAxisSize: MainAxisSize.min, spacing: phone ? Gap.sm : Gap.md, children: buttons);
@@ -321,7 +322,7 @@ class _LayoutButtons extends StatelessWidget {
     final desktop = screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.desktop;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       if (desktop) ...[
-        VBtn(icon: Icons.unfold_less, tooltip: 'Collapse call window', onPressed: () => v.toggleLayout(VoiceLayout.collapsed)),
+        VBtn(icon: Icons.unfold_less, tooltip: tr('Collapse call window'), onPressed: () => v.toggleLayout(VoiceLayout.collapsed)),
         VBtn(
           icon: v.layout == VoiceLayout.expanded ? Icons.close_fullscreen : Icons.open_in_full,
           tooltip: v.layout == VoiceLayout.expanded ? 'Restore call window' : 'Maximize call window',

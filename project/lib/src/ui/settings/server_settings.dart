@@ -7,6 +7,7 @@ import '../../api/client_store.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 Future<void> showServerSettings(BuildContext context, String serverId) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -30,11 +31,11 @@ class ServerSettingsPage extends StatefulWidget {
 class _ServerSettingsPageState extends State<ServerSettingsPage> {
   String _page = 'overview';
 
-  static const _entries = [
+  static final _entries = [
     ('Server', [('overview', 'Overview', Icons.info_outline)]),
     ('Customisation', [('emojis', 'Emojis', Icons.emoji_emotions_outlined)]),
     (
-      'User Management',
+      tr('User Management'),
       [
         ('members', 'Members', Icons.group_outlined),
         ('roles', 'Roles', Icons.badge_outlined),
@@ -89,20 +90,20 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
               selected: _page == e.$1,
               selectedTileColor: cs.secondaryContainer,
               leading: Icon(e.$3),
-              title: Text(e.$2),
+              title: Text(tr(e.$2)),
               onTap: () => setState(() => _page = e.$1),
             ),
         ],
         const Divider(),
         ListTile(
           leading: Icon(Icons.delete_outline, color: cs.error),
-          title: Text('Delete Server', style: TextStyle(color: cs.error)),
+          title: Text(tr('Delete Server'), style: TextStyle(color: cs.error)),
           onTap: () async {
             if (await confirm(
               context,
               'Delete server?',
               'This cannot be undone.',
-              action: 'Delete',
+              action: tr('Delete'),
             )) {
               await store.leaveServer(widget.serverId);
               if (context.mounted) Navigator.pop(context);
@@ -164,7 +165,7 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
                   itemBuilder: (_) => [
                     for (final c in _entries)
                       for (final e in c.$2)
-                        PopupMenuItem(value: e.$1, child: Text(e.$2)),
+                        PopupMenuItem(value: e.$1, child: Text(tr(e.$2))),
                   ],
                 ),
               ],
@@ -271,14 +272,14 @@ class _OverviewState extends State<_Overview> {
         const SizedBox(height: 16),
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Server name'),
+          decoration: InputDecoration(labelText: tr('Server Name')),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _desc,
           minLines: 3,
           maxLines: 8,
-          decoration: const InputDecoration(labelText: 'Server description'),
+          decoration: InputDecoration(labelText: tr('Server Description')),
         ),
         const SizedBox(height: 16),
         FilledButton(
@@ -289,7 +290,7 @@ class _OverviewState extends State<_Overview> {
             });
             if (mounted) showSnack(context, 'Saved');
           }),
-          child: const Text('Save'),
+          child: Text(tr('Save')),
         ),
       ],
     );
@@ -424,9 +425,9 @@ class _Members extends StatelessWidget {
                       }
                       store.refresh();
                     }),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'kick', child: Text('Kick')),
-                      PopupMenuItem(value: 'ban', child: Text('Ban')),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'kick', child: Text(tr('Kick'))),
+                      PopupMenuItem(value: 'ban', child: Text(tr('Ban'))),
                     ],
                   ),
           ),
@@ -448,13 +449,13 @@ class _Roles extends StatelessWidget {
       children: [
         FilledButton.icon(
           icon: const Icon(Icons.add),
-          label: const Text('Create role'),
+          label: Text(tr('Create Role')),
           onPressed: () async {
             final name = await promptText(
               context,
-              'Create role',
-              label: 'Role name',
-              action: 'Create',
+              tr('Create Role'),
+              label: tr('Role Name'),
+              action: tr('Create'),
             );
             if (name == null || name.isEmpty || !context.mounted) return;
             await _guard(context, () async {
@@ -568,7 +569,7 @@ class _InvitesState extends State<_Invites> {
         if (firstText != null)
           FilledButton.icon(
             icon: const Icon(Icons.add_link),
-            label: const Text('Create invite'),
+            label: Text(tr('Create invite')),
             onPressed: () => _guard(context, () async {
               await store.api.post('/channels/${firstText['_id']}/invites');
               _load();

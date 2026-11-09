@@ -7,6 +7,7 @@ import '../../api/client_store.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
+import '../../core/i18n.dart';
 
 Future<void> showChannelSettings(BuildContext context, String channelId) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -94,14 +95,14 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
             selected: _page == p.$1,
             selectedTileColor: cs.secondaryContainer,
             leading: Icon(p.$3),
-            title: Text(p.$2),
+            title: Text(tr(p.$2)),
             onTap: () => setState(() => _page = p.$1),
           ),
         const Divider(),
         ListTile(
           leading: Icon(Icons.delete_outline, color: cs.error),
           title: Text(
-            isServer ? 'Delete Channel' : 'Delete / Leave',
+            tr(isServer ? 'Delete Channel' : 'Delete / Leave'),
             style: TextStyle(color: cs.error),
           ),
           onTap: () async {
@@ -109,7 +110,7 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
               context,
               'Delete channel?',
               'This cannot be undone.',
-              action: 'Delete',
+              action: tr('Delete'),
             )) {
               try {
                 await store.api.delete('/channels/${widget.channelId}');
@@ -168,7 +169,7 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
                     onSelected: (v) => setState(() => _page = v),
                     itemBuilder: (_) => [
                       for (final p in pages)
-                        PopupMenuItem(value: p.$1, child: Text(p.$2)),
+                        PopupMenuItem(value: p.$1, child: Text(tr(p.$2))),
                     ],
                   ),
               ],
@@ -229,14 +230,14 @@ class _OverviewState extends State<_Overview> {
       children: [
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Channel name'),
+          decoration: InputDecoration(labelText: tr('Channel Name')),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _desc,
           minLines: 3,
           maxLines: 8,
-          decoration: const InputDecoration(labelText: 'Channel description'),
+          decoration: InputDecoration(labelText: tr('Channel Description')),
         ),
         const SizedBox(height: 8),
         SwitchListTile(
@@ -259,7 +260,7 @@ class _OverviewState extends State<_Overview> {
               if (context.mounted) showSnack(context, errorText(e));
             }
           },
-          child: const Text('Save'),
+          child: Text(tr('Save')),
         ),
       ],
     );
@@ -312,7 +313,7 @@ class _PermissionsState extends State<_Permissions> {
           children: [
             for (final p in _perms)
               CategoryButton(
-                title: Text(p.$1),
+                title: Text(tr(p.$1)),
                 action: Switch(
                   value: _has(allow, p.$2),
                   onChanged: (v) => _toggle(p.$2, v),
@@ -367,13 +368,13 @@ class _WebhooksState extends State<_Webhooks> {
       children: [
         FilledButton.icon(
           icon: const Icon(Icons.add),
-          label: const Text('Create webhook'),
+          label: Text(tr('Create Webhook')),
           onPressed: () async {
             final name = await promptText(
               context,
-              'Create webhook',
-              label: 'Webhook name',
-              action: 'Create',
+              tr('Create Webhook'),
+              label: tr('Webhook Name'),
+              action: tr('Create'),
             );
             if (name == null || name.isEmpty) return;
             try {

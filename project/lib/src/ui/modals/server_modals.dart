@@ -10,6 +10,7 @@ import '../../state/server_ordering.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
 import 'app_dialog.dart';
+import '../../core/i18n.dart';
 
 String inviteLink(BuildContext context, String id) {
   final host = context.read<ClientStore>().host;
@@ -22,12 +23,12 @@ Future<void> showCreateInvite(BuildContext context, String channelId) {
   String? link;
   return showAppDialog<void>(
     context,
-    title: 'Create Invite',
+    title: tr('Create Invite'),
     content: FutureBuilder<String>(
       future: future,
       builder: (c, snap) {
         if (snap.hasError) return Text(errorText(snap.error!), style: TextStyle(color: c.cs.error));
-        if (!snap.hasData) return const Text('Generating invite…');
+        if (!snap.hasData) return Text(tr('Generating invite…'));
         link = inviteLink(context, snap.data!);
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -43,8 +44,8 @@ Future<void> showCreateInvite(BuildContext context, String channelId) {
       },
     ),
     actions: [
-      const DlgAction('OK'),
-      DlgAction('Copy Link', onPressed: () async {
+      DlgAction(tr('OK')),
+      DlgAction(tr('Copy Link'), onPressed: () async {
         if (link != null) await Clipboard.setData(ClipboardData(text: link!));
         return false;
       }),
@@ -58,20 +59,20 @@ Future<void> showCreateChannel(BuildContext context, String serverId, {String? c
   var type = 'Text';
   return showAppDialog<void>(
     context,
-    title: 'Create channel',
+    title: tr('Create channel'),
     content: StatefulBuilder(
       builder: (c, set) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(controller: name, maxLength: 32, autofocus: true, decoration: const InputDecoration(labelText: 'Channel Name')),
+          TextField(controller: name, maxLength: 32, autofocus: true, decoration: InputDecoration(labelText: tr('Channel Name'))),
           RadioGroup<String>(
             groupValue: type,
             onChanged: (v) => set(() => type = v ?? 'Text'),
-            child: const Column(
+            child: Column(
               children: [
-                RadioListTile<String>(value: 'Text', title: Text('Text Channel')),
-                RadioListTile<String>(value: 'Voice', title: Text('Voice Channel')),
+                RadioListTile<String>(value: 'Text', title: Text(tr('Text Channel'))),
+                RadioListTile<String>(value: 'Voice', title: Text(tr('Voice Channel'))),
               ],
             ),
           ),
@@ -79,8 +80,8 @@ Future<void> showCreateChannel(BuildContext context, String serverId, {String? c
       ),
     ),
     actions: [
-      const DlgAction('Close'),
-      DlgAction('Create', onPressed: () async {
+      DlgAction(tr('Close')),
+      DlgAction(tr('Create'), onPressed: () async {
         if (name.text.trim().isEmpty) return false;
         final ch = ((await store.api.post('/servers/$serverId/channels', {'type': type, 'name': name.text.trim()})) as Map).cast<String, dynamic>();
         store.channels[ch['_id']] = ch;
@@ -129,11 +130,11 @@ Future<void> showCreateCategory(BuildContext context, String serverId) {
   final name = TextEditingController();
   return showAppDialog<void>(
     context,
-    title: 'Create a new category',
-    content: TextField(controller: name, maxLength: 32, autofocus: true, decoration: const InputDecoration(labelText: 'Name')),
+    title: tr('Create a new category'),
+    content: TextField(controller: name, maxLength: 32, autofocus: true, decoration: InputDecoration(labelText: tr('Name'))),
     actions: [
-      const DlgAction('Close'),
-      DlgAction('Create', onPressed: () async {
+      DlgAction(tr('Close')),
+      DlgAction(tr('Create'), onPressed: () async {
         if (name.text.trim().isEmpty) return false;
         await _saveCategories(store, serverId, [
           ..._cats(store, serverId),
@@ -149,11 +150,11 @@ Future<void> showDeleteCategory(BuildContext context, String serverId, String ca
   final store = context.read<ClientStore>();
   return showAppDialog<void>(
     context,
-    title: 'Delete category',
-    content: const Text("Once it's deleted, there's no going back."),
+    title: tr('Delete category'),
+    content: Text(tr("Once it's deleted, there's no going back.")),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Delete', destructive: true, onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Delete'), destructive: true, onPressed: () async {
         await _saveCategories(store, serverId, _cats(store, serverId).where((c) => c['id'] != categoryId).toList());
         return null;
       }),
@@ -166,11 +167,11 @@ Future<void> showEditCategory(BuildContext context, String serverId, String cate
   final ctl = TextEditingController(text: title);
   return showAppDialog<void>(
     context,
-    title: 'Rename category',
-    content: TextField(controller: ctl, autofocus: true, decoration: const InputDecoration(labelText: 'New name')),
+    title: tr('Rename category'),
+    content: TextField(controller: ctl, autofocus: true, decoration: InputDecoration(labelText: tr('New name'))),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Rename', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Rename'), onPressed: () async {
         await _saveCategories(store, serverId, [for (final c in _cats(store, serverId)) c['id'] == categoryId ? {...c, 'title': ctl.text} : c]);
         return null;
       }),
@@ -190,20 +191,20 @@ Future<void> showLeaveServer(BuildContext context, String serverId) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("You won't be able to rejoin unless you are re-invited."),
+          Text(tr("You won't be able to rejoin unless you are re-invited.")),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             value: silent,
             onChanged: (v) => set(() => silent = v ?? false),
-            title: const Text("Don't notify others that you've left"),
+            title: Text(tr("Don't notify others that you've left")),
           ),
         ],
       ),
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Leave', destructive: true, onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Leave'), destructive: true, onPressed: () async {
         await store.api.delete('/servers/$serverId?leave_silently=$silent');
         store.servers.remove(serverId);
         store.channels.removeWhere((_, ch) => ch['server'] == serverId);
@@ -222,15 +223,15 @@ Future<void> showEditFolder(BuildContext context, ServerFolder folder) {
   const swatches = ['#ef5350', '#ff7043', '#ffa726', '#ffee58', '#66bb6a', '#26a69a', '#29b6f6', '#5c6bc0', '#ab47bc', '#ec407a', '#8d6e63', '#78909c'];
   return showAppDialog<void>(
     context,
-    title: 'Edit folder',
+    title: tr('Edit folder'),
     content: StatefulBuilder(
       builder: (c, set) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(controller: ctl, decoration: const InputDecoration(labelText: 'Name')),
+          TextField(controller: ctl, decoration: InputDecoration(labelText: tr('Name'))),
           const SizedBox(height: Gap.lg),
-          const Text('Folder colour', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(tr('Folder colour'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           const SizedBox(height: Gap.s),
           Wrap(
             spacing: 8,
@@ -260,8 +261,8 @@ Future<void> showEditFolder(BuildContext context, ServerFolder folder) {
       ),
     ),
     actions: [
-      const DlgAction('Cancel'),
-      DlgAction('Save', onPressed: () async {
+      DlgAction(tr('Cancel')),
+      DlgAction(tr('Save'), onPressed: () async {
         store.ordering.editFolder(folder.id, name: ctl.text, colour: colour ?? '');
         store.refresh();
         return null;
@@ -273,15 +274,15 @@ Future<void> showEditFolder(BuildContext context, ServerFolder folder) {
 Future<void> showCreateOrJoinServer(BuildContext context) => showAppDialog<void>(
   context,
   title: 'Create or join a server',
-  content: const Text('Would you like to create a new server or join an existing one?'),
+  content: Text(tr('Would you like to create a new server or join an existing one?')),
   actions: [
-    DlgAction('Create', onPressed: () async {
+    DlgAction(tr('Create'), onPressed: () async {
       Future.microtask(() {
         if (context.mounted) showCreateServer(context);
       });
       return null;
     }),
-    DlgAction('Join', onPressed: () async {
+    DlgAction(tr('Join'), onPressed: () async {
       Future.microtask(() {
         if (context.mounted) showJoinServer(context);
       });
@@ -292,8 +293,8 @@ Future<void> showCreateOrJoinServer(BuildContext context) => showAppDialog<void>
 
 Future<void> showCreateGroupOrServer(BuildContext context) => showAppDialog<void>(
   context,
-  title: 'Create a group or server',
-  content: const Text('Would you like to create a group or a server?'),
+  title: tr('Create a group or server'),
+  content: Text(tr('Would you like to create a new group or server?')),
   actions: [
     DlgAction('Group', onPressed: () async {
       Future.microtask(() {
@@ -301,7 +302,7 @@ Future<void> showCreateGroupOrServer(BuildContext context) => showAppDialog<void
       });
       return null;
     }),
-    DlgAction('Server', onPressed: () async {
+    DlgAction(tr('Server'), onPressed: () async {
       Future.microtask(() {
         if (context.mounted) showCreateServer(context);
       });
@@ -315,7 +316,7 @@ Future<void> showCreateServer(BuildContext context) {
   final name = TextEditingController();
   return showAppDialog<void>(
     context,
-    title: 'Create server',
+    title: tr('Create server'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -331,12 +332,12 @@ Future<void> showCreateServer(BuildContext context) {
             ],
           ),
         ),
-        TextField(controller: name, maxLength: 32, autofocus: true, decoration: const InputDecoration(labelText: 'Server Name')),
+        TextField(controller: name, maxLength: 32, autofocus: true, decoration: InputDecoration(labelText: tr('Server Name'))),
       ],
     ),
     actions: [
-      const DlgAction('Close'),
-      DlgAction('Create', onPressed: () async {
+      DlgAction(tr('Close')),
+      DlgAction(tr('Create'), onPressed: () async {
         if (name.text.trim().isEmpty) return false;
         final res = await store.createServer(name.text.trim());
         final server = (res['server'] as Map).cast<String, dynamic>();
@@ -361,18 +362,18 @@ Future<void> showJoinServer(BuildContext context) {
   final ctl = TextEditingController();
   return showAppDialog<void>(
     context,
-    title: 'Join a server',
+    title: tr('Join a server'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Use a code or invite link'),
-        TextField(controller: ctl, autofocus: true, decoration: const InputDecoration(labelText: 'Code', hintText: 'stt.gg/wVEJDGVs')),
+        Text(tr('Use a code or invite link')),
+        TextField(controller: ctl, autofocus: true, decoration: InputDecoration(labelText: tr('Code'), hintText: 'stt.gg/wVEJDGVs')),
       ],
     ),
     actions: [
-      const DlgAction('Close'),
-      DlgAction('Join', onPressed: () async {
+      DlgAction(tr('Close')),
+      DlgAction(tr('Join'), onPressed: () async {
         var code = ctl.text.trim();
         if (code.isEmpty) return false;
         final m = _inviteRe.firstMatch(code);
@@ -397,7 +398,7 @@ Future<void> showCreateGroup(BuildContext context) {
   var filter = '';
   return showAppDialog<void>(
     context,
-    title: 'Create a new group',
+    title: tr('Create a new group'),
     maxWidth: 420,
     content: StatefulBuilder(
       builder: (c, set) {
@@ -409,9 +410,9 @@ Future<void> showCreateGroup(BuildContext context) {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: name, maxLength: 32, decoration: const InputDecoration(labelText: 'Group Name')),
-              const Text('Select members to add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-              TextField(decoration: const InputDecoration(hintText: 'Search for users...'), onChanged: (v) => set(() => filter = v)),
+              TextField(controller: name, maxLength: 32, decoration: InputDecoration(labelText: tr('Group Name'))),
+              Text(tr('Select members to add'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              TextField(decoration: InputDecoration(hintText: tr('Search for users...')), onChanged: (v) => set(() => filter = v)),
               Expanded(
                 child: ListView(
                   children: [
@@ -432,8 +433,8 @@ Future<void> showCreateGroup(BuildContext context) {
       },
     ),
     actions: [
-      const DlgAction('Close'),
-      DlgAction('Create', onPressed: () async {
+      DlgAction(tr('Close')),
+      DlgAction(tr('Create'), onPressed: () async {
         if (name.text.trim().isEmpty) return false;
         final g = ((await store.api.post('/channels/create', {'name': name.text.trim(), 'users': selected.toList()})) as Map).cast<String, dynamic>();
         store.channels[g['_id']] = g;

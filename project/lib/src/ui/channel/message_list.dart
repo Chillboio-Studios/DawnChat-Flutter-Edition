@@ -11,6 +11,7 @@ import '../../state/settings_store.dart';
 import '../../theme/tokens.dart';
 import '../messaging/message_tile.dart';
 import '../messaging/time_utils.dart';
+import '../../core/i18n.dart';
 
 class MessageListController {
   VoidCallback? _jumpToBottom;
@@ -379,7 +380,7 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
                   context.goPath('${sid != null ? '/server/$sid' : ''}/channel/$id/$_lastReadId');
                 },
                 label: 'New messages since ${formatRelative(_ulid(_lastReadId!), hideSuffix: false)}',
-                action: 'Jump to the beginning',
+                action: tr('Jump to the beginning'),
                 trailing: GestureDetector(onTap: () => setState(() => _lastReadId = null), child: const Icon(Icons.close, size: 16)),
               ),
             ),
@@ -391,7 +392,7 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
             right: 0,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-              child: _Indicator(onTap: _jumpToBottom, label: 'Viewing older messages', action: 'Jump to present', trailing: const Icon(Icons.arrow_forward, size: 16)),
+              child: _Indicator(onTap: _jumpToBottom, label: tr('Viewing older messages'), action: tr('Jump to present'), trailing: const Icon(Icons.arrow_forward, size: 16)),
             ),
           ),
         if (loading) Positioned.fill(child: ColoredBox(color: cs.surface.withValues(alpha: .4), child: const Center(child: CircularProgressIndicator()))),
@@ -430,7 +431,7 @@ class _Indicator extends StatelessWidget {
               data: IconThemeData(color: cs.onPrimary),
               child: Row(
                 spacing: Gap.md,
-                children: [Expanded(child: Text(label)), Text(action), trailing],
+                children: [Expanded(child: Text(tr(label))), Text(tr(action)), trailing],
               ),
             ),
           ),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:DawnChat/src/api/client_store.dart';
-import 'package:DawnChat/src/app.dart';
-import 'package:DawnChat/src/rust/frb_generated.dart';
-import 'package:DawnChat/src/state/settings_store.dart';
+import 'package:dawnchat/src/api/client_store.dart';
+import 'package:dawnchat/src/app.dart';
+import 'package:dawnchat/src/rust/frb_generated.dart';
+import 'package:dawnchat/src/state/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _user = String.fromEnvironment('DC_USERNAME');
