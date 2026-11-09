@@ -35,7 +35,7 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^2.0.0
+  cupertino_icons: ^1.0.8
   rust_lib_project:
     path: rust_builder
   flutter_rust_bridge: 2.13.0
@@ -60,8 +60,9 @@ dependencies:
   web: ^1.1.2
   launch_at_startup: ^0.5.1
   timeago: ^3.7.1
-  window_manager: ^0.6.0
-  tray_manager: ^0.8.3
+  # Keep the previous backend after Linux bottom-edge click-through on 0.6.
+  window_manager: ^0.5.2
+  tray_manager: ^0.5.2
   webview_flutter: ^4.14.1
   flutter_webrtc: ^1.6.3
   markdown: ^7.3.1

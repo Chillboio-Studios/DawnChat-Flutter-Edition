@@ -13,21 +13,22 @@ selection-menu Paste may require browser clipboard permission.
 
 ## Dependency updates
 
-Run `flutter pub upgrade --major-versions` from this directory and commit both
-`pubspec.yaml` and `pubspec.lock`. Validate updates with `flutter analyze
---no-fatal-infos` and `flutter test`.
+Prefer targeted dependency updates over blanket major-version upgrades, and
+commit both `pubspec.yaml` and `pubspec.lock`. Validate updates with
+`flutter analyze --no-fatal-infos`, `flutter test`, and affected platform builds.
 
 `launch_at_startup` 0.5.1 requires the win32 5.x ecosystem, so the latest mutually
 compatible versions are currently file_picker 11.0.3 and package_info_plus 9.0.1.
 Do not force win32 6.x with dependency overrides; replacing the startup package
 requires preserving Windows, Linux, and macOS startup registration.
 
-The desktop integration uses the compatibility libraries provided by
-window_manager 0.6 and tray_manager 0.8 to preserve window and tray behavior.
+The desktop integration keeps window_manager on 0.5.x following a Linux
+custom-frame regression reported after upgrading to 0.6 (clicking the bottom
+message bar causes the window to lose focus). tray_manager stays on the
+previous 0.5.x backend too. file_picker 11.0.3 is retained because it aligns
+Android Java and Kotlin JVM targets; pasteboard and mime support clipboard images.
 Desktop code is conditionally exported so these libraries are not compiled
 into the web app.
-Their native build hooks require `pkg-config`, `libgtk-3-dev`, `libx11-dev`,
-and `libxi-dev` when running tests or building on Debian/Ubuntu.
 
 ## Getting Started
 
