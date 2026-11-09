@@ -2,6 +2,15 @@
 
 A new Flutter project.
 
+## Clipboard images
+
+Paste an image into the message composer with Ctrl+V, Cmd+V, or Paste in the
+selection menu. It appears in the attachment preview and uploads when the
+message is sent, using the same permissions and size limits as selected files.
+Text-only clipboard content still pastes normally. On web, browser paste events
+provide image data without requesting clipboard-read permission; using Flutter's
+selection-menu Paste may require browser clipboard permission.
+
 ## Dependency updates
 
 Run `flutter pub upgrade --major-versions` from this directory and commit both
@@ -15,6 +24,8 @@ requires preserving Windows, Linux, and macOS startup registration.
 
 The desktop integration uses the compatibility libraries provided by
 window_manager 0.6 and tray_manager 0.8 to preserve window and tray behavior.
+Desktop code is conditionally exported so these libraries are not compiled
+into the web app.
 Their native build hooks require `pkg-config`, `libgtk-3-dev`, `libx11-dev`,
 and `libxi-dev` when running tests or building on Debian/Ubuntu.
 

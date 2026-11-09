@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../net_image.dart';
+import '../image_paste_region.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -547,21 +548,34 @@ class _MessageComposerState extends State<MessageComposer> {
                 ? Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text(tr("You are timed out and can't send messages right now."), style: TextStyle(fontSize: 14)))
                 : !canSendPerm
                 ? Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text(tr("You don't have permission to send messages in this channel."), style: TextStyle(fontSize: 14)))
-                : TextField(
-                    controller: _ctl,
+                : ImagePasteRegion(
+                    key: ValueKey(id),
                     focusNode: _focus,
-                    minLines: 1,
-                    maxLines: 12,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    style: TextStyle(fontSize: settings.messageSize, color: cs.onSurface),
-                    decoration: InputDecoration(
-                      hintText: placeholder,
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    enabled: canUpload && !sending,
+                    onImage: (bytes, mime, name) {
+                      if (_timedOut(store)) return;
+                      addDraftFiles(context, id, [
+                        (name: name, bytes: bytes, mime: mime),
+                      ]);
+                    },
+                    onError: (error) => showSnack(context, errorText(error)),
+                    builder: (context, menuBuilder) => TextField(
+                      contextMenuBuilder: menuBuilder,
+                      controller: _ctl,
+                      focusNode: _focus,
+                      minLines: 1,
+                      maxLines: 12,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      style: TextStyle(fontSize: settings.messageSize, color: cs.onSurface),
+                      decoration: InputDecoration(
+                        hintText: placeholder,
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
           ),
