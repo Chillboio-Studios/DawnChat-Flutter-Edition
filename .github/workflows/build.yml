@@ -1,0 +1,200 @@
+name: Build all platforms
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.47.9"
+  # Optional: Firebase values for FCM/APNs push (repository secrets). Empty values disable mobile push registration.
+  FIREBASE_DEFINES: >-
+    --dart-define=FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+    --dart-define=FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}
+    --dart-define=FIREBASE_SENDER_ID=${{ secrets.FIREBASE_SENDER_ID }}
+    --dart-define=FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+
+defaults:
+  run:
+    working-directory: project
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  android:
+    name: Android
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: project/rust
+      - run: flutter pub get
+      - run: flutter build apk --release ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build appbundle --release ${{ env.FIREBASE_DEFINES }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dawnchat-android
+          path: |
+            project/build/app/outputs/flutter-apk/app-release.apk
+            project/build/app/outputs/bundle/release/app-release.aab
+
+  ios:
+    name: iOS
+    needs: analyze
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: project/rust
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign ${{ env.FIREBASE_DEFINES }}
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry dawnchat-ios-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dawnchat-ios
+          path: project/dawnchat-ios-unsigned.ipa
+
+  macos:
+    name: macOS
+    needs: analyze
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: project/rust
+      - run: flutter config --enable-macos-desktop
+      - run: flutter pub get
+      - run: flutter build macos --release ${{ env.FIREBASE_DEFINES }}
+      - name: Package app
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/project.app dawnchat-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dawnchat-macos
+          path: project/dawnchat-macos.zip
+
+  windows:
+    name: Windows
+    needs: analyze
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: project/rust
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dawnchat-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dawnchat-windows
+          path: project/dawnchat-windows.zip
+
+  linux:
+    name: Linux
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev mpv
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: project/rust
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - name: Package
+        run: tar -C build/linux/x64/release/bundle -czf dawnchat-linux.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dawnchat-linux
+          path: project/dawnchat-linux.tar.gz
+
+  web:
+    name: Web
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      # Our own service worker (web/push_sw.js) handles push, so Flutter's caching worker is disabled.
+      - run: flutter build web --release --pwa-strategy=none --no-wasm-dry-run
+      - name: Add SPA fallback for deep links
+        run: cp build/web/index.html build/web/404.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dawnchat-web
+          path: project/build/web

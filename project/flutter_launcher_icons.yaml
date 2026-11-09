@@ -1,0 +1,14 @@
+flutter_launcher_icons:
+  image_path: "assets/branding/android-chrome-512x512.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: false
+  windows:
+    generate: true
+    image_path: "assets/branding/android-chrome-512x512.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/branding/android-chrome-512x512.png"
