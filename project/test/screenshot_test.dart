@@ -13,10 +13,22 @@ import 'package:dawnchat/src/router.dart';
 import 'package:dawnchat/src/state/draft_store.dart';
 import 'package:dawnchat/src/state/settings_store.dart';
 import 'package:dawnchat/src/theme/app_theme.dart';
+import 'package:dawnchat/src/ui/profile/profile.dart';
 import 'package:dawnchat/src/ui/settings/settings_page.dart';
 import 'package:dawnchat/src/voice/voice_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+void _drain(WidgetTester t) {
+  Object? ex;
+  while ((ex = t.takeException()) != null) {
+    final s = '$ex';
+    if (!s.contains('google_fonts') && !s.contains('GoogleFonts')) {
+      debugPrint('EXC: ${s.split('\n').take(6).join(' | ')}');
+    }
+  }
+}
 
 Future<void> _shot(
   WidgetTester tester,
@@ -187,6 +199,52 @@ void _seed(ClientStore s) {
 
 void main() {
   testWidgets(
+    'profile modal desktop',
+    (t) => _shot(
+      t,
+      '/server/01SERVER00000000000000000A/channel/C1',
+      const Size(1280, 800),
+      'profile_modal',
+      auth: AuthState.loggedIn,
+      seed: (s) {
+        _seed(s);
+        s.users['U2']!['status'] = {'text': 'Working on things', 'presence': 'Online'};
+        s.users['U2']!['badges'] = 16 | 1 | 4;
+        s.users['U2']!['display_name'] = 'Mystic Pixie';
+        s.servers['01SERVER00000000000000000A']!['roles'] = {
+          'R1': {'name': 'Moderator', 'colour': '#ff7f50', 'rank': 1},
+        };
+        s.members['01SERVER00000000000000000A']!['U2']!['roles'] = ['R1'];
+      },
+      onReady: (t) async {
+        showUserProfile(t.element(find.byType(Scaffold).first), 'U2', serverId: '01SERVER00000000000000000A');
+        for (var i = 0; i < 4; i++) {
+          await t.pump(const Duration(milliseconds: 300));
+          _drain(t);
+        }
+      },
+    ),
+  );
+  testWidgets(
+    'profile editor desktop',
+    (t) => _shot(
+      t,
+      '/app',
+      const Size(1280, 800),
+      'profile_editor',
+      auth: AuthState.loggedIn,
+      seed: _seed,
+      onReady: (t) async {
+        showSettings(t.element(find.byType(Scaffold).first), page: 'profile');
+        for (var i = 0; i < 6; i++) {
+          await t.pump(const Duration(milliseconds: 300));
+          _drain(t);
+        }
+      },
+    ),
+  );
+
+  testWidgets(
     'settings sessions desktop',
     (t) => _shot(
       t,
@@ -198,7 +256,7 @@ void main() {
       onReady: (t) async {
         showSettings(t.element(find.byType(Scaffold).first), page: 'language');
         await t.pump(const Duration(milliseconds: 600));
-        while (t.takeException() != null) {}
+        _drain(t);
         for (var i = 0; i < 6; i++) {
           await t.pump(const Duration(milliseconds: 300));
         }
@@ -288,6 +346,12 @@ void main() {
       'channel_desktop',
       auth: AuthState.loggedIn,
       seed: _seed,
+      onReady: (tester) async {
+        final list = tester.widget<ScrollablePositionedList>(
+          find.byType(ScrollablePositionedList),
+        );
+        expect(list.padding, const EdgeInsets.only(bottom: 12));
+      },
     ),
   );
   testWidgets(

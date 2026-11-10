@@ -1,9 +1,7 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../net_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
@@ -24,6 +22,7 @@ import '../messaging/markdown_view.dart';
 import '../messaging/time_utils.dart';
 import '../widgets.dart';
 import 'settings_page.dart' show isDesktopPlatform;
+import 'profile_editor.dart';
 import '../../core/i18n.dart';
 
 class SettingsBody extends StatelessWidget {
@@ -37,7 +36,7 @@ class SettingsBody extends StatelessWidget {
       return BotView(id: page.substring(5), onBack: () => onNavigate('bots'));
     return switch (page) {
       'account' => const AccountPage(),
-      'profile' => const ProfilePage(),
+      'profile' => ProfilePage(onNavigate: onNavigate),
       'sessions' => const SessionsPage(),
       'bots' => BotsPage(onOpen: (id) => onNavigate('bots/$id')),
       'feedback' => const FeedbackPage(),
@@ -511,153 +510,6 @@ List<String> _badgeAssets(int bits) {
     for (final e in map.entries)
       if (bits & e.key != 0) e.value,
   ];
-}
-
-// ---------------- Profile ----------------
-
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  late final TextEditingController _name;
-  late final TextEditingController _bio;
-  late final TextEditingController _status;
-  bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final me = context.read<ClientStore>().me;
-    _name = TextEditingController(text: me?['display_name'] as String? ?? '');
-    _bio = TextEditingController(
-      text: (me?['profile'] as Map?)?['content'] as String? ?? '',
-    );
-    _status = TextEditingController(
-      text: (me?['status'] as Map?)?['text'] as String? ?? '',
-    );
-  }
-
-  Future<void> _upload(String tag, String field, {bool profile = false}) async {
-    final store = context.read<ClientStore>();
-    final res = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    final f = res?.files.firstOrNull;
-    if (f?.bytes == null) return;
-    setState(() => _busy = true);
-    try {
-      final id = await store.api.uploadFile(
-        tag,
-        f!.name,
-        'image/${(f.extension ?? 'png').toLowerCase()}',
-        f.bytes!,
-      );
-      await store.api.patch(
-        '/users/@me',
-        profile
-            ? {
-                'profile': {field: id},
-              }
-            : {field: id},
-      );
-      await store.fetchUser(store.userId!);
-    } catch (e) {
-      if (mounted) showSnack(context, errorText(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _save() async {
-    final store = context.read<ClientStore>();
-    setState(() => _busy = true);
-    try {
-      await store.api.patch('/users/@me', {
-        'display_name': _name.text.trim().isEmpty ? null : _name.text.trim(),
-        'profile': {'content': _bio.text},
-        'status': {
-          'text': _status.text.isEmpty ? null : _status.text,
-          'presence': ((store.me?['status'] as Map?)?['presence']) ?? 'Online',
-        },
-      });
-      if (mounted) showSnack(context, 'Profile saved');
-    } catch (e) {
-      if (mounted) showSnack(context, errorText(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final store = context.watch<ClientStore>();
-    final cs = context.cs;
-    final banner = store.api.fileUrl(
-      'backgrounds',
-      (store.me?['profile'] as Map?)?['background'] as Map?,
-      width: 800,
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          height: 140,
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHigh,
-            borderRadius: br(Radius_.lg),
-            image: banner == null
-                ? null
-                : DecorationImage(
-                    image: netImageProvider(banner),
-                    fit: BoxFit.cover,
-                  ),
-          ),
-          alignment: Alignment.bottomLeft,
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              InkWell(
-                onTap: () => _upload('avatars', 'avatar'),
-                child: UserAvatar(userId: store.userId, size: 72),
-              ),
-              const Spacer(),
-              FilledButton.tonal(
-                onPressed: () =>
-                    _upload('backgrounds', 'background', profile: true),
-                child: const Text('Change banner'),
-              ),
-            ],
-          ),
-        ),
-        _gap(16),
-        TextField(
-          controller: _name,
-          decoration: InputDecoration(labelText: tr('Display Name')),
-        ),
-        _gap(16),
-        TextField(
-          controller: _status,
-          decoration: InputDecoration(labelText: tr('Custom status')),
-        ),
-        _gap(16),
-        TextField(
-          controller: _bio,
-          minLines: 4,
-          maxLines: 10,
-          decoration: const InputDecoration(labelText: 'About me'),
-        ),
-        _gap(16),
-        FilledButton(
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? 'Saving…' : 'Save'),
-        ),
-      ],
-    );
-  }
 }
 
 // ---------------- Sessions ----------------

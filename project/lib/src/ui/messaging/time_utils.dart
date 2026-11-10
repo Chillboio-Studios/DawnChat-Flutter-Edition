@@ -6,6 +6,7 @@ const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 /// ULID timestamp decoding (Crockford base32, first 10 chars).
 DateTime ulidTime(String id) {
   const alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  if (id.length < 10) return DateTime.fromMillisecondsSinceEpoch(0);
   var ms = 0;
   for (final ch in id.substring(0, 10).split('')) {
     ms = ms * 32 + alphabet.indexOf(ch.toUpperCase());

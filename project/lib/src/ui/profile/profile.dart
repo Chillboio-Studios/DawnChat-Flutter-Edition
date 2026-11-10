@@ -135,18 +135,18 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = context.cs;
     return Material(
-      color: cs.surfaceContainerLow,
+      color: cs.surfaceContainerHighest.withValues(alpha: .6),
       borderRadius: br(Radius_.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
+          padding: const EdgeInsets.all(Gap.l + 2),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: Gap.sm,
+            spacing: Gap.md,
             children: [
-              Text(tr(title), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: cs.onSurface)),
+              Text(tr(title), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: .2, color: cs.onSurfaceVariant)),
               if (clip) Expanded(child: ClipRect(child: child)) else child,
             ],
           ),
@@ -190,7 +190,7 @@ class _ProfileBannerState extends State<ProfileBanner> {
       child: InkWell(
         onTap: widget.onTap,
         child: Container(
-          height: 120,
+          height: 144,
           padding: const EdgeInsets.all(Gap.lg),
           decoration: BoxDecoration(
             image: bg == null ? null : DecorationImage(image: netImageProvider(bg), fit: BoxFit.cover),
@@ -206,14 +206,14 @@ class _ProfileBannerState extends State<ProfileBanner> {
               children: [
                 GestureDetector(
                   onTap: widget.onTapAvatar,
-                  child: UserAvatar(userId: widget.data.userId, size: 48, showStatus: true, url: avatarUrl),
+                  child: UserAvatar(userId: widget.data.userId, size: 64, showStatus: true, url: avatarUrl),
                 ),
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (display != username) Text(display ?? '', style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                      if (display != username) Text(display ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18), overflow: TextOverflow.ellipsis),
                       Row(
                         children: [
                           Tooltip(
@@ -334,7 +334,7 @@ ProfileCell? _roles(BuildContext context, ProfileData d, String? sid) {
   final cs = context.cs;
   return ProfileCell(
     span: 1,
-    aspect: 1,
+    aspect: 1.2,
     child: _Card(
       title: tr('Roles'),
       onTap: () => showUserRoles(context, sid, d.userId),
@@ -358,7 +358,7 @@ ProfileCell? _roles(BuildContext context, ProfileData d, String? sid) {
 ProfileCell? _status(BuildContext context, ProfileData d) {
   final text = (d.user['status'] as Map?)?['text'] as String?;
   if (text == null || text.isEmpty) return null;
-  return ProfileCell(span: 1, aspect: 1, child: _Card(title: tr('Status'), child: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(fontSize: 14)))));
+  return ProfileCell(span: 1, aspect: 1.2, child: _Card(title: tr('Status'), child: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(fontSize: 14)))));
 }
 
 ProfileCell? _badges(BuildContext context, ProfileData d) {
@@ -369,7 +369,7 @@ ProfileCell? _badges(BuildContext context, ProfileData d) {
   Widget b(String asset, String tip) => Tooltip(message: tip, child: SizedBox(width: 24, height: 24, child: BadgeIcon(name: asset, size: 24)));
   return ProfileCell(
     span: 1,
-    aspect: 1,
+    aspect: 1.2,
     child: _Card(
       title: tr('Badges'),
       child: SingleChildScrollView(
@@ -404,7 +404,7 @@ ProfileCell _joined(BuildContext context, ProfileData d, String? sid) {
   Widget label(String t) => Text(t, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurface));
   return ProfileCell(
     span: 1,
-    aspect: 1,
+    aspect: 1.2,
     child: _Card(
       title: tr('Joined'),
       child: SingleChildScrollView(
@@ -429,7 +429,7 @@ ProfileCell? _owner(BuildContext context, ProfileData d) {
   if (owner == null) return null;
   return ProfileCell(
     span: 1,
-    aspect: 1,
+    aspect: 1.2,
     child: _OwnerCard(ownerId: owner),
   );
 }
@@ -473,7 +473,7 @@ List<ProfileCell> _mutuals(BuildContext context, ProfileData d, String? sid) {
     if (d.mutualUsers.isNotEmpty)
       ProfileCell(
         span: 1,
-        aspect: 1,
+        aspect: 1.2,
         child: _Card(
           title: 'Mutuals',
           onTap: () => showMutualFriends(context, d.mutualUsers, serverId: sid),
@@ -483,7 +483,7 @@ List<ProfileCell> _mutuals(BuildContext context, ProfileData d, String? sid) {
     if (d.mutualGroups.isNotEmpty)
       ProfileCell(
         span: 1,
-        aspect: 1,
+        aspect: 1.2,
         child: _Card(
           title: 'Groups',
           onTap: () => showMutualGroups(context, d.mutualGroups),
@@ -507,7 +507,7 @@ ProfileCell? _bio(BuildContext context, ProfileData d, {required bool full, Void
   if (content == null || content.isEmpty) return null;
   return ProfileCell(
     span: full ? cols : 2,
-    aspect: full ? null : 2,
+    aspect: full ? null : 2.4,
     child: Builder(
       builder: (c) {
         final inner = Padding(
@@ -515,19 +515,19 @@ ProfileCell? _bio(BuildContext context, ProfileData d, {required bool full, Void
           child: SelectionArea(child: RichContent(content)),
         );
         return Material(
-          color: c.cs.surfaceContainerLow,
+          color: c.cs.surfaceContainerHighest.withValues(alpha: .6),
           borderRadius: br(Radius_.lg),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(Gap.lg),
+              padding: const EdgeInsets.all(Gap.l + 2),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: full ? MainAxisSize.min : MainAxisSize.max,
                 spacing: Gap.sm,
                 children: [
-                  Text('Bio', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.cs.onSurface)),
+                  Text(tr('Bio'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: .2, color: c.cs.onSurfaceVariant)),
                   if (full) inner else Expanded(child: ClipRect(child: inner)),
                 ],
               ),
@@ -668,8 +668,9 @@ class _CardHostState extends State<_CardHost> {
           left: left,
           top: top,
           width: w,
-          height: h,
-          child: ListenableBuilder(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: size.height - top - 8),
+            child: ListenableBuilder(
             listenable: data,
             builder: (c, _) {
               void openFull() {
@@ -696,6 +697,7 @@ class _CardHostState extends State<_CardHost> {
                 child: SingleChildScrollView(child: ProfileGrid(cols: 2, cells: cells)),
               );
             },
+            ),
           ),
         ),
       ],

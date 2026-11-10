@@ -126,8 +126,6 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
         final got = await store.loadMessages(id, limit: _initialLimit);
         atStart = got.length < _initialLimit;
       }
-      final sid = serverId;
-      if (sid != null && store.members[sid] == null) store.loadMembers(sid);
     } catch (_) {
       failed = true;
     }
@@ -342,7 +340,7 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
       itemScrollController: _scroll,
       itemPositionsListener: _positions,
       reverse: true,
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 12),
       itemCount: itemCount,
       itemBuilder: (c, i) {
         if (i == _entries.length) {

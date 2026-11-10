@@ -28,12 +28,50 @@ String userStatusText(ClientStore store, String userId) {
 }
 
 /// Right sidebar listing a server's or group's members.
-class MemberSidebar extends StatelessWidget {
+class MemberSidebar extends StatefulWidget {
   const MemberSidebar({super.key, required this.channel});
   final Json channel;
 
   @override
+  State<MemberSidebar> createState() => _MemberSidebarState();
+}
+
+class _MemberSidebarState extends State<MemberSidebar> {
+  bool _loading = false;
+  bool _failed = false;
+  int _request = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMembers();
+  }
+
+  @override
+  void didUpdateWidget(MemberSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channel['server'] != widget.channel['server']) {
+      _loadMembers();
+    }
+  }
+
+  Future<void> _loadMembers() async {
+    final request = ++_request;
+    final serverId = widget.channel['server'] as String?;
+    _loading = serverId != null;
+    _failed = false;
+    if (serverId == null) return;
+    try {
+      await context.read<ClientStore>().loadMembers(serverId);
+    } catch (_) {
+      if (mounted && request == _request) _failed = true;
+    }
+    if (mounted && request == _request) setState(() => _loading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final channel = widget.channel;
     final store = context.watch<ClientStore>();
     final cs = context.cs;
     final serverId = channel['server'] as String?;
@@ -129,7 +167,19 @@ class MemberSidebar extends StatelessWidget {
       width: Layout.channelSidebarWidth,
       child: Padding(
         padding: const EdgeInsets.only(right: Gap.md),
-        child: ListView(children: items),
+        child: ListView(children: [
+          if (_loading) const LinearProgressIndicator(),
+          if (_failed)
+            TextButton.icon(
+              onPressed: () {
+                setState(() {});
+                _loadMembers();
+              },
+              icon: const Icon(Icons.refresh),
+              label: Text(tr('Try again')),
+            ),
+          ...items,
+        ]),
       ),
     );
   }
