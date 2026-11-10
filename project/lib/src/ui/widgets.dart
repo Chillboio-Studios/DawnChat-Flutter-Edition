@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import 'net_image.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -496,7 +498,9 @@ Future<String?> promptText(
       content: TextField(
         controller: ctl,
         autofocus: true,
-        decoration: InputDecoration(labelText: label == null ? null : tr(label)),
+        decoration: InputDecoration(
+          labelText: label == null ? null : tr(label),
+        ),
       ),
       actions: [
         TextButton(

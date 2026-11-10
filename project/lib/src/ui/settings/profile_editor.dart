@@ -1,17 +1,17 @@
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../core/i18n.dart';
 import '../../theme/tokens.dart';
+import '../image_cropper.dart';
 import '../modals/member_modals.dart';
 import '../net_image.dart';
 import '../widgets.dart';
 
-typedef _Pick = ({String name, Uint8List bytes});
+typedef _Pick = PickedImage;
 
 /// Edit the global profile (`UserProfileEditor` / `EditProfile` in the web client).
 class ProfilePage extends StatefulWidget {
@@ -67,8 +67,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfile() async {
     try {
-      final r =
-          (await _store.api.get('/users/$_userId/profile')) as Map;
+      final r = (await _store.api.get('/users/$_userId/profile')) as Map;
       _bio0 = r['content'] as String? ?? '';
       _bannerFile = r['background'] as Map?;
     } catch (_) {}
@@ -88,15 +87,16 @@ class _ProfilePageState extends State<ProfilePage> {
       _removeAvatar ||
       _removeBanner;
 
-  Future<_Pick?> _pick() async {
-    final res = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    final f = res?.files.firstOrNull;
-    if (f == null || f.bytes == null) return null;
-    return (name: f.name, bytes: f.bytes!);
-  }
+  Future<_Pick?> _pick({
+    required CropShape shape,
+    double aspectRatio = 1,
+    String name = 'image',
+  }) => pickImageForUpload(
+    context,
+    shape: shape,
+    aspectRatio: aspectRatio,
+    name: name,
+  );
 
   void _reset() => setState(() {
     _resetFromUser();
@@ -148,7 +148,8 @@ class _ProfilePageState extends State<ProfilePage> {
       }
       if (profile.isNotEmpty) body['profile'] = profile;
       if (remove.isNotEmpty) body['remove'] = remove;
-      if (body.isNotEmpty) await _store.api.patch('/users/${widget.userId ?? '@me'}', body);
+      if (body.isNotEmpty)
+        await _store.api.patch('/users/${widget.userId ?? '@me'}', body);
       await _store.fetchUser(_userId);
       _resetFromUser();
       await _loadProfile();
@@ -236,7 +237,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               hasImage: hasAvatar,
               onUpload: () async {
-                final p = await _pick();
+                final p = await _pick(shape: CropShape.circle, name: 'avatar');
                 if (p != null) {
                   setState(() {
                     _newAvatar = p;
@@ -272,7 +273,11 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               hasImage: hasBanner,
               onUpload: () async {
-                final p = await _pick();
+                final p = await _pick(
+                  shape: CropShape.rect,
+                  aspectRatio: 2.32,
+                  name: 'banner',
+                );
                 if (p != null) {
                   setState(() {
                     _newBanner = p;

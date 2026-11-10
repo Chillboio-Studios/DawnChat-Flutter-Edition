@@ -1,156 +1,25 @@
 import 'package:flutter/material.dart';
+
 import '../net_image.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
+import '../../api/permissions.dart';
 import '../../core/links.dart';
 import '../../router.dart';
+import '../../state/channel_ordering.dart';
 import '../../theme/tokens.dart';
 import '../settings/server_settings.dart';
 import '../settings/channel_settings.dart';
+import '../modals/server_modals.dart';
 import '../voice/voice_ui.dart';
 import '../widgets.dart';
 import '../menus/context_menu.dart';
 import '../menus/server_menus.dart' as menus;
 import 'interface_shell.dart';
 import '../../core/i18n.dart';
-
-class OrderedCategory {
-  OrderedCategory({
-    required this.id,
-    required this.title,
-    required this.channelIds,
-  });
-
-  final String id;
-  String title;
-  List<String> channelIds;
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-    'id': id,
-    'title': title,
-    'channels': List<String>.from(channelIds),
-  };
-}
-
-/// Port of `orderedCategories` from `ordering.ts`.
-List<OrderedCategory> orderedCategories(
-  List<dynamic>? categories,
-  List<String> knownChannelIds,
-) {
-  final known = knownChannelIds.toSet();
-  final uncategorised = knownChannelIds.toSet();
-
-  final ordered = <OrderedCategory>[];
-  for (final raw in categories ?? const <dynamic>[]) {
-    if (raw is! Map) continue;
-    final id = (raw['id'] as String?) ?? 'default';
-    final title = (raw['title'] as String?) ?? '';
-    final channels = ((raw['channels'] as List?) ?? const <dynamic>[])
-        .whereType<String>()
-        .where(known.contains)
-        .toList();
-    for (final cid in channels) {
-      uncategorised.remove(cid);
-    }
-    if (id != 'default' || channels.any(known.contains)) {
-      ordered.add(
-        OrderedCategory(
-          id: id,
-          title: title,
-          channelIds: channels,
-        ),
-      );
-    }
-  }
-
-  final uncategorisedIds = uncategorised.toList();
-  final defaultCategory = ordered.where((c) => c.id == 'default').firstOrNull;
-  if (defaultCategory != null) {
-    defaultCategory.channelIds = [
-      ...defaultCategory.channelIds,
-      ...uncategorisedIds,
-    ];
-  } else {
-    ordered.insert(
-      0,
-      OrderedCategory(
-        id: 'default',
-        title: 'Default',
-        channelIds: uncategorisedIds,
-      ),
-    );
-  }
-
-  return ordered;
-}
-
-/// Port of `applyChannelOrdering` from `ordering.ts`.
-List<String> applyChannelOrdering(
-  List<String> channelIds,
-  List<String> visibleIds,
-  List<String> reorderedIds,
-) {
-  final newOrdering = <String>[];
-  final visible = visibleIds.toSet();
-  final remaining = <String>[...channelIds];
-
-  for (final orderedId in reorderedIds) {
-    final index = remaining.indexOf(orderedId);
-
-    if (index == -1) {
-      newOrdering.add(orderedId);
-      continue;
-    }
-
-    final leading = remaining.sublist(0, index);
-    remaining.removeRange(0, index);
-
-    newOrdering.addAll(leading.where((id) => !visible.contains(id)));
-
-    // invariant: remaining[0] == orderedId
-    newOrdering.add(remaining.removeAt(0));
-
-    remaining.insertAll(0, leading.where(visible.contains));
-  }
-
-  return <String>[
-    ...newOrdering,
-    ...remaining.where((id) => !visible.contains(id)),
-  ];
-}
-
-Future<void> saveServerCategories(
-  ClientStore store,
-  String serverId,
-  List<OrderedCategory> categories,
-) async {
-  final server = store.servers[serverId];
-  if (server == null) return;
-  final payload = <Map<String, dynamic>>[
-    for (final cat in categories)
-      if (cat.id != 'default' || cat.channelIds.isNotEmpty)
-        <String, dynamic>{
-          'id': cat.id,
-          'title': cat.title,
-          'channels': List<String>.from(cat.channelIds),
-        },
-  ];
-  final allOrderedIds = <String>[
-    for (final cat in categories) ...cat.channelIds,
-  ];
-  final existingChannels = ((server['channels'] as List?) ?? const <dynamic>[])
-      .whereType<String>()
-      .toList();
-  for (final id in existingChannels) {
-    if (!allOrderedIds.contains(id)) allOrderedIds.add(id);
-  }
-  server['categories'] = payload;
-  server['channels'] = allOrderedIds;
-  store.refresh();
-  await store.api.patch('/servers/$serverId', {'categories': payload});
-}
 
 class SidebarPanel extends StatelessWidget {
   const SidebarPanel({super.key, required this.target});
@@ -162,13 +31,20 @@ class SidebarPanel extends StatelessWidget {
     return Container(
       color: cs.surfaceContainerHigh,
       child: target.serverId != null
-          ? ServerSidebar(serverId: target.serverId!, channelId: target.channelId)
+          ? ServerSidebar(
+              serverId: target.serverId!,
+              channelId: target.channelId,
+            )
           : HomeSidebar(channelId: target.channelId),
     );
   }
 }
 
-Future<void> showNotificationOptions(BuildContext context, String kind, String id) {
+Future<void> showNotificationOptions(
+  BuildContext context,
+  String kind,
+  String id,
+) {
   final store = context.read<ClientStore>();
   final s = store.settings;
   return showDialog<void>(
@@ -184,38 +60,72 @@ Future<void> showNotificationOptions(BuildContext context, String kind, String i
         }
 
         Widget mute(String label, Duration? d) => ListTile(
-              dense: true,
-              title: Text(tr(label)),
-              onTap: () => apply(() => s.setMute(kind, id, d == null ? -1 : DateTime.now().add(d).millisecondsSinceEpoch)),
-            );
+          dense: true,
+          title: Text(tr(label)),
+          onTap: () => apply(
+            () => s.setMute(
+              kind,
+              id,
+              d == null ? -1 : DateTime.now().add(d).millisecondsSinceEpoch,
+            ),
+          ),
+        );
 
         return AlertDialog(
           title: const Text('Notification options'),
           content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              RadioGroup<String?>(
-                groupValue: level,
-                onChanged: (v) => apply(() => s.setNotif(kind, id, v)),
-                child: Column(children: [
-                  RadioListTile<String?>(title: Text(tr('Default')), value: null),
-                  RadioListTile<String?>(title: Text(tr('All Messages')), value: 'all'),
-                  RadioListTile<String?>(title: Text(tr('Mentions Only')), value: 'mention'),
-                  RadioListTile<String?>(title: Text(tr('None')), value: 'none'),
-                ]),
-              ),
-              const Divider(),
-              if (muted)
-                ListTile(dense: true, title: Text(tr('Unmute')), leading: const Icon(Icons.notifications_active_outlined), onTap: () => apply(() => s.setMute(kind, id, null)))
-              else ...[
-                mute('Mute for 15 minutes', const Duration(minutes: 15)),
-                mute('Mute for 1 hour', const Duration(hours: 1)),
-                mute('Mute for 8 hours', const Duration(hours: 8)),
-                mute('Mute for 24 hours', const Duration(hours: 24)),
-                mute('Mute until I turn it back on', null),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RadioGroup<String?>(
+                  groupValue: level,
+                  onChanged: (v) => apply(() => s.setNotif(kind, id, v)),
+                  child: Column(
+                    children: [
+                      RadioListTile<String?>(
+                        title: Text(tr('Default')),
+                        value: null,
+                      ),
+                      RadioListTile<String?>(
+                        title: Text(tr('All Messages')),
+                        value: 'all',
+                      ),
+                      RadioListTile<String?>(
+                        title: Text(tr('Mentions Only')),
+                        value: 'mention',
+                      ),
+                      RadioListTile<String?>(
+                        title: Text(tr('None')),
+                        value: 'none',
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                if (muted)
+                  ListTile(
+                    dense: true,
+                    title: Text(tr('Unmute')),
+                    leading: const Icon(Icons.notifications_active_outlined),
+                    onTap: () => apply(() => s.setMute(kind, id, null)),
+                  )
+                else ...[
+                  mute('Mute for 15 minutes', const Duration(minutes: 15)),
+                  mute('Mute for 1 hour', const Duration(hours: 1)),
+                  mute('Mute for 8 hours', const Duration(hours: 8)),
+                  mute('Mute for 24 hours', const Duration(hours: 24)),
+                  mute('Mute until I turn it back on', null),
+                ],
               ],
-            ]),
+            ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Done')))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: Text(tr('Done')),
+            ),
+          ],
         );
       },
     ),
@@ -480,11 +390,10 @@ class ServerSidebar extends StatelessWidget {
     if (server == null) return const SizedBox.shrink();
 
     final all = store.channelsOfServer(serverId);
-    final categories = ((server['categories'] as List?) ?? []).cast<Map>();
-    final categorised = {
-      for (final c in categories) ...((c['channels'] as List).cast<String>()),
-    };
-    final loose = all.where((c) => !categorised.contains(c['_id'])).toList();
+    final categories = orderedCategories(
+      (server['categories'] as List?)?.cast<dynamic>(),
+      [for (final c in all) c['_id'] as String],
+    );
     final banner = store.api.fileUrl(
       'banners',
       server['banner'] as Map?,
@@ -500,21 +409,29 @@ class ServerSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 1),
             child: GestureDetector(
-              onSecondaryTapUp: (details) => showContextMenu(context, details.globalPosition, menus.channelMenu(context, c)),
-              onLongPressStart: (details) => showContextMenu(context, details.globalPosition, menus.channelMenu(context, c)),
-              child: MenuButton(
-              height: 36,
-              selected: id == channelId,
-              active: unread,
-              leading: Icon(
-                isVoice ? Icons.headset_mic_outlined : Icons.tag,
-                size: 20,
+              onSecondaryTapUp: (details) => showContextMenu(
+                context,
+                details.globalPosition,
+                menus.channelMenu(context, c),
               ),
-              title: Text(c['name'] as String? ?? 'Unnamed'),
-              trailing: unread && id != channelId
-                  ? UnreadDot(count: store.mentionCount(id))
-                  : null,
-              onTap: () => context.goPath('/server/$serverId/channel/$id'),
+              onLongPressStart: (details) => showContextMenu(
+                context,
+                details.globalPosition,
+                menus.channelMenu(context, c),
+              ),
+              child: MenuButton(
+                height: 36,
+                selected: id == channelId,
+                active: unread,
+                leading: Icon(
+                  isVoice ? Icons.headset_mic_outlined : Icons.tag,
+                  size: 20,
+                ),
+                title: Text(c['name'] as String? ?? 'Unnamed'),
+                trailing: unread && id != channelId
+                    ? UnreadDot(count: store.mentionCount(id))
+                    : null,
+                onTap: () => context.goPath('/server/$serverId/channel/$id'),
               ),
             ),
           ),
@@ -559,6 +476,12 @@ class ServerSidebar extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (store.canInServer(serverId, Perm.manageChannel))
+                  IconButton(
+                    icon: const Icon(Icons.add, size: 20),
+                    tooltip: tr('Create'),
+                    onPressed: () => _createMenu(context, serverId),
+                  ),
                 Icon(
                   Icons.expand_more,
                   color: banner != null ? Colors.white : cs.onSurface,
@@ -571,14 +494,22 @@ class ServerSidebar extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 8),
             children: [
-              for (final c in loose) channelTile(c),
               for (final cat in categories) ...[
-                GestureDetector(
-                  onSecondaryTapUp: (details) => showContextMenu(context, details.globalPosition, menus.categoryMenu(context, serverId, cat.cast<String, dynamic>())),
-                  onLongPressStart: (details) => showContextMenu(context, details.globalPosition, menus.categoryMenu(context, serverId, cat.cast<String, dynamic>())),
-                  child: _Category((cat['title'] as String? ?? '').toUpperCase()),
-                ),
-                for (final id in (cat['channels'] as List).cast<String>())
+                if (cat.id != 'default')
+                  GestureDetector(
+                    onSecondaryTapUp: (details) => showContextMenu(
+                      context,
+                      details.globalPosition,
+                      menus.categoryMenu(context, serverId, cat.toMap()),
+                    ),
+                    onLongPressStart: (details) => showContextMenu(
+                      context,
+                      details.globalPosition,
+                      menus.categoryMenu(context, serverId, cat.toMap()),
+                    ),
+                    child: _Category(cat.title.toUpperCase()),
+                  ),
+                for (final id in cat.channelIds)
                   if (store.channels[id] != null)
                     channelTile(store.channels[id]!),
               ],
@@ -587,6 +518,36 @@ class ServerSidebar extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _createMenu(BuildContext context, String serverId) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (s) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.tag),
+              title: Text(tr('Create channel')),
+              onTap: () => Navigator.pop(s, 'channel'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: Text(tr('Create category')),
+              onTap: () => Navigator.pop(s, 'category'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || choice == null) return;
+    if (choice == 'channel') {
+      await showCreateChannel(context, serverId);
+    } else {
+      await showCreateCategory(context, serverId);
+    }
   }
 
   Future<void> _serverMenu(

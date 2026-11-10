@@ -1,18 +1,24 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
 import '../net_image.dart';
+
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
+import '../../state/channel_ordering.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
+import '../image_cropper.dart';
 import '../widgets.dart';
 import '../modals/member_modals.dart';
+import '../modals/server_modals.dart';
 import '../profile/profile.dart' show showUserRoles;
 import '../../core/i18n.dart';
 import 'permission_editor.dart';
 import 'role_editor.dart';
+import 'settings_page.dart' show SettingsNavRow;
 
 Future<void> showServerSettings(BuildContext context, String serverId) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -37,7 +43,13 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
   String _page = 'overview';
 
   static final _entries = [
-    ('Server', [('overview', 'Overview', Icons.info_outline)]),
+    (
+      'Server',
+      [
+        ('overview', 'Overview', Icons.info_outline),
+        ('channels', 'Channels', Icons.account_tree_outlined),
+      ],
+    ),
     ('Customisation', [('emojis', 'Emojis', Icons.emoji_emotions_outlined)]),
     (
       tr('User Management'),
@@ -62,16 +74,34 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
         screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
     final entries = [
       for (final section in _entries)
-        (section.$1, [
-          for (final entry in section.$2)
-            if (switch (entry.$1) {
-              'roles' => store.canInServer(widget.serverId, Perm.manageRole) || store.canInServer(widget.serverId, Perm.managePermissions),
-              'emojis' => store.canInServer(widget.serverId, Perm.manageCustomisation),
-              'invites' => store.canInServer(widget.serverId, Perm.manageServer),
-              'bans' => store.canInServer(widget.serverId, Perm.banMembers),
-              _ => true,
-            }) entry,
-        ]),
+        (
+          section.$1,
+          [
+            for (final entry in section.$2)
+              if (switch (entry.$1) {
+                'roles' =>
+                  store.canInServer(widget.serverId, Perm.manageRole) ||
+                      store.canInServer(
+                        widget.serverId,
+                        Perm.managePermissions,
+                      ),
+                'channels' =>
+                  store.canInServer(widget.serverId, Perm.manageChannel) ||
+                      store.canInServer(widget.serverId, Perm.manageServer),
+                'emojis' => store.canInServer(
+                  widget.serverId,
+                  Perm.manageCustomisation,
+                ),
+                'invites' => store.canInServer(
+                  widget.serverId,
+                  Perm.manageServer,
+                ),
+                'bans' => store.canInServer(widget.serverId, Perm.banMembers),
+                _ => true,
+              })
+                entry,
+          ],
+        ),
     ];
 
     final nav = ListView(
@@ -104,31 +134,33 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
             ),
           ),
           for (final e in cat.$2)
-            ListTile(
-              shape: RoundedRectangleBorder(borderRadius: br(Radius_.xl)),
-              selected: _page.split('/').first == e.$1,
-              selectedTileColor: cs.secondaryContainer,
-              leading: Icon(e.$3),
-              title: Text(tr(e.$2)),
-              onTap: () => setState(() => _page = e.$1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: SettingsNavRow(
+                icon: e.$3,
+                title: tr(e.$2),
+                selected: _page.split('/').first == e.$1,
+                onTap: () => setState(() => _page = e.$1),
+              ),
             ),
         ],
         const Divider(),
-        if (server['owner'] == store.userId) ListTile(
-          leading: Icon(Icons.delete_outline, color: cs.error),
-          title: Text(tr('Delete Server'), style: TextStyle(color: cs.error)),
-          onTap: () async {
-            if (await confirm(
-              context,
-              'Delete server?',
-              'This cannot be undone.',
-              action: tr('Delete'),
-            )) {
-              await store.leaveServer(widget.serverId);
-              if (context.mounted) Navigator.pop(context);
-            }
-          },
-        ),
+        if (server['owner'] == store.userId)
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: cs.error),
+            title: Text(tr('Delete Server'), style: TextStyle(color: cs.error)),
+            onTap: () async {
+              if (await confirm(
+                context,
+                'Delete server?',
+                'This cannot be undone.',
+                action: tr('Delete'),
+              )) {
+                await store.leaveServer(widget.serverId);
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+          ),
       ],
     );
 
@@ -154,24 +186,37 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
             child: _page == 'roles/default'
                 ? PermissionSettings(
                     key: const ValueKey('server-default'),
-                    initial: server['default_permissions'], overrides: false,
+                    initial: server['default_permissions'],
+                    overrides: false,
                     onSave: (value) async {
-                      await store.api.put('/servers/${widget.serverId}/permissions/default', {'permissions': value.allow.toInt()});
+                      await store.api.put(
+                        '/servers/${widget.serverId}/permissions/default',
+                        {'permissions': value.allow.toInt()},
+                      );
                       server['default_permissions'] = value.allow.toInt();
                       store.refresh();
                     },
                   )
                 : _page.startsWith('roles/')
-                ? RoleEditor(key: ValueKey(_page), serverId: widget.serverId, roleId: _page.substring(6), onBack: () => setState(() => _page = 'roles'))
+                ? RoleEditor(
+                    key: ValueKey(_page),
+                    serverId: widget.serverId,
+                    roleId: _page.substring(6),
+                    onBack: () => setState(() => _page = 'roles'),
+                  )
                 : switch (_page) {
-              'overview' => _Overview(serverId: widget.serverId),
-              'emojis' => _Emojis(serverId: widget.serverId),
-              'members' => _Members(serverId: widget.serverId),
-              'roles' => _Roles(serverId: widget.serverId, onEdit: (id) => setState(() => _page = 'roles/$id')),
-              'invites' => _Invites(serverId: widget.serverId),
-              'bans' => _Bans(serverId: widget.serverId),
-              _ => const SizedBox.shrink(),
-            },
+                    'overview' => _Overview(serverId: widget.serverId),
+                    'channels' => _ChannelOrder(serverId: widget.serverId),
+                    'emojis' => _Emojis(serverId: widget.serverId),
+                    'members' => _Members(serverId: widget.serverId),
+                    'roles' => _Roles(
+                      serverId: widget.serverId,
+                      onEdit: (id) => setState(() => _page = 'roles/$id'),
+                    ),
+                    'invites' => _Invites(serverId: widget.serverId),
+                    'bans' => _Bans(serverId: widget.serverId),
+                    _ => const SizedBox.shrink(),
+                  },
           ),
         ),
       ),
@@ -207,7 +252,7 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
         child: phone
             ? body
             : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
                     flex: 218,
@@ -257,17 +302,23 @@ class _OverviewState extends State<_Overview> {
             as String?,
   );
   late final Map<String, dynamic> _system = Map<String, dynamic>.from(
-    context.read<ClientStore>().servers[widget.serverId]?['system_messages'] as Map? ?? {},
+    context.read<ClientStore>().servers[widget.serverId]?['system_messages']
+            as Map? ??
+        {},
   );
   bool _busy = false;
-  PlatformFile? _iconFile, _bannerFile;
+  PickedImage? _iconFile, _bannerFile;
   bool _removeIcon = false, _removeBanner = false;
 
   void _reset() => setState(() {
     final server = context.read<ClientStore>().servers[widget.serverId]!;
     _name.text = server['name'] as String? ?? '';
     _desc.text = server['description'] as String? ?? '';
-    _system..clear()..addAll((server['system_messages'] as Map?)?.cast<String, dynamic>() ?? {});
+    _system
+      ..clear()
+      ..addAll(
+        (server['system_messages'] as Map?)?.cast<String, dynamic>() ?? {},
+      );
     _iconFile = _bannerFile = null;
     _removeIcon = _removeBanner = false;
   });
@@ -280,21 +331,32 @@ class _OverviewState extends State<_Overview> {
   }
 
   void _removeImage(String field) => setState(() {
-    if (field == 'icon') { _iconFile = null; _removeIcon = true; }
-    else { _bannerFile = null; _removeBanner = true; }
+    if (field == 'icon') {
+      _iconFile = null;
+      _removeIcon = true;
+    } else {
+      _bannerFile = null;
+      _removeBanner = true;
+    }
   });
 
-  Future<void> _upload(String tag, String field) async {
-    final res = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
+  Future<void> _upload(String field) async {
+    final isIcon = field == 'icon';
+    final p = await pickImageForUpload(
+      context,
+      shape: CropShape.rect,
+      aspectRatio: isIcon ? 1 : 2.32,
+      name: isIcon ? 'icon' : 'banner',
     );
-    final f = res?.files.firstOrNull;
-    if (f?.bytes == null) return;
-    if (!mounted) return;
+    if (p == null || !mounted) return;
     setState(() {
-      if (field == 'icon') { _iconFile = f; _removeIcon = false; }
-      else { _bannerFile = f; _removeBanner = false; }
+      if (isIcon) {
+        _iconFile = p;
+        _removeIcon = false;
+      } else {
+        _bannerFile = p;
+        _removeBanner = false;
+      }
     });
   }
 
@@ -306,36 +368,73 @@ class _OverviewState extends State<_Overview> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (_iconFile?.bytes != null)
-              ClipOval(child: Image.memory(_iconFile!.bytes!, width: 72, height: 72, fit: BoxFit.cover))
-            else IconAvatar(
-              url: _removeIcon ? null : store.api.fileUrl('icons', s['icon'] as Map?, width: 128),
-              name: s['name'] as String? ?? '?',
-              size: 72,
-            ),
+            if (_iconFile != null)
+              ClipRRect(
+                borderRadius: br(10),
+                child: Image.memory(
+                  _iconFile!.bytes,
+                  width: 72,
+                  height: 72,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else
+              IconAvatar(
+                url: _removeIcon
+                    ? null
+                    : store.api.fileUrl('icons', s['icon'] as Map?, width: 128),
+                name: s['name'] as String? ?? '?',
+                size: 72,
+              ),
             const SizedBox(width: 16),
             FilledButton.tonal(
-              onPressed: () => _upload('icons', 'icon'),
+              onPressed: () => _upload('icon'),
               child: const Text('Change icon'),
             ),
-            if (!_removeIcon && (s['icon'] != null || _iconFile != null)) IconButton(tooltip: tr('Remove'), icon: const Icon(Icons.delete_outline), onPressed: () => _removeImage('icon')),
+            if (!_removeIcon && (s['icon'] != null || _iconFile != null))
+              IconButton(
+                tooltip: tr('Remove'),
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _removeImage('icon'),
+              ),
             const SizedBox(width: 8),
             FilledButton.tonal(
-              onPressed: () => _upload('banners', 'banner'),
+              onPressed: () => _upload('banner'),
               child: const Text('Change banner'),
             ),
-            if (!_removeBanner && (s['banner'] != null || _bannerFile != null)) IconButton(tooltip: tr('Remove'), icon: const Icon(Icons.delete_outline), onPressed: () => _removeImage('banner')),
+            if (!_removeBanner && (s['banner'] != null || _bannerFile != null))
+              IconButton(
+                tooltip: tr('Remove'),
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _removeImage('banner'),
+              ),
           ],
         ),
-        if (!_removeBanner && (_bannerFile?.bytes != null || s['banner'] != null))
-          Padding(padding: const EdgeInsets.only(top: 12), child: ClipRRect(
-            borderRadius: br(Radius_.sm),
-            child: AspectRatio(aspectRatio: 2.32, child: _bannerFile?.bytes != null
-                ? Image.memory(_bannerFile!.bytes!, fit: BoxFit.cover)
-                : NetImage(store.api.fileUrl('banners', s['banner'] as Map?, width: 800) ?? '', fit: BoxFit.cover)),
-          )),
+        if (!_removeBanner && (_bannerFile != null || s['banner'] != null))
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: ClipRRect(
+              borderRadius: br(Radius_.sm),
+              child: AspectRatio(
+                aspectRatio: 2.32,
+                child: _bannerFile != null
+                    ? Image.memory(_bannerFile!.bytes, fit: BoxFit.cover)
+                    : NetImage(
+                        store.api.fileUrl(
+                              'banners',
+                              s['banner'] as Map?,
+                              width: 800,
+                            ) ??
+                            '',
+                        fit: BoxFit.cover,
+                      ),
+              ),
+            ),
+          ),
         const SizedBox(height: 16),
         TextField(
           controller: _name,
@@ -352,54 +451,92 @@ class _OverviewState extends State<_Overview> {
         ),
         const SizedBox(height: 16),
         SectionTitle(tr('System message channels')),
-        for (final entry in const {'user_joined': 'User Joined', 'user_left': 'User Left', 'user_kicked': 'User Kicked', 'user_banned': 'User Banned'}.entries)
+        for (final entry in const {
+          'user_joined': 'User Joined',
+          'user_left': 'User Left',
+          'user_kicked': 'User Kicked',
+          'user_banned': 'User Banned',
+        }.entries)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: DropdownButtonFormField<String>(
-              initialValue: store.channels.containsKey(_system[entry.key]) ? _system[entry.key] as String : 'none',
-              isExpanded: true, decoration: InputDecoration(labelText: tr(entry.value)),
-              items: [DropdownMenuItem(value: 'none', child: Text(tr('Disabled'))),
+              initialValue: store.channels.containsKey(_system[entry.key])
+                  ? _system[entry.key] as String
+                  : 'none',
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr(entry.value)),
+              items: [
+                DropdownMenuItem(value: 'none', child: Text(tr('Disabled'))),
                 for (final channel in store.channelsOfServer(widget.serverId))
-                  DropdownMenuItem(value: channel['_id'] as String, child: Text(store.channelName(channel))),
+                  DropdownMenuItem(
+                    value: channel['_id'] as String,
+                    child: Text(store.channelName(channel)),
+                  ),
               ],
-              onChanged: _busy ? null : (next) => setState(() {
-                if (next == null || next == 'none') { _system.remove(entry.key); } else { _system[entry.key] = next; }
-              }),
+              onChanged: _busy
+                  ? null
+                  : (next) => setState(() {
+                      if (next == null || next == 'none') {
+                        _system.remove(entry.key);
+                      } else {
+                        _system[entry.key] = next;
+                      }
+                    }),
             ),
           ),
         FilledButton(
-          onPressed: _busy ? null : () => _guard(context, () async {
-            if (_name.text.trim().isEmpty) return;
-            setState(() => _busy = true);
-            try {
-            final remove = <String>[
-              if (_desc.text.trim().isEmpty) 'Description',
-              if (_removeIcon) 'Icon', if (_removeBanner) 'Banner',
-            ];
-            final body = <String, dynamic>{
-              'name': _name.text.trim(),
-              if (_desc.text.trim().isNotEmpty) 'description': _desc.text.trim(),
-              if (remove.isNotEmpty) 'remove': remove,
-              'system_messages': Map<String, dynamic>.from(_system),
-            };
-            for (final entry in {'icon': _iconFile, 'banner': _bannerFile}.entries) {
-              final file = entry.value;
-              if (file?.bytes != null) {
-                body[entry.key] = await store.api.uploadFile(entry.key == 'icon' ? 'icons' : 'banners', file!.name, mimeFromNameSimple(file.name), file.bytes!);
-              }
-            }
-            final response = await store.api.patch('/servers/${widget.serverId}', body);
-            s.addAll({'name': _name.text.trim(), 'description': _desc.text.trim(), 'system_messages': Map<String, dynamic>.from(_system)});
-            if (_removeIcon) s.remove('icon');
-            if (_removeBanner) s.remove('banner');
-            if (response is Map) s.addAll(response.cast<String, dynamic>());
-            store.refresh();
-            if (mounted) _reset();
-            if (mounted) showSnack(context, 'Saved');
-            } finally {
-              if (mounted) setState(() => _busy = false);
-            }
-          }),
+          onPressed: _busy
+              ? null
+              : () => _guard(context, () async {
+                  if (_name.text.trim().isEmpty) return;
+                  setState(() => _busy = true);
+                  try {
+                    final remove = <String>[
+                      if (_desc.text.trim().isEmpty) 'Description',
+                      if (_removeIcon) 'Icon',
+                      if (_removeBanner) 'Banner',
+                    ];
+                    final body = <String, dynamic>{
+                      'name': _name.text.trim(),
+                      if (_desc.text.trim().isNotEmpty)
+                        'description': _desc.text.trim(),
+                      if (remove.isNotEmpty) 'remove': remove,
+                      'system_messages': Map<String, dynamic>.from(_system),
+                    };
+                    for (final entry in {
+                      'icon': _iconFile,
+                      'banner': _bannerFile,
+                    }.entries) {
+                      final file = entry.value;
+                      if (file != null) {
+                        body[entry.key] = await store.api.uploadFile(
+                          entry.key == 'icon' ? 'icons' : 'banners',
+                          file.name,
+                          mimeFromNameSimple(file.name),
+                          file.bytes,
+                        );
+                      }
+                    }
+                    final response = await store.api.patch(
+                      '/servers/${widget.serverId}',
+                      body,
+                    );
+                    s.addAll({
+                      'name': _name.text.trim(),
+                      'description': _desc.text.trim(),
+                      'system_messages': Map<String, dynamic>.from(_system),
+                    });
+                    if (_removeIcon) s.remove('icon');
+                    if (_removeBanner) s.remove('banner');
+                    if (response is Map)
+                      s.addAll(response.cast<String, dynamic>());
+                    store.refresh();
+                    if (mounted) _reset();
+                    if (mounted) showSnack(context, 'Saved');
+                  } finally {
+                    if (mounted) setState(() => _busy = false);
+                  }
+                }),
           child: Text(tr('Save')),
         ),
         TextButton(onPressed: _busy ? null : _reset, child: Text(tr('Reset'))),
@@ -485,10 +622,20 @@ class _EmojisState extends State<_Emojis> {
             for (final e in list)
               CategoryButton(
                 onTap: () async {
-                  final name = await promptText(context, tr('Rename emoji'), label: tr('Emoji Name'), initial: e['name'] as String?);
-                  if (name == null || !RegExp(r'^[a-z0-9_]{1,32}$').hasMatch(name) || !context.mounted) return;
+                  final name = await promptText(
+                    context,
+                    tr('Rename emoji'),
+                    label: tr('Emoji Name'),
+                    initial: e['name'] as String?,
+                  );
+                  if (name == null ||
+                      !RegExp(r'^[a-z0-9_]{1,32}$').hasMatch(name) ||
+                      !context.mounted)
+                    return;
                   await _guard(context, () async {
-                    await store.api.patch('/custom/emoji/${e['_id']}', {'name': name});
+                    await store.api.patch('/custom/emoji/${e['_id']}', {
+                      'name': name,
+                    });
                     await _load();
                   });
                 },
@@ -525,6 +672,23 @@ class _Members extends StatelessWidget {
       store.loadMembers(serverId);
       return const Center(child: CircularProgressIndicator());
     }
+    // Highest role first; the owner outranks everyone.
+    final server = store.servers[serverId];
+    final roles = (server?['roles'] as Map?) ?? const {};
+    int topRank(String id) {
+      if (id == server?['owner']) return -1;
+      final memberRoles =
+          ((store.members[serverId]?[id]?['roles'] as List?) ?? const [])
+              .cast<String>();
+      var best = 1 << 30;
+      for (final rid in memberRoles) {
+        final r = ((roles[rid] as Map?)?['rank'] as num?)?.toInt();
+        if (r != null && r < best) best = r;
+      }
+      return best;
+    }
+
+    ids.sort((a, b) => topRank(a).compareTo(topRank(b)));
     return CategoryGroup(
       children: [
         for (final id in ids)
@@ -562,95 +726,171 @@ class _Roles extends StatelessWidget {
   const _Roles({required this.serverId, required this.onEdit});
   final String serverId;
   final ValueChanged<String> onEdit;
+
+  /// Roles are hierarchical: a lower [rank] means a more powerful role and is
+  /// shown higher in the list. Ties keep their previous relative order.
+  static List<String> _hierarchy(Map<String, dynamic> roles) {
+    final ids = roles.keys.toList();
+    final indexed =
+        [
+          for (var i = 0; i < ids.length; i++)
+            (
+              id: ids[i],
+              rank: ((roles[ids[i]] as Map)['rank'] as num?) ?? 0,
+              index: i,
+            ),
+        ]..sort((a, b) {
+          final r = a.rank.compareTo(b.rank);
+          return r != 0 ? r : a.index.compareTo(b.index);
+        });
+    return [for (final e in indexed) e.id];
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ClientStore>();
     final roles = ((store.servers[serverId]?['roles'] as Map?) ?? {})
         .cast<String, dynamic>();
-    final ordered = roles.keys.toList()
-      ..sort((first, second) => ((roles[first]['rank'] as num?) ?? 0).compareTo((roles[second]['rank'] as num?) ?? 0));
+    final ordered = _hierarchy(roles);
     final canEdit = store.canInServer(serverId, Perm.manageRole);
+    final phone =
+        screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
+
+    Future<void> applyOrder(List<String> next) => _guard(context, () async {
+      await store.api.patch('/servers/$serverId/roles', {'roles': next});
+      for (var index = 0; index < next.length; index++) {
+        (roles[next[index]] as Map)['rank'] = index;
+      }
+      store.refresh();
+    });
+
+    void move(String id, int delta) {
+      final next = List<String>.from(ordered);
+      final from = next.indexOf(id);
+      final to = (from + delta).clamp(0, next.length - 1);
+      if (to == from) return;
+      next.insert(to, next.removeAt(from));
+      applyOrder(next);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (canEdit) FilledButton.icon(
-          icon: const Icon(Icons.add),
-          label: Text(tr('Create Role')),
-          onPressed: () async {
-            final name = await promptText(
-              context,
-              tr('Create Role'),
-              label: tr('Role Name'),
-              action: tr('Create'),
-            );
-            if (name == null || name.isEmpty || !context.mounted) return;
-            await _guard(context, () async {
-              final r = await store.api.post('/servers/$serverId/roles', {
-                'name': name,
-              }) as Map;
-              ((store.servers[serverId]!['roles'] ??= <String, dynamic>{})
-                  as Map)[r['id']] = (r['role'] as Map)
-                  .cast<String, dynamic>();
-              store.refresh();
-              onEdit(r['id'] as String);
-            });
-          },
+        if (canEdit)
+          FilledButton.icon(
+            icon: const Icon(Icons.add),
+            label: Text(tr('Create Role')),
+            onPressed: () async {
+              final name = await promptText(
+                context,
+                tr('Create Role'),
+                label: tr('Role Name'),
+                action: tr('Create'),
+              );
+              if (name == null || name.isEmpty || !context.mounted) return;
+              await _guard(context, () async {
+                final r = await store.api.post('/servers/$serverId/roles', {
+                  'name': name,
+                }) as Map;
+                ((store.servers[serverId]!['roles'] ??= <String, dynamic>{})
+                    as Map)[r['id']] = (r['role'] as Map)
+                    .cast<String, dynamic>();
+                store.refresh();
+                onEdit(r['id'] as String);
+              });
+            },
+          ),
+        const SizedBox(height: 8),
+        Text(
+          tr(
+            'Roles are ordered by hierarchy — the top role is the most powerful.',
+          ),
+          style: TextStyle(fontSize: 12, color: context.cs.onSurfaceVariant),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         ReorderableListView(
-          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           buildDefaultDragHandles: false,
-          onReorder: (oldIndex, newIndex) async {
+          onReorderItem: (oldIndex, newIndex) {
             if (!canEdit) return;
             final next = List<String>.from(ordered);
-            if (newIndex > oldIndex) newIndex--;
             next.insert(newIndex, next.removeAt(oldIndex));
-            await _guard(context, () async {
-              await store.api.patch('/servers/$serverId/roles', {'roles': next});
-              for (var index = 0; index < next.length; index++) {
-                (roles[next[index]] as Map)['rank'] = index;
-              }
-              store.refresh();
-            });
+            applyOrder(next);
           },
           children: [
-            for (final id in ordered)
-              Material(key: ValueKey(id), color: context.cs.surfaceContainerHigh, child:
-              CategoryButton(
-                key: ValueKey('role-$id'),
-                icon: Icon(
-                  Icons.circle,
-                  color: _colour((roles[id] as Map)['colour'] as String?),
-                ),
-                title: Text((roles[id] as Map)['name'] as String? ?? ''),
-                onTap: () => onEdit(id),
-                action: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => onEdit(id),
+            for (var i = 0; i < ordered.length; i++)
+              Material(
+                key: ValueKey(ordered[i]),
+                color: context.cs.surfaceContainerHigh,
+                child: CategoryButton(
+                  key: ValueKey('role-${ordered[i]}'),
+                  icon: Icon(
+                    Icons.circle,
+                    color: _colour(
+                      (roles[ordered[i]] as Map)['colour'] as String?,
                     ),
-                    if (canEdit) ReorderableDragStartListener(index: ordered.indexOf(id), child: const Tooltip(message: 'Reorder role', child: Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_handle)))),
-                    if (canEdit) IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _guard(context, () async {
-                        await store.api.delete(
-                          '/servers/$serverId/roles/$id',
-                        );
-                        roles.remove(id);
-                        store.refresh();
-                      }),
-                    ),
-                  ],
+                  ),
+                  title: Text(
+                    (roles[ordered[i]] as Map)['name'] as String? ?? '',
+                  ),
+                  description: Text('${i + 1}'),
+                  onTap: () => onEdit(ordered[i]),
+                  action: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (canEdit)
+                        IconButton(
+                          tooltip: tr('Move up'),
+                          icon: const Icon(Icons.arrow_upward, size: 18),
+                          onPressed: i > 0 ? () => move(ordered[i], -1) : null,
+                        ),
+                      if (canEdit)
+                        IconButton(
+                          tooltip: tr('Move down'),
+                          icon: const Icon(Icons.arrow_downward, size: 18),
+                          onPressed: i < ordered.length - 1
+                              ? () => move(ordered[i], 1)
+                              : null,
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => onEdit(ordered[i]),
+                      ),
+                      if (canEdit && !phone)
+                        ReorderableDragStartListener(
+                          index: i,
+                          child: const Tooltip(
+                            message: 'Reorder role',
+                            child: Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(Icons.drag_handle),
+                            ),
+                          ),
+                        ),
+                      if (canEdit)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _guard(context, () async {
+                            await store.api.delete(
+                              '/servers/$serverId/roles/${ordered[i]}',
+                            );
+                            roles.remove(ordered[i]);
+                            store.refresh();
+                          }),
+                        ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
           ],
         ),
         CategoryButton(
-          icon: const Icon(Icons.public), title: Text(tr('Everyone')),
+          icon: const Icon(Icons.public),
+          title: Text(tr('Everyone')),
           description: Text(tr('Permissions available without any role')),
-          action: const Icon(Icons.chevron_right), onTap: () => onEdit('default'),
+          action: const Icon(Icons.chevron_right),
+          onTap: () => onEdit('default'),
         ),
       ],
     );
@@ -781,33 +1021,293 @@ class _BansState extends State<_Bans> {
       for (final u in (d['users'] as List)) (u as Map)['_id'] as String: u,
     };
     final bans = (d['bans'] as List).cast<Map>().where((ban) {
-      final name = '${users[(ban['_id'] as Map)['user']]?['username'] ?? ''}'.toLowerCase();
-      return name.contains(_nameFilter.toLowerCase()) && '${ban['reason'] ?? ''}'.toLowerCase().contains(_reasonFilter.toLowerCase());
+      final name = '${users[(ban['_id'] as Map)['user']]?['username'] ?? ''}'
+          .toLowerCase();
+      return name.contains(_nameFilter.toLowerCase()) &&
+          '${ban['reason'] ?? ''}'.toLowerCase().contains(
+            _reasonFilter.toLowerCase(),
+          );
     }).toList();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 12, children: [
-      TextField(decoration: InputDecoration(labelText: tr('User')), onChanged: (value) => setState(() => _nameFilter = value)),
-      TextField(decoration: InputDecoration(labelText: tr('Reason')), onChanged: (value) => setState(() => _reasonFilter = value)),
-      if (bans.isEmpty) Text(tr('No bans.')),
-      CategoryGroup(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 12,
       children: [
-        for (final b in bans)
-          CategoryButton(
-            icon: const Icon(Icons.gavel),
-            title: Text(
-              '${users[(b['_id'] as Map)['user']]?['username'] ?? (b['_id'] as Map)['user']}',
-            ),
-            description: Text((b['reason'] as String?) ?? 'No reason'),
-            action: TextButton(
-              onPressed: () => _guard(context, () async {
-                await store.api.delete(
-                  '/servers/${widget.serverId}/bans/${(b['_id'] as Map)['user']}',
-                );
-                _load();
-              }),
-              child: const Text('Unban'),
-            ),
-          ),
+        TextField(
+          decoration: InputDecoration(labelText: tr('User')),
+          onChanged: (value) => setState(() => _nameFilter = value),
+        ),
+        TextField(
+          decoration: InputDecoration(labelText: tr('Reason')),
+          onChanged: (value) => setState(() => _reasonFilter = value),
+        ),
+        if (bans.isEmpty) Text(tr('No bans.')),
+        CategoryGroup(
+          children: [
+            for (final b in bans)
+              CategoryButton(
+                icon: const Icon(Icons.gavel),
+                title: Text(
+                  '${users[(b['_id'] as Map)['user']]?['username'] ?? (b['_id'] as Map)['user']}',
+                ),
+                description: Text((b['reason'] as String?) ?? 'No reason'),
+                action: TextButton(
+                  onPressed: () => _guard(context, () async {
+                    await store.api.delete(
+                      '/servers/${widget.serverId}/bans/${(b['_id'] as Map)['user']}',
+                    );
+                    _load();
+                  }),
+                  child: const Text('Unban'),
+                ),
+              ),
+          ],
+        ),
       ],
-    )]);
+    );
+  }
+}
+
+/// Channel & category ordering editor (the web client's drag handles, also
+/// usable on touch devices via the arrow buttons).
+class _ChannelOrder extends StatefulWidget {
+  const _ChannelOrder({required this.serverId});
+  final String serverId;
+  @override
+  State<_ChannelOrder> createState() => _ChannelOrderState();
+}
+
+class _ChannelOrderState extends State<_ChannelOrder> {
+  List<OrderedCategory>? _cats;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    final store = context.read<ClientStore>();
+    final server = store.servers[widget.serverId];
+    final all = store.channelsOfServer(widget.serverId);
+    _cats = orderedCategories(server?['categories'] as List?, [
+      for (final c in all) c['_id'] as String,
+    ]);
+  }
+
+  Future<void> _save() => _guard(context, () async {
+    setState(() => _busy = true);
+    try {
+      await saveServerCategories(
+        context.read<ClientStore>(),
+        widget.serverId,
+        _cats ?? const [],
+      );
+      if (mounted) showSnack(context, 'Saved');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  });
+
+  void _moveChannel(int cat, int index, int delta) {
+    final ids = _cats![cat].channelIds;
+    final to = (index + delta).clamp(0, ids.length - 1);
+    if (to == index) return;
+    setState(() => ids.insert(to, ids.removeAt(index)));
+  }
+
+  void _moveChannelTo(int from, String channelId, int to) {
+    if (from == to) return;
+    setState(() {
+      _cats![from].channelIds.remove(channelId);
+      _cats![to].channelIds.add(channelId);
+    });
+  }
+
+  void _moveCategory(int index, int delta) {
+    // The 'default' (uncategorised) bucket always stays on top.
+    final cats = _cats!;
+    final firstMovable = cats.indexWhere((c) => c.id != 'default');
+    if (firstMovable < 0) return;
+    final from = index < firstMovable ? firstMovable : index;
+    var to = (from + delta).clamp(firstMovable, cats.length - 1);
+    if (to == from) return;
+    setState(() => cats.insert(to, cats.removeAt(from)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.watch<ClientStore>();
+    final cs = context.cs;
+    final cats = _cats;
+    if (cats == null) return const Center(child: CircularProgressIndicator());
+    final canEdit =
+        store.canInServer(widget.serverId, Perm.manageChannel) && !_busy;
+
+    Widget upDown({
+      required bool canUp,
+      required bool canDown,
+      required void Function(int) move,
+    }) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: tr('Move up'),
+            icon: const Icon(Icons.arrow_upward, size: 18),
+            onPressed: canEdit && canUp ? () => move(-1) : null,
+          ),
+          IconButton(
+            tooltip: tr('Move down'),
+            icon: const Icon(Icons.arrow_downward, size: 18),
+            onPressed: canEdit && canDown ? () => move(1) : null,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr('Drag or use the arrows to reorder categories and channels.'),
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        if (canEdit)
+          Wrap(
+            spacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.add),
+                label: Text(tr('Create channel')),
+                onPressed: () => showCreateChannel(context, widget.serverId),
+              ),
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.create_new_folder_outlined),
+                label: Text(tr('Create category')),
+                onPressed: () => showCreateCategory(context, widget.serverId),
+              ),
+            ],
+          ),
+        if (canEdit) const SizedBox(height: 12),
+        for (var ci = 0; ci < cats.length; ci++) ...[
+          Builder(
+            builder: (context) {
+              final cat = cats[ci];
+              final movable = cat.id != 'default';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md,
+                      vertical: Gap.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHigh,
+                      borderRadius: br(Radius_.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            cat.id == 'default'
+                                ? tr('Uncategorized')
+                                : cat.title.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurfaceVariant,
+                              letterSpacing: .5,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${cat.channelIds.length}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                        if (canEdit && movable)
+                          upDown(
+                            canUp:
+                                ci > cats.indexWhere((c) => c.id != 'default'),
+                            canDown: ci < cats.length - 1,
+                            move: (d) => _moveCategory(ci, d),
+                          ),
+                      ],
+                    ),
+                  ),
+                  for (var hi = 0; hi < cat.channelIds.length; hi++) ...[
+                    Builder(
+                      builder: (context) {
+                        final cid = cat.channelIds[hi];
+                        final ch = store.channels[cid];
+                        if (ch == null) return const SizedBox.shrink();
+                        final isVoice =
+                            ch['channel_type'] == 'VoiceChannel' ||
+                            ch['voice'] != null;
+                        return Container(
+                          margin: const EdgeInsets.only(left: Gap.xl),
+                          child: CategoryButton(
+                            icon: Icon(
+                              isVoice ? Icons.headset_mic_outlined : Icons.tag,
+                              size: 20,
+                            ),
+                            title: Text(store.channelName(ch)),
+                            action: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (canEdit)
+                                  PopupMenuButton<int>(
+                                    tooltip: tr('Move to category'),
+                                    icon: const Icon(
+                                      Icons.drive_file_move_outline,
+                                      size: 20,
+                                    ),
+                                    onSelected: (to) =>
+                                        _moveChannelTo(ci, cid, to),
+                                    itemBuilder: (_) => [
+                                      for (var ti = 0; ti < cats.length; ti++)
+                                        if (ti != ci)
+                                          PopupMenuItem(
+                                            value: ti,
+                                            child: Text(
+                                              cats[ti].id == 'default'
+                                                  ? tr('Uncategorized')
+                                                  : cats[ti].title,
+                                            ),
+                                          ),
+                                    ],
+                                  ),
+                                if (canEdit)
+                                  upDown(
+                                    canUp: hi > 0,
+                                    canDown: hi < cat.channelIds.length - 1,
+                                    move: (d) => _moveChannel(ci, hi, d),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+        if (canEdit) ...[
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: Text(tr('Save')),
+          ),
+        ],
+      ],
+    );
   }
 }

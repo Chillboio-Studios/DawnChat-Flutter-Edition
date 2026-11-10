@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../net_image.dart';
+
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
@@ -307,49 +309,12 @@ class _Sidebar extends StatelessWidget {
               if (!e.hidden)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 1),
-                  child: Material(
-                    color: page?.split('/').first == e.id
-                        ? cs.secondaryContainer
-                        : Colors.transparent,
-                    borderRadius: br(Radius_.xl),
-                    child: InkWell(
-                      borderRadius: br(Radius_.xl),
-                      onTap: () => onSelect(e),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              e.icon,
-                              size: 20,
-                              color: e.destructive
-                                  ? cs.error
-                                  : (page?.split('/').first == e.id
-                                        ? cs.onSecondaryContainer
-                                        : cs.onSurfaceVariant),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                e.title,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: e.destructive
-                                      ? cs.error
-                                      : (page?.split('/').first == e.id
-                                            ? cs.onSecondaryContainer
-                                            : cs.onSurfaceVariant),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  child: SettingsNavRow(
+                    icon: e.icon,
+                    title: e.title,
+                    selected: page?.split('/').first == e.id,
+                    destructive: e.destructive,
+                    onTap: () => onSelect(e),
                   ),
                 ),
           ],
@@ -396,6 +361,57 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// A single row in the settings navigation column. Shared by the main
+/// settings page and the server/channel settings pages so they all look the
+/// same.
+class SettingsNavRow extends StatelessWidget {
+  const SettingsNavRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.selected,
+    required this.onTap,
+    this.destructive = false,
+  });
+  final IconData icon;
+  final String title;
+  final bool selected;
+  final bool destructive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.cs;
+    final fg = destructive
+        ? cs.error
+        : (selected ? cs.onSecondaryContainer : cs.onSurfaceVariant);
+    return Material(
+      color: selected ? cs.secondaryContainer : Colors.transparent,
+      borderRadius: br(Radius_.xl),
+      child: InkWell(
+        borderRadius: br(Radius_.xl),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: fg),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w500, color: fg),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
