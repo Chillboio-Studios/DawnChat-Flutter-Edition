@@ -271,7 +271,7 @@ class _MessageTileState extends State<MessageTile> {
           ),
         ),
       for (final e in embeds)
-        Align(alignment: Alignment.centerLeft, child: EmbedView(embed: e)),
+        Padding(padding: const EdgeInsets.only(top: 2), child: Align(alignment: Alignment.centerLeft, child: EmbedView(embed: e))),
       if (failed)
         Row(
           spacing: 8,
@@ -281,7 +281,8 @@ class _MessageTileState extends State<MessageTile> {
             _LinkText('Delete', () => store.discardMessage(channelId, m['nonce'] as String)),
           ],
         ),
-      ReactionsBar(message: m),
+      if ((m['reactions'] as Map?)?.isNotEmpty == true || ((m['interactions'] as Map?)?['reactions'] as List?)?.isNotEmpty == true)
+        ReactionsBar(message: m),
     ];
 
     final bodyColumn = Column(
@@ -335,7 +336,7 @@ class _MessageTileState extends State<MessageTile> {
     );
 
     Widget tile = Container(
-      margin: widget.isLink == MessageLink.none ? EdgeInsets.only(top: settings.messageGroupSpacing) : EdgeInsets.zero,
+      margin: widget.isLink == MessageLink.none && !tail ? EdgeInsets.only(top: settings.messageGroupSpacing) : EdgeInsets.zero,
       padding: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         borderRadius: br(Radius_.md),
@@ -360,7 +361,7 @@ class _MessageTileState extends State<MessageTile> {
     }
 
     final toolbar = (showToolbar && hover && !editing)
-        ? Positioned(top: widget.isLink == MessageLink.none ? settings.messageGroupSpacing - 18 : -18, right: 16, child: MessageToolbar(message: m))
+        ? Positioned(top: widget.isLink == MessageLink.none && !tail ? settings.messageGroupSpacing - 18 : -18, right: 16, child: MessageToolbar(message: m))
         : null;
 
     return MouseRegion(

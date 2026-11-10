@@ -226,6 +226,7 @@ class _SettingsPageState extends State<SettingsPage> {
         child: phone
             ? (_phoneDetail && current != null ? content : sidebar)
             : Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
                     flex: 218,
@@ -492,6 +493,7 @@ class _Content extends StatelessWidget {
         screenClassOf(MediaQuery.sizeOf(context)) != ScreenClass.desktop;
     final parts = page.split('/');
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: phone

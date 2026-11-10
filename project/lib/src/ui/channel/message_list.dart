@@ -272,7 +272,10 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
       DateTime? dateBreak;
       if (prev != null) {
         final a = _t(m), b = _t(prev);
-        if (a.year != b.year || a.month != b.month || a.day != b.day) dateBreak = a;
+        if (a.year != b.year || a.month != b.month || a.day != b.day) {
+          dateBreak = a;
+          tail = false;
+        }
         if (m['author'] != prev['author'] ||
             (a.millisecondsSinceEpoch - b.millisecondsSinceEpoch).abs() >= 420000 ||
             jsonEncode(m['masquerade']) != jsonEncode(prev['masquerade']) ||

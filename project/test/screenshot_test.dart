@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:dawnchat/src/router.dart';
 import 'package:dawnchat/src/state/draft_store.dart';
 import 'package:dawnchat/src/state/settings_store.dart';
 import 'package:dawnchat/src/theme/app_theme.dart';
+import 'package:dawnchat/src/ui/settings/settings_page.dart';
 import 'package:dawnchat/src/voice/voice_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,8 +25,10 @@ Future<void> _shot(
   String name, {
   AuthState auth = AuthState.loggedOut,
   void Function(ClientStore)? seed,
+  Future<void> Function(WidgetTester)? onReady,
 }) async {
   SharedPreferences.setMockInitialValues({});
+  debugDefaultTargetPlatformOverride = TargetPlatform.linux;
   useDiskImageCache = false;
   GoogleFonts.config.allowRuntimeFetching = false;
   final settings = await SettingsStore.load();
@@ -61,8 +65,18 @@ Future<void> _shot(
     ),
   );
   await tester.pump(const Duration(milliseconds: 600));
+  if (onReady != null) {
+    await onReady(tester);
+    await tester.pump(const Duration(milliseconds: 800));
+  }
   // Google Fonts cannot download in tests; the exceptions are expected.
-  while (tester.takeException() != null) {}
+  Object? ex;
+  while ((ex = tester.takeException()) != null) {
+    final s = '$ex';
+    if (!s.contains('google_fonts') && !s.contains('GoogleFonts')) {
+      debugPrint('EXC: ${s.split('\n').take(5).join(' | ')}');
+    }
+  }
   await tester.runAsync(() async {
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(const ValueKey('root')),
@@ -75,6 +89,7 @@ Future<void> _shot(
   // Network images fail with HTTP 400 under the test binding.
   await tester.pump(const Duration(milliseconds: 200));
   while (tester.takeException() != null) {}
+  debugDefaultTargetPlatformOverride = null;
 }
 
 void _seed(ClientStore s) {
@@ -171,6 +186,76 @@ void _seed(ClientStore s) {
 }
 
 void main() {
+  testWidgets(
+    'settings sessions desktop',
+    (t) => _shot(
+      t,
+      '/app',
+      const Size(1280, 800),
+      'settings_desktop',
+      auth: AuthState.loggedIn,
+      seed: _seed,
+      onReady: (t) async {
+        showSettings(t.element(find.byType(Scaffold).first), page: 'language');
+        await t.pump(const Duration(milliseconds: 600));
+        while (t.takeException() != null) {}
+        for (var i = 0; i < 6; i++) {
+          await t.pump(const Duration(milliseconds: 300));
+        }
+      },
+    ),
+  );
+  testWidgets(
+    'embeds desktop',
+    (t) => _shot(
+      t,
+      '/server/01SERVER00000000000000000A/channel/C2',
+      const Size(1280, 800),
+      'embeds_desktop',
+      auth: AuthState.loggedIn,
+      seed: (s) {
+        _seed(s);
+        s.messages['C2'] = [
+          {'_id': '01HZZZZZZZ0000000000000011', 'channel': 'C2', 'author': 'U2', 'content': 'First line'},
+          {'_id': '01HZZZZZZZ0000000000000012', 'channel': 'C2', 'author': 'U2', 'content': 'Second line right after'},
+          {
+            '_id': '01HZZZZZZZ0000000000000013',
+            'channel': 'C2',
+            'author': 'U2',
+            'content': 'Embed below',
+            'embeds': [
+              {
+                'type': 'Website',
+                'url': 'https://example.com',
+                'site_name': 'Example',
+                'title': 'An example website title that is quite long',
+                'description': 'A description of the page that explains what it is about in a couple of sentences.',
+                'colour': '#ff7f50',
+              },
+              {
+                'type': 'Website',
+                'url': 'https://youtu.be/x',
+                'site_name': 'YouTube',
+                'title': 'Video title',
+                'special': {'type': 'YouTube', 'id': 'x'},
+                'video': {'url': 'https://example.com/v.mp4', 'width': 1280, 'height': 720},
+              },
+            ],
+          },
+          {
+            '_id': '01HZZZZZZZ0000000000000014',
+            'channel': 'C2',
+            'author': 'U1',
+            'content': 'With a file',
+            'attachments': [
+              {'_id': 'F1', 'tag': 'attachments', 'filename': 'report.pdf', 'size': 123456, 'metadata': {'type': 'File'}},
+            ],
+          },
+        ];
+      },
+    ),
+  );
+
   testWidgets(
     'login desktop',
     (t) => _shot(t, '/login/auth', const Size(1280, 800), 'login_desktop'),

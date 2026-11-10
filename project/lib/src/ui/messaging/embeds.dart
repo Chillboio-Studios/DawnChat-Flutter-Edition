@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -161,8 +162,10 @@ class _SpoilerBoxState extends State<_SpoilerBox> {
                 cursor: SystemMouseCursors.click,
                 child: ClipRect(
                   child: BackdropFilter(
-                    filter: ColorFilter.mode(Colors.black.withValues(alpha: 0.8), BlendMode.srcOver),
-                    child: Center(
+                    filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28, tileMode: TileMode.clamp),
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      child: Center(
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
@@ -174,6 +177,7 @@ class _SpoilerBoxState extends State<_SpoilerBox> {
                           tr('Click to show spoiler'),
                           style: TextStyle(color: cs.onInverseSurface, fontWeight: FontWeight.w600),
                         ),
+                      ),
                       ),
                     ),
                   ),
@@ -424,22 +428,27 @@ class _InfoRow extends StatelessWidget {
     final size = (file['size'] as num?)?.toInt();
     return Row(
       children: [
-        Icon(icon, size: 24, color: cs.onInverseSurface),
-        const SizedBox(width: Gap.md),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: cs.secondaryContainer, borderRadius: br(Radius_.md)),
+          child: Icon(icon, size: 22, color: cs.onSecondaryContainer),
+        ),
+        const SizedBox(width: Gap.l),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(file['filename'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.onInverseSurface)),
+              Text(file['filename'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 14)),
               if (size != null && size > 0)
-                Text(humanFileSize(size), style: TextStyle(color: cs.onInverseSurface.withValues(alpha: 0.7), fontSize: 12)),
+                Text(humanFileSize(size), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
             ],
           ),
         ),
         IconButton(
-          icon: Icon(Icons.download, color: cs.onInverseSurface),
+          icon: Icon(Icons.download, color: cs.onSurfaceVariant),
           onPressed: () => openUrl(url),
-          tooltip: 'Download',
+          tooltip: tr('Download'),
         ),
       ],
     );
@@ -452,8 +461,12 @@ class _AttachmentContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(maxWidth: 420),
-    padding: const EdgeInsets.all(Gap.md),
-    decoration: BoxDecoration(color: context.cs.inverseSurface, borderRadius: br(Radius_.md)),
+    padding: const EdgeInsets.all(Gap.l),
+    decoration: BoxDecoration(
+      color: context.cs.surfaceContainerHigh,
+      borderRadius: br(Radius_.lg),
+      border: Border.all(color: context.cs.outlineVariant.withValues(alpha: .5)),
+    ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: children),
   );
 }
@@ -493,7 +506,7 @@ class _TextFileState extends State<_TextFile> {
     final cs = context.cs;
     if (contents != null) {
       return SingleChildScrollView(
-        child: SelectableText(contents!, style: monoStyle(context.read<SettingsStore>(), TextStyle(color: cs.onInverseSurface, fontSize: 12))),
+        child: SelectableText(contents!, style: monoStyle(context.read<SettingsStore>(), TextStyle(color: cs.onSurface, fontSize: 12))),
       );
     }
     if (loading) return const Center(child: CircularProgressIndicator());
@@ -668,14 +681,51 @@ class _SpecialEmbedViewState extends State<SpecialEmbedView> {
     if (src == null) return const SizedBox.shrink();
     final (w, h) = _size();
     Widget? inner = kIsWeb ? buildPlainIframe(src) : (_controller != null ? WebViewWidget(controller: _controller!) : null);
-    inner ??= Center(
-      child: FilledButton.icon(
-        onPressed: () => openUrl(widget.embed['url'] as String? ?? src),
-        icon: const Icon(Icons.open_in_new),
-        label: const Text('Open in browser'),
+    inner ??= _poster(context, src);
+    return SizedContent(width: w, height: h, child: ColoredBox(color: Colors.black, child: inner));
+  }
+
+  /// Thumbnail with a play button for platforms that cannot host the web player.
+  Widget _poster(BuildContext context, String src) {
+    final cs = context.cs;
+    final urls = ApiClientUrls.of(context);
+    final special = widget.embed['special'] as Map;
+    final thumb = (widget.embed['image'] as Map?)?['url'] as String? ??
+        (special['type'] == 'YouTube' ? 'https://img.youtube.com/vi/${special['id']}/hqdefault.jpg' : null);
+    final open = widget.embed['url'] as String? ?? src;
+    return Material(
+      color: Colors.black,
+      child: InkWell(
+        onTap: () => openUrl(open),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (thumb != null)
+              NetImage(urls.proxied(thumb), fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+            ColoredBox(color: Colors.black.withValues(alpha: .25)),
+            Center(
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
+                child: Icon(Icons.play_arrow_rounded, size: 36, color: cs.onPrimary),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              bottom: 10,
+              child: Row(
+                spacing: 4,
+                children: [
+                  const Icon(Icons.open_in_new, size: 14, color: Colors.white),
+                  Text(tr('Continue in browser'), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
-    return SizedContent(width: w, height: h, child: ColoredBox(color: Colors.black, child: inner));
   }
 }
 
@@ -701,20 +751,23 @@ class TextEmbedView extends StatelessWidget {
 
     Widget favicon() => Padding(
       padding: const EdgeInsets.only(right: Gap.md),
-      child: NetImage(
-        urls.proxied(icon!),
-        width: 14,
-        height: 14,
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      child: ClipRRect(
+        borderRadius: br(4),
+        child: NetImage(
+          urls.proxied(icon!),
+          width: 16,
+          height: 16,
+          errorBuilder: (_, _, _) => const SizedBox(width: 16, height: 16),
+        ),
       ),
     );
 
-    final children = <Widget>[
+    final head = <Widget>[
       if (isWebsite && siteName != null && siteName.isNotEmpty)
         Row(
           children: [
             if (icon != null) favicon(),
-            Flexible(child: Text(siteName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: cs.onPrimaryContainer))),
+            Flexible(child: Text(siteName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurfaceVariant))),
           ],
         ),
       if (title != null && title.isNotEmpty)
@@ -723,10 +776,10 @@ class TextEmbedView extends StatelessWidget {
             if (icon != null && !isWebsite) favicon(),
             Flexible(
               child: MouseRegion(
-                cursor: SystemMouseCursors.click,
+                cursor: embed['url'] != null ? SystemMouseCursors.click : MouseCursor.defer,
                 child: GestureDetector(
                   onTap: embed['url'] != null ? () => handleLink(context, embed['url'] as String) : null,
-                  child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, color: cs.primary)),
+                  child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.25, color: cs.primary)),
                 ),
               ),
             ),
@@ -734,8 +787,11 @@ class TextEmbedView extends StatelessWidget {
         ),
       if (desc != null && desc.isNotEmpty)
         embed['type'] == 'Text'
-            ? DefaultTextStyle.merge(style: const TextStyle(fontSize: 12), child: RichContent(desc))
-            : Text(desc, style: TextStyle(fontSize: 12, color: cs.onPrimaryContainer)),
+            ? DefaultTextStyle.merge(style: const TextStyle(fontSize: 13), child: RichContent(desc))
+            : Text(desc, maxLines: 4, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, height: 1.35, color: cs.onSurfaceVariant)),
+    ];
+
+    final body = <Widget>[
       if (embed['type'] == 'Text' && media != null) AttachmentView(file: media),
       if (isWebsite)
         if (special != null && special != 'None' && special != 'GIF')
@@ -768,48 +824,57 @@ class TextEmbedView extends StatelessWidget {
 
     final previewImage = isWebsite && image != null && image['size'] == 'Preview' && video == null;
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 420),
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        borderRadius: br(Radius_.md),
-        border: Border(left: BorderSide(color: colour, width: 4)),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: cs.onPrimaryContainer),
-                child: Column(
+    final headColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      spacing: 6,
+      children: head,
+    );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      spacing: Gap.l,
+      children: [
+        if (head.isNotEmpty)
+          previewImage
+              ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                  spacing: Gap.l,
                   children: [
-                    for (var i = 0; i < children.length; i++) ...[
-                      if (i > 0) const SizedBox(height: Gap.md),
-                      children[i],
-                    ],
+                    Expanded(child: headColumn),
+                    ClipRRect(
+                      borderRadius: br(Radius_.md),
+                      child: NetImage(
+                        urls.proxied(image['url'] as String),
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const SizedBox(width: 80, height: 80),
+                      ),
+                    ),
                   ],
-                ),
+                )
+              : headColumn,
+        ...body,
+      ],
+    );
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: ClipRRect(
+        borderRadius: br(Radius_.lg),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: cs.surfaceContainerHigh, border: Border.all(color: cs.outlineVariant.withValues(alpha: .5)), borderRadius: br(Radius_.lg)),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+                child: DefaultTextStyle.merge(style: TextStyle(color: cs.onSurface), child: content),
               ),
-            ),
-            if (previewImage) ...[
-              const SizedBox(width: Gap.md),
-              ClipRRect(
-                borderRadius: br(Radius_.md),
-                child: NetImage(
-                  urls.proxied(image['url'] as String),
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-              ),
+              Positioned(left: 0, top: 0, bottom: 0, width: 4, child: ColoredBox(color: colour)),
             ],
-          ],
+          ),
         ),
       ),
     );

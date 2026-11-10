@@ -372,16 +372,12 @@ class CategoryGroup extends StatelessWidget {
     final cs = context.cs;
     return ClipRRect(
       borderRadius: br(Radius_.lg),
-      child: Material(
-        color: cs.surfaceContainerHigh,
-        child: Column(
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              if (i > 0) const SizedBox(height: 2),
-              Container(color: cs.surfaceContainerHigh, child: children[i]),
-            ],
-          ],
-        ),
+      child: Column(
+        spacing: 2,
+        children: [
+          for (final c in children)
+            Material(color: cs.surfaceContainerHigh, child: c),
+        ],
       ),
     );
   }

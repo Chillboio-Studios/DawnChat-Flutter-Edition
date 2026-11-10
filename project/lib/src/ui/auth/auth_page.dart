@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -312,51 +313,59 @@ class _Content extends StatelessWidget {
                   : MainAxisAlignment.spaceBetween,
               children: [
                 if (!wide) Wordmark(width: w <= 460 ? 102 : 116),
-                Row(
-                  children: [
-                    if (wide)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Text(
-                          isCreate
-                              ? 'Already have an account?'
-                              : 'New to DawnChat?',
-                          style: TextStyle(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 14,
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (wide)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: Text(
+                            isCreate
+                                ? 'Already have an account?'
+                                : 'New to DawnChat?',
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      Flexible(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                            side: BorderSide(color: cs.outlineVariant),
+                            foregroundColor: cs.primary,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: wide ? 16 : 12,
+                              vertical: wide ? 10 : 8,
+                            ),
+                          ),
+                          onPressed: () => context.go(
+                            context.href(
+                              isCreate ? '/login/auth' : '/login/create',
+                            ),
+                          ),
+                          child: Text(
+                            isCreate ? 'Log in' : 'Create account',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: w <= 460 ? 12.5 : 14,
+                            ),
                           ),
                         ),
                       ),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        side: BorderSide(color: cs.outlineVariant),
-                        foregroundColor: cs.primary,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: wide ? 16 : 12,
-                          vertical: wide ? 10 : 8,
-                        ),
+                      const SizedBox(width: 12),
+                      IconButton.filledTonal(
+                        tooltip: 'Toggle color theme',
+                        onPressed: () =>
+                            settings.mode = dark ? 'light' : 'dark',
+                        icon: const Icon(Icons.dark_mode, size: 20),
                       ),
-                      onPressed: () => context.go(
-                        context.href(
-                          isCreate ? '/login/auth' : '/login/create',
-                        ),
-                      ),
-                      child: Text(
-                        isCreate ? 'Log in' : 'Create account',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: w <= 460 ? 12.5 : 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton.filledTonal(
-                      tooltip: 'Toggle color theme',
-                      onPressed: () => settings.mode = dark ? 'light' : 'dark',
-                      icon: const Icon(Icons.dark_mode, size: 20),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -462,15 +471,65 @@ class FlowBubble extends StatefulWidget {
 
 class _FlowBubbleState extends State<FlowBubble>
     with SingleTickerProviderStateMixin {
+  static const _spacing = 11.0, _spinRadius = 8.0, _loopMs = 600000.0;
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1200),
+    duration: const Duration(milliseconds: 600000),
   )..repeat();
+  double _moodStart = 0;
+
+  double get _now => _c.value * _loopMs;
+
+  @override
+  void didUpdateWidget(FlowBubble old) {
+    super.didUpdateWidget(old);
+    if (old.mood != widget.mood) _moodStart = _now;
+  }
 
   @override
   void dispose() {
     _c.dispose();
     super.dispose();
+  }
+
+  /// Per-dot motion mirroring the web client's idle float, typing pulse and loading ring.
+  ({Offset offset, double opacity, double scale}) _dot(
+    int i,
+    BubbleMood mood,
+    double now,
+  ) {
+    double phase(double period, double stagger) =>
+        ((((now - i * stagger) % period) + period) % period) / period;
+    final entry = ((now - (80 + i * 120)) / 420).clamp(0.0, 1.0);
+    final scale = Curves.easeOutBack.transform(entry);
+    switch (mood) {
+      case BubbleMood.idle:
+        final p = phase(1600, 240);
+        return (
+          offset: Offset(0, -3 * (0.5 - 0.5 * math.cos(2 * math.pi * p))),
+          opacity: 1,
+          scale: scale,
+        );
+      case BubbleMood.typing:
+        final p = phase(1200, 200);
+        final o = p < .4 ? .3 + .7 * (p / .4) : 1 - .7 * ((p - .4) / .6);
+        return (offset: Offset.zero, opacity: o, scale: scale);
+      case BubbleMood.submitting:
+        final p = phase(900, 0);
+        final angle = 2 * math.pi * (p + (i - 1) / 3) - math.pi / 2;
+        return (
+          offset: Offset(
+            (1 - i) * _spacing + _spinRadius * math.cos(angle),
+            _spinRadius * math.sin(angle),
+          ),
+          opacity: 1,
+          scale: 1,
+        );
+      case BubbleMood.success:
+        return (offset: Offset((1 - i) * _spacing, 0), opacity: 0, scale: 1);
+      case BubbleMood.error:
+        return (offset: Offset.zero, opacity: 1, scale: 1);
+    }
   }
 
   @override
@@ -485,59 +544,83 @@ class _FlowBubbleState extends State<FlowBubble>
     final dot = mood == BubbleMood.error
         ? cs.onErrorContainer
         : cs.onSecondaryContainer;
-    return Container(
-      width: 62,
-      height: 50,
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-          bottomLeft: Radius.circular(5),
-        ),
-      ),
-      child: mood == BubbleMood.success
-          ? Icon(Icons.check, color: cs.onPrimaryContainer, size: 22)
-          : AnimatedBuilder(
-              animation: _c,
-              builder: (_, _) {
-                final spin = mood == BubbleMood.submitting;
-                return Row(
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, _) {
+        final now = _now;
+        var shake = 0.0;
+        if (mood == BubbleMood.error) {
+          final u = ((now - _moodStart) / 450).clamp(0.0, 1.0);
+          shake = 6 * math.sin(2 * math.pi * 3 * u) * (1 - u);
+        }
+        return Transform.translate(
+          offset: Offset(shake, 0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            width: 62,
+            height: 50,
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+                bottomLeft: Radius.circular(5),
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     for (var i = 0; i < 3; i++)
-                      Transform.translate(
-                        offset: Offset(
-                          0,
-                          mood == BubbleMood.typing || spin
-                              ? -4 *
-                                    (0.5 +
-                                        0.5 *
-                                            _wave(
-                                              _c.value + i * (spin ? .33 : .15),
-                                            ))
-                              : 0,
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: dot,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                      Builder(
+                        builder: (_) {
+                          final d = _dot(i, mood, now);
+                          return Transform.translate(
+                            offset: d.offset,
+                            child: Opacity(
+                              opacity: d.opacity.clamp(0.0, 1.0),
+                              child: Transform.scale(
+                                scale: d.scale,
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 2.5,
+                                  ),
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: dot,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                   ],
-                );
-              },
+                ),
+                AnimatedOpacity(
+                  duration: Duration(
+                    milliseconds: mood == BubbleMood.success ? 200 : 150,
+                  ),
+                  opacity: mood == BubbleMood.success ? 1 : 0,
+                  child: Icon(
+                    Icons.check,
+                    color: cs.onPrimaryContainer,
+                    size: 22,
+                  ),
+                ),
+              ],
             ),
+          ),
+        );
+      },
     );
   }
-
-  double _wave(double t) => (1 - (t % 1 * 2 - 1).abs());
 }
 
 /// Heading used at the top of each flow.
