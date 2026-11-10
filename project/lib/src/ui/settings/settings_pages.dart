@@ -34,8 +34,9 @@ class SettingsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (page.startsWith('bots/'))
+    if (page.startsWith('bots/')) {
       return BotView(id: page.substring(5), onBack: () => onNavigate('bots'));
+    }
     return switch (page) {
       'account' => const AccountPage(),
       'profile' => ProfilePage(onNavigate: onNavigate),
@@ -267,8 +268,9 @@ class _AccountPageState extends State<AccountPage> {
                         onTap: () async {
                           final r =
                               await store.api.get('/auth/account/') as Map;
-                          if (mounted)
+                          if (mounted) {
                             setState(() => _email = r['email'] as String);
+                          }
                         },
                         child: Text(
                           'Reveal',
@@ -676,12 +678,14 @@ class _BotViewState extends State<BotView> {
       } else {
         await store.fetchUser(widget.id);
       }
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _token = bot['token'] as String?;
         _public = bot['public'] == true;
         _loading = false;
         _error = null;
       });
+      }
     } catch (error) {
       if (mounted) setState(() { _loading = false; _error = errorText(error); });
     }
@@ -1077,8 +1081,9 @@ class AppearancePage extends StatelessWidget {
                   label: 'Hex colour (#RRGGBB)',
                   initial: s.m3Accent,
                 );
-                if (hex != null && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(hex))
+                if (hex != null && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(hex)) {
                   s.m3Accent = hex;
+                }
               },
             ),
             for (final c in accents)

@@ -65,7 +65,7 @@ class EmojiView extends StatelessWidget {
 }
 
 class _Syn extends md.InlineSyntax {
-  _Syn(String pattern, this.tag) : super(pattern, startCharacter: null);
+  _Syn(super.pattern, this.tag) : super(startCharacter: null);
   final String tag;
   final int group = 1;
   @override
@@ -474,7 +474,7 @@ List<InlineSpan> _inlineElement(md.Element e, _Ctx c, TextStyle base) {
           alignment: PlaceholderAlignment.middle,
           child: InkWell(
             borderRadius: br(Radius_.lg),
-            onTap: ch == null ? null : () => handleLink(c.context, '${dawnchatChatUrl}${ch['server'] != null ? '/server/${ch['server']}' : ''}/channel/${ch['_id']}'),
+            onTap: ch == null ? null : () => handleLink(c.context, '$dawnchatChatUrl${ch['server'] != null ? '/server/${ch['server']}' : ''}/channel/${ch['_id']}'),
             child: _Pill(icon: Icons.tag, label: ch?['name'] as String? ?? 'Unknown Channel', primary: true),
           ),
         ),
@@ -585,7 +585,7 @@ class _Pill extends StatelessWidget {
 }
 
 class UserMention extends StatelessWidget {
-  const UserMention({required this.userId, this.serverId});
+  const UserMention({super.key, required this.userId, this.serverId});
   final String userId;
   final String? serverId;
   @override

@@ -166,16 +166,18 @@ GoRouter buildRouter(ClientStore store, SettingsStore settings) {
       final inAuth = path.startsWith('/login') || path.startsWith('/delete');
       final hostPrefix = RegExp(r'^/i/[^/]+').stringMatch(state.uri.path) ?? '';
 
-      if (state.uri.path == hostPrefix && hostPrefix.isNotEmpty)
+      if (state.uri.path == hostPrefix && hostPrefix.isNotEmpty) {
         return '$hostPrefix/app';
+      }
       if (store.authState == AuthState.unknown) return null;
 
       if (store.authState == AuthState.loggedOut && !inAuth) {
         settings.nextPath = path;
         return '$hostPrefix/login/auth';
       }
-      if (path.startsWith('/login/') && !_knownLogin(path))
+      if (path.startsWith('/login/') && !_knownLogin(path)) {
         return '$hostPrefix/login/auth';
+      }
       return null;
     },
     routes: [

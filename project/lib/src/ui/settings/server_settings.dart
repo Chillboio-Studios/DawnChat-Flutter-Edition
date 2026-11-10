@@ -55,8 +55,9 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
     final cs = context.cs;
     final store = context.watch<ClientStore>();
     final server = store.servers[widget.serverId];
-    if (server == null)
+    if (server == null) {
       return const Scaffold(body: Center(child: Text('Server not found')));
+    }
     final phone =
         screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
     final entries = [
@@ -427,10 +428,11 @@ class _EmojisState extends State<_Emojis> {
     final r = await context.read<ClientStore>().api.get(
       '/servers/${widget.serverId}/emojis',
     ) as List;
-    if (mounted)
+    if (mounted) {
       setState(
         () => _list = r.map((e) => (e as Map).cast<String, dynamic>()).toList(),
       );
+    }
   }
 
   @override
@@ -681,10 +683,11 @@ class _InvitesState extends State<_Invites> {
     final r = await context.read<ClientStore>().api.get(
       '/servers/${widget.serverId}/invites',
     ) as List;
-    if (mounted)
+    if (mounted) {
       setState(
         () => _list = r.map((e) => (e as Map).cast<String, dynamic>()).toList(),
       );
+    }
   }
 
   @override

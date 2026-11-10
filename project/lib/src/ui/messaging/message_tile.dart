@@ -203,7 +203,7 @@ class _MessageTileState extends State<MessageTile> {
               child: Text(formatTime(settings, sentAt), style: infoStyle),
             ),
             ConstrainedBox(constraints: const BoxConstraints(maxWidth: 160), child: usernameWidget()),
-            if (info != null) info,
+            ?info,
             if (editedAt != null) Icon(Icons.edit, size: 16, color: cs.outline),
           ],
         ),
@@ -296,7 +296,7 @@ class _MessageTileState extends State<MessageTile> {
               spacing: 8,
               children: [
                 Flexible(child: usernameWidget()),
-                if (info != null) info,
+                ?info,
                 if (pronouns != null)
                   Flexible(child: Text('$pronouns ·', maxLines: 1, overflow: TextOverflow.ellipsis, style: infoStyle)),
                 Tooltip(
@@ -344,7 +344,7 @@ class _MessageTileState extends State<MessageTile> {
             ? cs.primaryContainer
             : (hover && widget.isLink == MessageLink.none && !editing ? cs.surfaceContainer : Colors.transparent),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [if (header != null) header, row]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [?header, row]),
     );
 
     if (widget.highlight) {

@@ -4,12 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
-import '../../api/permissions.dart';
 import '../../core/links.dart';
 import '../../router.dart';
 import '../../theme/tokens.dart';
-import '../modals/app_dialog.dart';
-import '../modals/server_modals.dart';
 import '../settings/server_settings.dart';
 import '../settings/channel_settings.dart';
 import '../voice/voice_ui.dart';
@@ -304,7 +301,7 @@ class _Category extends StatelessWidget {
             ),
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     ),
   );

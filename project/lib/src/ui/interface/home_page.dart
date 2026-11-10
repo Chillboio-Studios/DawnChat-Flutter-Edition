@@ -365,8 +365,9 @@ class _FriendsPageState extends State<FriendsPage> {
                 if (name == null || name.isEmpty) return;
                 try {
                   await store.addFriend(name);
-                  if (context.mounted)
+                  if (context.mounted) {
                     showSnack(context, 'Friend request sent');
+                  }
                 } catch (e) {
                   if (context.mounted) showSnack(context, errorText(e));
                 }
@@ -418,8 +419,9 @@ class _FriendsPageState extends State<FriendsPage> {
                       onTap: () async {
                         if (_tab > 1) return;
                         final dm = await store.openDm(id);
-                        if (context.mounted)
+                        if (context.mounted) {
                           context.goPath('/channel/${dm['_id']}');
+                        }
                       },
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

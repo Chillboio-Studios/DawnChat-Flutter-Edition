@@ -558,8 +558,9 @@ class _FlowVerifyState extends State<FlowVerify> {
   Widget build(BuildContext context) => FutureBuilder(
     future: _f,
     builder: (c, snap) {
-      if (snap.connectionState != ConnectionState.done)
+      if (snap.connectionState != ConnectionState.done) {
         return const FlowTitle('Verifying…');
+      }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

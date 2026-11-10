@@ -106,7 +106,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _save() async {
     final name = _name.text.trim();
     if (name.isNotEmpty && name.length < 2) {
-      showSnack(context, tr('Display Name') + ': 2-32');
+      showSnack(context, '${tr('Display Name')}: 2-32');
       return;
     }
     setState(() => _busy = true);

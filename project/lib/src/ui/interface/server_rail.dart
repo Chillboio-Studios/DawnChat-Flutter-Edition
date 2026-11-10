@@ -106,10 +106,12 @@ class _ServerRailState extends State<ServerRail> {
         final local = key.globalToLocal(d.offset + const Offset(21, 21));
         final h = key.size.height;
         final mode = local.dy < h * .25 ? 'before' : local.dy > h * .75 ? 'after' : 'fold';
-        if (hoverTarget != id || hoverMode != mode) setState(() {
+        if (hoverTarget != id || hoverMode != mode) {
+          setState(() {
           hoverTarget = id;
           hoverMode = mode;
         });
+        }
       },
       onLeave: (_) {
         if (hoverTarget == id) setState(() => hoverTarget = null);

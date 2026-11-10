@@ -150,7 +150,7 @@ class ClientStore extends ChangeNotifier {
       'email': email,
       'password': password,
       'friendly_name': 'DawnChat Flutter',
-      if (captcha != null) 'captcha': captcha,
+      'captcha': ?captcha,
     }) as Map;
     switch (res['result']) {
       case 'Success':
@@ -305,11 +305,12 @@ class ClientStore extends ChangeNotifier {
       case 'MessageUpdate':
         final list = messages[e['channel']];
         final i = list?.indexWhere((x) => x['_id'] == e['id']) ?? -1;
-        if (i >= 0)
+        if (i >= 0) {
           list![i] = {
             ...list[i],
             ...(e['data'] as Map).cast<String, dynamic>(),
           };
+        }
       case 'MessageDelete':
         messages[e['channel']]?.removeWhere((x) => x['_id'] == e['id']);
       case 'MessageReact':
@@ -732,9 +733,9 @@ class ClientStore extends ChangeNotifier {
         'limit': limit,
         'include_users': true,
         if (after != null) 'sort': 'Oldest',
-        if (after != null) 'after': after,
-        if (nearby != null) 'nearby': nearby,
-        if (before != null) 'before': before,
+        'after': ?after,
+        'nearby': ?nearby,
+        'before': ?before,
       },
     ) as Map;
     final msgs = (res['messages'] as List)
@@ -854,7 +855,7 @@ class ClientStore extends ChangeNotifier {
   /// Searches a channel (query text or pinned) and merges returned users/members.
   Future<List<Json>> searchMessages(String channel, {String? query, bool pinned = false, String sort = 'Latest'}) async {
     final res = await api.post('/channels/$channel/search', {
-      if (query != null) 'query': query,
+      'query': ?query,
       if (pinned) 'pinned': true,
       'sort': sort,
       'limit': 50,
@@ -964,7 +965,7 @@ class ClientStore extends ChangeNotifier {
 
   Future<void> setStatus(String presence, {String? text, bool clearText = false}) async {
     await api.patch('/users/@me', {
-      'status': {'presence': presence, if (text != null) 'text': text},
+      'status': {'presence': presence, 'text': ?text},
       if (clearText) 'remove': ['StatusText'],
     });
   }
@@ -1016,7 +1017,7 @@ class ClientStore extends ChangeNotifier {
     String? node,
   }) async {
     final res = await api.post('/channels/$channel/join_call', {
-      if (node != null) 'node': node,
+      'node': ?node,
     }) as Map;
     return (url: res['url'] as String, token: res['token'] as String);
   }

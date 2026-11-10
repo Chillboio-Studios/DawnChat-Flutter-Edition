@@ -420,7 +420,7 @@ class _GifPickerState extends State<_GifPicker> {
 
   Map<String, String> get _auth {
     final t = context.read<ClientStore>().api.token;
-    return {if (t != null) 'x-session-token': t};
+    return {'x-session-token': ?t};
   }
 
   Future<List<({String title, String image, String query})>> _loadCategories() async {

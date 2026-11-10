@@ -199,8 +199,9 @@ class PushService extends ChangeNotifier {
         settings.pushNotifications = 'denied';
         return false;
       }
-      if (settings.desktopNotifications == 'default')
+      if (settings.desktopNotifications == 'default') {
         settings.desktopNotifications = 'allowed';
+      }
 
       if (kIsWeb) {
         final vapid = store.api.config?.vapid ?? '';
@@ -246,12 +247,13 @@ class PushService extends ChangeNotifier {
       FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
       FirebaseMessaging.onMessage.listen((m) {
         final n = m.notification;
-        if (n != null && !appInForeground)
+        if (n != null && !appInForeground) {
           _show(
             n.title ?? 'DawnChat',
             n.body ?? '',
             payload: m.data['url'] as String?,
           );
+        }
       });
       _firebaseReady = true;
     }

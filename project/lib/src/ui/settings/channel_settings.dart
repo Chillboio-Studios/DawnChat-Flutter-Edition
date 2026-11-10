@@ -39,8 +39,9 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
     final store = context.watch<ClientStore>();
     final cs = context.cs;
     final c = store.channels[widget.channelId];
-    if (c == null)
+    if (c == null) {
       return const Scaffold(body: Center(child: Text('Channel not found')));
+    }
     final phone =
         screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
     final isServer = c['server'] != null;
@@ -410,11 +411,12 @@ class _WebhooksState extends State<_Webhooks> {
       final r = await context.read<ClientStore>().api.get(
         '/channels/${widget.channelId}/webhooks',
       ) as List;
-      if (mounted)
+      if (mounted) {
         setState(
           () =>
               _list = r.map((e) => (e as Map).cast<String, dynamic>()).toList(),
         );
+      }
     } catch (_) {
       if (mounted) setState(() => _list = []);
     }

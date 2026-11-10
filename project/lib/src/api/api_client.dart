@@ -58,7 +58,7 @@ class ApiClient {
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
-    if (token != null) 'x-session-token': token!,
+    'x-session-token': ?token,
   };
 
   Future<InstanceConfig> fetchConfig() async {
@@ -129,7 +129,7 @@ class ApiClient {
     final url = '${config!.autumnUrl}/$tag';
     final res = await sendUpload(
       url,
-      headers: {if (token != null) 'x-session-token': token!},
+      headers: {'x-session-token': ?token},
       fileName: name,
       mime: mime,
       bytes: bytes,

@@ -689,7 +689,7 @@ class _SuggestionList extends StatelessWidget {
                 child: Row(
                   spacing: 8,
                   children: [
-                    if (lead != null) lead,
+                    ?lead,
                     Text(s.label, style: TextStyle(color: s.colour ?? cs.onSurface, fontWeight: FontWeight.w500)),
                     if (s.detail != null) Text(s.detail!, style: TextStyle(fontSize: 12, color: cs.outline)),
                   ],
