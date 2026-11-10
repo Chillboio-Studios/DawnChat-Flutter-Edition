@@ -208,7 +208,7 @@ class _ServerRailState extends State<ServerRail> {
       final mentions = chs.fold<int>(0, (a, c) => a + store.mentionCount(c['_id'] as String));
       final voiceConnected = chs.any((c) => context.watch<VoiceManager>().channelId == c['_id']);
       final voiceActive = chs.any((c) => (store.voiceStates[c['_id']]?.isNotEmpty ?? false));
-      final avatar = IconAvatar(url: store.api.fileUrl('icons', s['icon'] as Map?, width: 84), name: s['name'] as String? ?? '?', size: 42, square: false);
+      final avatar = IconAvatar(url: store.api.fileUrl('icons', s['icon'] as Map?, width: 256), name: s['name'] as String? ?? '?', size: 42, square: false);
       final built = KeyedSubtree(
         key: _key(serverId),
         child: entry(
@@ -259,7 +259,7 @@ class _ServerRailState extends State<ServerRail> {
           runSpacing: 2,
           children: [
             for (final id in e.servers.take(4))
-              IconAvatar(url: store.api.fileUrl('icons', store.servers[id]?['icon'] as Map?, width: 32), name: store.servers[id]?['name'] as String? ?? '?', size: size, square: false),
+              IconAvatar(url: store.api.fileUrl('icons', store.servers[id]?['icon'] as Map?, width: 128), name: store.servers[id]?['name'] as String? ?? '?', size: size, square: false),
           ],
         ),
       );
@@ -353,7 +353,7 @@ class _ServerRailState extends State<ServerRail> {
                     },
                     child: badge(
                       c['channel_type'] == 'Group'
-                          ? IconAvatar(url: store.api.fileUrl('icons', c['icon'] as Map?, width: 84), name: store.channelName(c), size: 42, square: false)
+                          ? IconAvatar(url: store.api.fileUrl('icons', c['icon'] as Map?, width: 256), name: store.channelName(c), size: 42, square: false)
                           : UserAvatar(userId: ((c['recipients'] as List).cast<String>().firstWhere((r) => r != store.userId, orElse: () => '')), size: 42),
                       count: store.mentionCount(c['_id'] as String),
                       unread: true,

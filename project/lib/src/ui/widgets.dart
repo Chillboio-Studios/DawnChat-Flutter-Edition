@@ -43,21 +43,19 @@ class Wordmark extends StatefulWidget {
 class _WordmarkState extends State<Wordmark> {
   @override
   Widget build(BuildContext context) {
-    // The source SVG has a root fill of "none"; the web client forces currentColor via CSS.
-    Wordmark._svg ??= rootBundle
-        .loadString('assets/branding/wordmark.svg')
-        .then((s) => s.replaceFirst('fill="none"', 'fill="#FFFFFF"'));
+    Wordmark._svg ??= rootBundle.loadString('assets/branding/wordmark.svg');
     final color = widget.color ?? context.cs.onSurface;
+    final hex =
+        '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
     return FutureBuilder<String>(
       future: Wordmark._svg,
       builder: (c, snap) => SizedBox(
         width: widget.width,
-        height: widget.width * 94 / 500,
+        height: widget.width * 230.25 / 806.88,
         child: snap.hasData
             ? SvgPicture.string(
-                snap.data!,
+                snap.data!.replaceAll('fill="#000000"', 'fill="$hex"'),
                 width: widget.width,
-                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
               )
             : null,
       ),

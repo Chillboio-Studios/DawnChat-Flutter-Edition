@@ -40,7 +40,7 @@ class ClientStore extends ChangeNotifier {
   /// Downloads rail icons and avatars of people you talk to in parallel.
   void _prefetchImages() {
     final urls = <String>[
-      for (final s in servers.values) ?api.fileUrl('icons', s['icon'] as Map?, width: 84),
+      for (final s in servers.values) ?api.fileUrl('icons', s['icon'] as Map?, width: 256),
     ];
     final ids = <String>{
       for (final c in channels.values)
@@ -48,10 +48,8 @@ class ClientStore extends ChangeNotifier {
       ...users.values.where((u) => u['relationship'] == 'Friend').map((u) => u['_id'] as String),
     };
     for (final id in ids.take(200)) {
-      for (final size in const [64, 72]) {
-        final u = avatarUrl(id, size: size / 2);
-        if (u != null) urls.add(u);
-      }
+      final u = avatarUrl(id, size: 128);
+      if (u != null) urls.add(u);
     }
     prefetchImages(urls);
   }
@@ -622,7 +620,11 @@ class ClientStore extends ChangeNotifier {
   String? avatarUrl(String? id, {double size = 64}) {
     final u = users[id];
     if (u == null || id == null) return null;
-    return api.fileUrl('avatars', u['avatar'] as Map?, width: size.round()) ??
+    return api.fileUrl(
+          'avatars',
+          u['avatar'] as Map?,
+          width: (size * 3).round().clamp(128, 512),
+        ) ??
         api.defaultAvatar(id);
   }
 

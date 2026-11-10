@@ -16,16 +16,28 @@ class NetImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!useDiskImageCache) return Image.network(url, width: width, height: height, fit: fit, errorBuilder: errorBuilder);
+    if (!useDiskImageCache) {
+      return Image.network(
+        url,
+        width: width,
+        height: height,
+        fit: fit,
+        filterQuality: FilterQuality.high,
+        errorBuilder: errorBuilder,
+      );
+    }
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final w = width != null && width!.isFinite ? width : null;
+    final scale = dpr < 2.0 ? 2.0 : dpr;
+    final targetW = w == null ? null : (w * scale).ceil();
     return CachedNetworkImage(
       imageUrl: url,
       cacheManager: imageCacheManager,
       width: width,
       height: height,
       fit: fit,
-      memCacheWidth: w == null ? null : (w * dpr).ceil(),
+      filterQuality: FilterQuality.high,
+      memCacheWidth: targetW != null && targetW < 256 ? 256 : targetW,
       fadeInDuration: const Duration(milliseconds: 100),
       fadeOutDuration: Duration.zero,
       errorWidget: (c, u, e) => errorBuilder?.call(c, e, null) ?? const SizedBox.shrink(),

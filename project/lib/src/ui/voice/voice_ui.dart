@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:provider/provider.dart';
@@ -321,14 +322,8 @@ class _LayoutButtons extends StatelessWidget {
     final v = context.watch<VoiceManager>();
     final desktop = screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.desktop;
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      if (desktop) ...[
+      if (desktop)
         VBtn(icon: Icons.unfold_less, tooltip: tr('Collapse call window'), onPressed: () => v.toggleLayout(VoiceLayout.collapsed)),
-        VBtn(
-          icon: v.layout == VoiceLayout.expanded ? Icons.close_fullscreen : Icons.open_in_full,
-          tooltip: v.layout == VoiceLayout.expanded ? 'Restore call window' : 'Maximize call window',
-          onPressed: () => v.toggleLayout(VoiceLayout.expanded),
-        ),
-      ],
       VBtn(
         icon: v.layout == VoiceLayout.fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
         onPressed: () => v.toggleLayout(VoiceLayout.fullscreen),
@@ -405,11 +400,54 @@ class ParticipantTileWidget extends StatefulWidget {
 }
 
 class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
+  final TransformationController _zoomController = TransformationController();
+
   @override
   void initState() {
     super.initState();
     final pub = widget.tile.publication;
     if (pub is lk.RemoteTrackPublication && !pub.subscribed) pub.subscribe();
+  }
+
+  @override
+  void dispose() {
+    _zoomController.dispose();
+    super.dispose();
+  }
+
+  double get _currentScale => _zoomController.value.getMaxScaleOnAxis();
+
+  void _resetZoom() {
+    _zoomController.value = Matrix4.identity();
+  }
+
+  void _zoomBy(double factor, {Offset? focalPoint, Size? viewportSize}) {
+    final currentScale = _currentScale;
+    final targetScale = (currentScale * factor).clamp(1.0, 5.0);
+    if ((targetScale - currentScale).abs() < 1e-4) return;
+    if (targetScale <= 1.001) {
+      _resetZoom();
+      return;
+    }
+    final actualFactor = targetScale / currentScale;
+    final size = viewportSize ?? context.size ?? const Size(400, 225);
+    final fp = focalPoint ?? Offset(size.width / 2, size.height / 2);
+
+    final m = _zoomController.value.clone();
+    // Scale around the viewport focal point: T(fp) * S(actualFactor) * T(-fp) * m
+    final next = Matrix4.identity()
+      ..translateByDouble(fp.dx, fp.dy, 0.0, 1.0)
+      ..scaleByDouble(actualFactor, actualFactor, 1.0, 1.0)
+      ..translateByDouble(-fp.dx, -fp.dy, 0.0, 1.0)
+      ..multiply(m);
+
+    // Clamp translation so content remains within [-(scale-1)*size, 0]
+    final storage = next.storage;
+    final minTx = -(targetScale - 1.0) * size.width;
+    final minTy = -(targetScale - 1.0) * size.height;
+    storage[12] = storage[12].clamp(minTx, 0.0);
+    storage[13] = storage[13].clamp(minTy, 0.0);
+    _zoomController.value = next;
   }
 
   @override
@@ -426,8 +464,38 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     final speaking = !isScreen && v.speaking.contains(p.identity);
     final name = store.displayName(p.identity);
     final screenAudioMuted = isScreen && settings.screenShareMuted(p.identity);
+    final canZoom = hasVideo && (focused || v.layout == VoiceLayout.fullscreen) && !widget.compact;
+
+    if (!focused && v.layout != VoiceLayout.fullscreen && _currentScale > 1.001) {
+      _zoomController.value = Matrix4.identity();
+    }
 
     if (isScreen && (t.publication?.muted ?? true)) return const SizedBox.shrink();
+
+    Widget? videoChild;
+    if (hasVideo) {
+      final renderer = lk.VideoTrackRenderer(t.publication!.track as lk.VideoTrack, fit: lk.VideoViewFit.contain);
+      if (canZoom) {
+        videoChild = Listener(
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent && event.scrollDelta.dy != 0) {
+              final factor = event.scrollDelta.dy < 0 ? 1.15 : (1 / 1.15);
+              _zoomBy(factor, focalPoint: event.localPosition);
+            }
+          },
+          child: InteractiveViewer(
+            transformationController: _zoomController,
+            minScale: 1.0,
+            maxScale: 5.0,
+            panEnabled: true,
+            scaleEnabled: true,
+            child: renderer,
+          ),
+        );
+      } else {
+        videoChild = renderer;
+      }
+    }
 
     return GestureDetector(
       onTap: () {
@@ -445,8 +513,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(fit: StackFit.expand, children: [
-          if (hasVideo)
-            lk.VideoTrackRenderer(t.publication!.track as lk.VideoTrack, fit: lk.VideoViewFit.contain)
+          if (videoChild != null)
+            videoChild
           else
             Center(child: UserAvatar(userId: p.identity, size: widget.compact ? 32 : 48)),
           Positioned(
@@ -469,6 +537,46 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               ),
             ),
           ),
+          if (isScreen && (focused || v.layout == VoiceLayout.fullscreen) && !widget.compact)
+            Positioned(
+              top: Gap.sm,
+              left: Gap.sm,
+              child: ValueListenableBuilder<Matrix4>(
+                valueListenable: _zoomController,
+                builder: (context, matrix, _) {
+                  final scale = matrix.getMaxScaleOnAxis();
+                  final zoomed = scale > 1.01;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.75),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, spacing: 2, children: [
+                      VBtn(
+                        size: 28,
+                        icon: Icons.zoom_out,
+                        tooltip: tr('Zoom out'),
+                        onPressed: scale > 1.01 ? () => _zoomBy(1 / 1.25) : null,
+                      ),
+                      VBtn(
+                        size: 28,
+                        icon: Icons.zoom_in,
+                        tooltip: tr('Zoom in'),
+                        onPressed: scale < 4.99 ? () => _zoomBy(1.25) : null,
+                      ),
+                      if (zoomed)
+                        VBtn(
+                          size: 28,
+                          icon: Icons.restart_alt,
+                          tooltip: '${(scale * 100).round()}% (${tr('Reset zoom')})',
+                          onPressed: _resetZoom,
+                        ),
+                    ]),
+                  );
+                },
+              ),
+            ),
           if (focused)
             Positioned(top: 4, right: 4, child: Icon(Icons.push_pin, size: 16, color: cs.onSurfaceVariant)),
         ]),

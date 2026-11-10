@@ -142,7 +142,8 @@ class ApiClient {
     final id = file?['_id'] as String?;
     final base = config?.autumnUrl;
     if (id == null || base == null || base.isEmpty) return null;
-    final q = width != null ? '?max_side=$width' : '';
+    final minSide = (tag == 'icons' || tag == 'avatars') && width != null && width < 256 ? 256 : width;
+    final q = minSide != null ? '?max_side=$minSide' : '';
     return '$base/$tag/$id$q';
   }
 
