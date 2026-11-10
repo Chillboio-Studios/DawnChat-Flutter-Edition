@@ -15,8 +15,9 @@ typedef _Pick = ({String name, Uint8List bytes});
 
 /// Edit the global profile (`UserProfileEditor` / `EditProfile` in the web client).
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key, required this.onNavigate});
+  const ProfilePage({super.key, required this.onNavigate, this.userId});
   final void Function(String) onNavigate;
+  final String? userId;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -33,7 +34,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _removeAvatar = false, _removeBanner = false;
   bool _loading = true, _busy = false;
 
-  Map<String, dynamic> get _me => _store.me ?? const {};
+  String get _userId => widget.userId ?? _store.userId!;
+  Map<String, dynamic> get _me => _store.user(_userId) ?? const {};
 
   @override
   void initState() {
@@ -66,7 +68,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadProfile() async {
     try {
       final r =
-          (await _store.api.get('/users/${_store.userId}/profile')) as Map;
+          (await _store.api.get('/users/$_userId/profile')) as Map;
       _bio0 = r['content'] as String? ?? '';
       _bannerFile = r['background'] as Map?;
     } catch (_) {}
@@ -146,8 +148,8 @@ class _ProfilePageState extends State<ProfilePage> {
       }
       if (profile.isNotEmpty) body['profile'] = profile;
       if (remove.isNotEmpty) body['remove'] = remove;
-      if (body.isNotEmpty) await _store.api.patch('/users/@me', body);
-      await _store.fetchUser(_store.userId!);
+      if (body.isNotEmpty) await _store.api.patch('/users/${widget.userId ?? '@me'}', body);
+      await _store.fetchUser(_userId);
       _resetFromUser();
       await _loadProfile();
       if (mounted) showSnack(context, 'Profile saved');
@@ -180,6 +182,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         _Preview(
           store: _store,
+          userId: _userId,
           name: _name.text.trim().isEmpty
               ? (_me['username'] as String? ?? '')
               : _name.text.trim(),
@@ -189,7 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
           newBanner: _newBanner?.bytes,
           bannerUrl: bannerUrl,
         ),
-        if (servers.isNotEmpty)
+        if (widget.userId == null && servers.isNotEmpty)
           CategoryGroup(
             children: [
               _IdentityList(
@@ -219,7 +222,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ? Image.memory(_newAvatar!.bytes, fit: BoxFit.cover)
                       : (hasAvatar
                             ? NetImage(
-                                _store.avatarUrl(_store.userId, size: 96) ?? '',
+                                _store.avatarUrl(_userId, size: 96) ?? '',
                                 fit: BoxFit.cover,
                               )
                             : ColoredBox(
@@ -347,6 +350,7 @@ class _ProfilePageState extends State<ProfilePage> {
 class _Preview extends StatelessWidget {
   const _Preview({
     required this.store,
+    required this.userId,
     required this.name,
     required this.pronouns,
     required this.newAvatar,
@@ -355,6 +359,7 @@ class _Preview extends StatelessWidget {
     required this.bannerUrl,
   });
   final ClientStore store;
+  final String userId;
   final String name, pronouns;
   final Uint8List? newAvatar, newBanner;
   final bool removeAvatar;
@@ -363,14 +368,14 @@ class _Preview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = context.cs;
-    final me = store.me ?? const {};
+    final me = store.user(userId) ?? const {};
     final username = '${me['username']}#${me['discriminator']}';
     final avatar = newAvatar != null
         ? Image.memory(newAvatar!, fit: BoxFit.cover)
         : NetImage(
             removeAvatar
-                ? store.api.defaultAvatar(store.userId!)
-                : (store.avatarUrl(store.userId, size: 128) ?? ''),
+                ? store.api.defaultAvatar(userId)
+                : (store.avatarUrl(userId, size: 128) ?? ''),
             fit: BoxFit.cover,
           );
     return ClipRRect(

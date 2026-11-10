@@ -1,13 +1,16 @@
-import 'dart:math';
-
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
+import '../../api/permissions.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../widgets.dart';
+import '../modals/member_modals.dart';
+import '../modals/app_dialog.dart';
 import '../../core/i18n.dart';
+import 'permission_editor.dart';
 
 Future<void> showChannelSettings(BuildContext context, String channelId) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -20,31 +23,6 @@ Future<void> showChannelSettings(BuildContext context, String channelId) {
     ),
   );
 }
-
-int _b(int n) => pow(2, n).toInt();
-bool _has(int v, int bit) => (v ~/ bit) % 2 == 1;
-
-final _perms = <(String, int)>[
-  ('View Channel', _b(20)),
-  ('Read Message History', _b(21)),
-  ('Send Messages', _b(22)),
-  ('Manage Messages', _b(23)),
-  ('Manage Webhooks', _b(24)),
-  ('Invite Others', _b(25)),
-  ('Send Embeds', _b(26)),
-  ('Upload Files', _b(27)),
-  ('Masquerade', _b(28)),
-  ('React', _b(29)),
-  ('Connect', _b(30)),
-  ('Speak', _b(31)),
-  ('Video', _b(32)),
-  ('Mute Members', _b(33)),
-  ('Deafen Members', _b(34)),
-  ('Move Members', _b(35)),
-  ('Listen', _b(36)),
-  ('Mention Everyone', _b(37)),
-  ('Mention Roles', _b(38)),
-];
 
 class ChannelSettingsPage extends StatefulWidget {
   const ChannelSettingsPage({super.key, required this.channelId});
@@ -68,7 +46,7 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
     final isServer = c['server'] != null;
     final pages = [
       ('overview', 'Overview', Icons.info_outline),
-      if (isServer) ('permissions', 'Permissions', Icons.lock_outline),
+      if (isServer || c['channel_type'] == 'Group') ('permissions', 'Permissions', Icons.lock_outline),
       if (isServer) ('webhooks', 'Webhooks', Icons.webhook_outlined),
     ];
 
@@ -126,13 +104,11 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
       ],
     );
 
-    final body = Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: phone
-            ? null
-            : const BorderRadius.horizontal(left: Radius.circular(30)),
-      ),
+    final body = Material(
+      clipBehavior: Clip.antiAlias,
+      color: cs.surfaceContainerLow,
+      borderRadius: phone ? BorderRadius.zero
+          : const BorderRadius.horizontal(left: Radius.circular(30)),
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           phone ? 12 : 32,
@@ -179,6 +155,7 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
         child: phone
             ? body
             : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
                     flex: 218,
@@ -221,15 +198,52 @@ class _OverviewState extends State<_Overview> {
   );
   late bool _nsfw =
       context.read<ClientStore>().channels[widget.channelId]?['nsfw'] == true;
+  late int _slowmode = (context.read<ClientStore>().channels[widget.channelId]?['slowmode'] as num?)?.toInt() ?? 0;
+
+  Future<void> _icon({bool remove = false}) async {
+    final store = context.read<ClientStore>();
+    try {
+      final body = <String, dynamic>{};
+      if (remove) {
+        body['remove'] = ['Icon'];
+      } else {
+        final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
+        final file = result?.files.firstOrNull;
+        if (file?.bytes == null) return;
+        body['icon'] = await store.api.uploadFile('icons', file!.name, mimeFromNameSimple(file.name), file.bytes!);
+      }
+      final response = await store.api.patch('/channels/${widget.channelId}', body);
+      if (response is Map) store.channels[widget.channelId]!.addAll(response.cast<String, dynamic>());
+      if (remove) store.channels[widget.channelId]!.remove('icon');
+      store.refresh();
+    } catch (error) {
+      if (mounted) showSnack(context, errorText(error));
+    }
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _desc.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final store = context.read<ClientStore>();
+    final store = context.watch<ClientStore>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          IconAvatar(url: store.api.fileUrl('icons', store.channels[widget.channelId]?['icon'] as Map?, width: 96), name: _name.text, size: 48),
+          FilledButton.tonalIcon(icon: const Icon(Icons.upload), label: Text(tr('Channel Icon')), onPressed: _icon),
+          if (store.channels[widget.channelId]?['icon'] != null)
+            IconButton(tooltip: tr('Remove'), icon: const Icon(Icons.delete_outline), onPressed: () => _icon(remove: true)),
+        ]),
+        const SizedBox(height: 16),
         TextField(
           controller: _name,
+          maxLength: 32,
           decoration: InputDecoration(labelText: tr('Channel Name')),
         ),
         const SizedBox(height: 16),
@@ -237,9 +251,21 @@ class _OverviewState extends State<_Overview> {
           controller: _desc,
           minLines: 3,
           maxLines: 8,
+          maxLength: 1024,
           decoration: InputDecoration(labelText: tr('Channel Description')),
         ),
         const SizedBox(height: 8),
+        if (store.channels[widget.channelId]?['channel_type'] == 'TextChannel')
+          DropdownButtonFormField<int>(
+            initialValue: _slowmode,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: tr('Channel Slowmode')),
+            items: [
+              for (final seconds in {0, 5, 10, 30, 60, 300, 600, 1800, 3600, 7200, 21600, _slowmode})
+                DropdownMenuItem(value: seconds, child: Text(seconds == 0 ? tr('Slowmode off') : '$seconds s')),
+            ],
+            onChanged: (next) => setState(() => _slowmode = next ?? 0),
+          ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Age-restricted (NSFW)'),
@@ -249,12 +275,21 @@ class _OverviewState extends State<_Overview> {
         const SizedBox(height: 8),
         FilledButton(
           onPressed: () async {
+            if (_name.text.trim().isEmpty) return;
             try {
-              await store.api.patch('/channels/${widget.channelId}', {
+              final body = <String, dynamic>{
                 'name': _name.text.trim(),
-                'description': _desc.text,
+                if (_desc.text.trim().isNotEmpty) 'description': _desc.text.trim(),
+                if (_desc.text.trim().isEmpty) 'remove': ['Description'],
                 'nsfw': _nsfw,
+                'slowmode': _slowmode,
+              };
+              await store.api.patch('/channels/${widget.channelId}', body);
+              store.channels[widget.channelId]!.addAll({
+                'name': _name.text.trim(), 'description': _desc.text.trim(),
+                'nsfw': _nsfw, 'slowmode': _slowmode,
               });
+              store.refresh();
               if (context.mounted) showSnack(context, 'Saved');
             } catch (e) {
               if (context.mounted) showSnack(context, errorText(e));
@@ -275,52 +310,45 @@ class _Permissions extends StatefulWidget {
 }
 
 class _PermissionsState extends State<_Permissions> {
-  int get _allow {
-    final c = context.read<ClientStore>().channels[widget.channelId];
-    final d = c?['default_permissions'] as Map?;
-    return (d?['a'] as num?)?.toInt() ?? 0;
-  }
-
-  Future<void> _toggle(int bit, bool on) async {
-    final store = context.read<ClientStore>();
-    final next = on
-        ? (_has(_allow, bit) ? _allow : _allow + bit)
-        : (_has(_allow, bit) ? _allow - bit : _allow);
-    try {
-      await store.api.put('/channels/${widget.channelId}/permissions/default', {
-        'permissions': {'allow': next, 'deny': 0},
-      });
-      store.channels[widget.channelId]!['default_permissions'] = {
-        'a': next,
-        'd': 0,
-      };
-      store.refresh();
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (mounted) showSnack(context, errorText(e));
-    }
-  }
+  String target = 'default';
 
   @override
   Widget build(BuildContext context) {
-    final allow = _allow;
+    final store = context.watch<ClientStore>();
+    final channel = store.channels[widget.channelId]!;
+    final group = channel['channel_type'] == 'Group';
+    final roles = (store.servers[channel['server']]?['roles'] as Map?) ?? {};
+    final initial = group ? channel['permissions'] ?? Perm.dmDefault.toInt()
+      : target == 'default' ? channel['default_permissions']
+      : (channel['role_permissions'] as Map?)?[target];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Default permissions for everyone in this channel.'),
-        const SizedBox(height: 12),
-        CategoryGroup(
-          children: [
-            for (final p in _perms)
-              CategoryButton(
-                title: Text(tr(p.$1)),
-                action: Switch(
-                  value: _has(allow, p.$2),
-                  onChanged: (v) => _toggle(p.$2, v),
-                ),
-                onTap: () => _toggle(p.$2, !_has(allow, p.$2)),
-              ),
-          ],
+        if (!group)
+          DropdownButtonFormField<String>(
+            initialValue: target, isExpanded: true,
+            decoration: InputDecoration(labelText: tr('Role Overrides')),
+            items: [DropdownMenuItem(value: 'default', child: Text(tr('Everyone'))),
+              for (final role in roles.entries)
+                DropdownMenuItem(value: role.key as String, child: Text((role.value as Map)['name'] as String? ?? '')),
+            ],
+            onChanged: (next) => setState(() => target = next ?? 'default'),
+          ),
+        PermissionSettings(
+          key: ValueKey(target), initial: initial, overrides: !group, server: false,
+          onSave: (value) async {
+            await store.api.put('/channels/${widget.channelId}/permissions/$target', {
+              'permissions': group ? value.allow.toInt() : value.payload,
+            });
+            if (group) {
+              channel['permissions'] = value.allow.toInt();
+            } else if (target == 'default') {
+              channel['default_permissions'] = value.cached;
+            } else {
+              ((channel['role_permissions'] ??= <String, dynamic>{}) as Map)[target] = value.cached;
+            }
+            store.refresh();
+          },
         ),
       ],
     );
@@ -336,6 +364,40 @@ class _Webhooks extends StatefulWidget {
 
 class _WebhooksState extends State<_Webhooks> {
   List<Map<String, dynamic>>? _list;
+
+  Future<void> _edit(Map<String, dynamic> webhook) async {
+    final store = context.read<ClientStore>();
+    final name = TextEditingController(text: webhook['name'] as String? ?? '');
+    PlatformFile? avatar;
+    bool remove = false;
+    try {
+      await showAppDialog<void>(context, title: tr('Edit Webhook'), content: StatefulBuilder(
+        builder: (context, update) => Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: name, maxLength: 32, decoration: InputDecoration(labelText: tr('Webhook Name'))),
+          Wrap(spacing: 8, children: [
+            TextButton.icon(icon: const Icon(Icons.upload), label: Text(avatar?.name ?? tr('Webhook Icon')), onPressed: () async {
+              final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
+              if (context.mounted && result?.files.firstOrNull != null) update(() { avatar = result!.files.first; remove = false; });
+            }),
+            IconButton(tooltip: tr('Remove'), icon: const Icon(Icons.delete_outline), onPressed: () => update(() { avatar = null; remove = true; })),
+          ]),
+        ]),
+      ), actions: [DlgAction(tr('Cancel')), DlgAction(tr('Save'), onPressed: () async {
+        if (name.text.trim().isEmpty) return false;
+        final body = <String, dynamic>{'name': name.text.trim()};
+        if (avatar?.bytes != null) {
+          body['avatar'] = await store.api.uploadFile('avatars', avatar!.name, mimeFromNameSimple(avatar!.name), avatar!.bytes!);
+        } else if (remove) {
+          body['remove'] = ['Avatar'];
+        }
+        await store.api.patch('/webhooks/${webhook['id'] ?? webhook['_id']}', body);
+        if (mounted) await _load();
+        return null;
+      })]);
+    } finally {
+      name.dispose();
+    }
+  }
 
   @override
   void initState() {
@@ -397,10 +459,12 @@ class _WebhooksState extends State<_Webhooks> {
                 CategoryButton(
                   icon: const Icon(Icons.webhook_outlined),
                   title: Text(w['name'] as String? ?? 'Webhook'),
+                  onTap: () => _edit(w),
                   description: Text(w['id'] as String? ?? ''),
                   action: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(icon: const Icon(Icons.edit_outlined), tooltip: tr('Edit Webhook'), onPressed: () => _edit(w)),
                       if (w['token'] != null)
                         IconButton(
                           icon: const Icon(Icons.copy),

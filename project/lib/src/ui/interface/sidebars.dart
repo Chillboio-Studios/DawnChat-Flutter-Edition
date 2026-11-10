@@ -11,6 +11,8 @@ import '../settings/server_settings.dart';
 import '../settings/channel_settings.dart';
 import '../voice/voice_ui.dart';
 import '../widgets.dart';
+import '../menus/context_menu.dart';
+import '../menus/server_menus.dart' as menus;
 import 'interface_shell.dart';
 import '../../core/i18n.dart';
 
@@ -361,7 +363,10 @@ class ServerSidebar extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 1),
-            child: MenuButton(
+            child: GestureDetector(
+              onSecondaryTapUp: (details) => showContextMenu(context, details.globalPosition, menus.channelMenu(context, c)),
+              onLongPressStart: (details) => showContextMenu(context, details.globalPosition, menus.channelMenu(context, c)),
+              child: MenuButton(
               height: 36,
               selected: id == channelId,
               active: unread,
@@ -374,7 +379,7 @@ class ServerSidebar extends StatelessWidget {
                   ? UnreadDot(count: store.mentionCount(id))
                   : null,
               onTap: () => context.goPath('/server/$serverId/channel/$id'),
-              onLongPress: () => channelMenu(context, c),
+              ),
             ),
           ),
           if (isVoice) VoiceChannelPreview(channelId: id, serverId: serverId),
@@ -432,7 +437,11 @@ class ServerSidebar extends StatelessWidget {
             children: [
               for (final c in loose) channelTile(c),
               for (final cat in categories) ...[
-                _Category((cat['title'] as String? ?? '').toUpperCase()),
+                GestureDetector(
+                  onSecondaryTapUp: (details) => showContextMenu(context, details.globalPosition, menus.categoryMenu(context, serverId, cat.cast<String, dynamic>())),
+                  onLongPressStart: (details) => showContextMenu(context, details.globalPosition, menus.categoryMenu(context, serverId, cat.cast<String, dynamic>())),
+                  child: _Category((cat['title'] as String? ?? '').toUpperCase()),
+                ),
                 for (final id in (cat['channels'] as List).cast<String>())
                   if (store.channels[id] != null)
                     channelTile(store.channels[id]!),

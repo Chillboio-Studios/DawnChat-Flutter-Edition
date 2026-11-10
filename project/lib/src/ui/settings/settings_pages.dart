@@ -10,6 +10,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
+import '../../router.dart';
+import '../profile/profile.dart' show showAddBot;
 import '../../api/transport.dart';
 import '../../core/languages.dart';
 import '../../core/links.dart';
@@ -661,29 +663,88 @@ class BotView extends StatefulWidget {
 class _BotViewState extends State<BotView> {
   String? _token;
   bool _public = false;
+  bool _loading = true;
+  String? _error;
+
+  Future<void> _load() async {
+    final store = context.read<ClientStore>();
+    try {
+      final response = await store.api.get('/bots/${widget.id}') as Map;
+      final bot = (response['bot'] as Map?) ?? response;
+      if (response['user'] is Map) {
+        store.users[widget.id] = (response['user'] as Map).cast<String, dynamic>();
+      } else {
+        await store.fetchUser(widget.id);
+      }
+      if (mounted) setState(() {
+        _token = bot['token'] as String?;
+        _public = bot['public'] == true;
+        _loading = false;
+        _error = null;
+      });
+    } catch (error) {
+      if (mounted) setState(() { _loading = false; _error = errorText(error); });
+    }
+  }
+
+  Future<void> _update(Map<String, dynamic> body) async {
+    try {
+      await context.read<ClientStore>().api.patch('/bots/${widget.id}', body);
+      await _load();
+    } catch (error) {
+      if (mounted) showSnack(context, errorText(error));
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    context.read<ClientStore>().api.get('/bots/${widget.id}').then((r) {
-      final bot = ((r as Map)['bot'] as Map);
-      if (mounted)
-        setState(() {
-          _token = bot['token'] as String?;
-          _public = bot['public'] == true;
-        });
-    });
+    _load();
   }
 
   @override
   Widget build(BuildContext context) {
     final store = context.read<ClientStore>();
     final cs = context.cs;
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return Column(children: [Text(_error!), TextButton(onPressed: _load, child: Text(tr('Try again')))]);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ProfilePage(key: ValueKey(widget.id), userId: widget.id, onNavigate: (_) {}),
+        _gap(24),
         CategoryGroup(
           children: [
+            CategoryButton(
+              icon: const Icon(Icons.badge_outlined), title: Text(tr('Change Username')),
+              action: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final name = await promptText(context, tr('Change bot username'), label: tr('Username'), initial: store.user(widget.id)?['username'] as String?);
+                if (name != null && name.trim().isNotEmpty) await _update({'name': name.trim()});
+              },
+            ),
+            CategoryButton(
+              icon: const Icon(Icons.restart_alt), title: Text(tr('Reset Token')),
+              description: Text(tr('Generate a new token if it gets lost or compromised')),
+              onTap: () async {
+                if (await confirm(context, tr('Reset Token'), tr('This will invalidate the current token and stop any existing instances of the bot from running.'), action: tr('Reset'))) {
+                  await _update({'remove': ['Token']});
+                }
+              },
+            ),
+            CategoryButton(
+              icon: const Icon(Icons.person_add_outlined), title: Text(tr('Invite Bot')),
+              onTap: () async {
+                try {
+                  final invite = await store.api.get('/bots/${widget.id}/invite') as Map;
+                  if (context.mounted) await showAddBot(context, invite.cast<String, dynamic>());
+                } catch (error) {
+                  if (context.mounted) showSnack(context, errorText(error));
+                }
+              },
+            ),
+            CategoryButton(icon: const Icon(Icons.link), title: Text(tr('Copy Invite URL')), onTap: () => copyText(context, context.fullHref('/bot/${widget.id}'))),
+            CategoryButton(icon: const Icon(Icons.copy), title: Text(tr('Copy ID')), onTap: () => copyText(context, widget.id)),
             CategoryButton(
               icon: const Icon(Icons.key),
               title: const Text('Token'),
@@ -703,10 +764,7 @@ class _BotViewState extends State<BotView> {
               ),
               action: Switch(
                 value: _public,
-                onChanged: (v) async {
-                  await store.api.patch('/bots/${widget.id}', {'public': v});
-                  setState(() => _public = v);
-                },
+                onChanged: (v) => _update({'public': v}),
               ),
             ),
             CategoryButton(
