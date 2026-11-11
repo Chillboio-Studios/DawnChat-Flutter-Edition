@@ -120,6 +120,9 @@ class ClientStore extends ChangeNotifier {
   final _eventController = StreamController<Json>.broadcast();
   Stream<Json> get events => _eventController.stream;
 
+  /// Latest `VoiceCallUpdate` gateway event (DM/group call ringing state).
+  final ValueNotifier<Json?> dmCall = ValueNotifier(null);
+
   void _setHost(String? h) {
     host = h;
     final url = h == null || h == dawnchatHost ? dawnchatApiUrl : 'https://$h';
@@ -415,6 +418,8 @@ class ClientStore extends ChangeNotifier {
         if (e['user'] == userId) {
           unreads.remove(e['id']);
         }
+      case 'VoiceCallUpdate':
+        dmCall.value = e;
       case 'ServerCreate':
         servers[e['id']] = (e['server'] as Map).cast<String, dynamic>();
         for (final c in (e['channels'] as List? ?? [])) {
@@ -607,11 +612,19 @@ class ClientStore extends ChangeNotifier {
       (unreads[channel]?['mentions'] as List?)?.length ?? 0;
 
   Future<void> ack(String channel, String messageId) async {
-    unreads.remove(channel);
-    notifyListeners();
     try {
       await api.put('/channels/$channel/ack/$messageId');
-    } catch (_) {}
+    } catch (_) {
+      // Keep the local unread state — the server still considers it unread
+      // and a later ack/sync will retry.
+      return;
+    }
+    // Only clear if no newer message arrived while the request was in flight.
+    final last = channels[channel]?['last_message_id'] as String?;
+    if (last == null || last.compareTo(messageId) <= 0) {
+      unreads.remove(channel);
+      notifyListeners();
+    }
   }
 
   // ----- data access -----

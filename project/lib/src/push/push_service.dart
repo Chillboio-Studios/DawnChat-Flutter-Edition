@@ -398,6 +398,29 @@ class PushService extends ChangeNotifier {
   }
 
   void _onGatewayEvent(Json e) {
+    if (e['type'] == 'VoiceCallUpdate') {
+      if (e['ended'] == true || e['initiator_id'] == store.userId) return;
+      final channel = store.channels[e['channel_id'] as String? ?? ''];
+      if (channel == null) return;
+      final type = channel['channel_type'] as String?;
+      if (type != 'DirectMessage' && type != 'Group') return;
+      if (store.isMuted(e['channel_id'] as String? ?? '')) return;
+      final recipients =
+          (channel['recipients'] as List?)?.cast<String>() ?? const [];
+      if (!recipients.contains(store.userId)) return;
+      if (settings.desktopNotifications != 'allowed') return;
+      if (appInForeground && activeChannel == e['channel_id']) return;
+      final caller = store.displayName(
+        e['initiator_id'] as String?,
+        server: channel['server'] as String?,
+      );
+      _show(
+        tr('Incoming call'),
+        '$caller ${tr('is calling you')}',
+        payload: '/channel/${e['channel_id']}',
+      );
+      return;
+    }
     if (e['type'] != 'Message') return;
     if (settings.desktopNotifications != 'allowed') return;
     final channel = e['channel'] as String;

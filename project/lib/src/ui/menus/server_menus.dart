@@ -302,6 +302,9 @@ List<MenuItem> categoryMenu(
   final channelIds = (category['channels'] as List).cast<String>();
   final unread = channelIds.any(store.isUnread);
   final canManage = store.canInServer(serverId, Perm.manageChannel);
+  // The 'default' bucket is synthetic — it can't be renamed, deleted, or
+  // referenced by id, but it can still be marked read and added to.
+  final isDefault = category['id'] == 'default';
   return [
     if (unread) ...[
       MenuItem.button(
@@ -331,25 +334,27 @@ List<MenuItem> categoryMenu(
         icon: Icons.library_add_outlined,
         onTap: () => showCreateCategory(context, serverId),
       ),
-      MenuItem.button(
-        tr('Rename category'),
-        icon: Icons.edit_outlined,
-        onTap: () => showEditCategory(
-          context,
-          serverId,
-          category['id'] as String,
-          category['title'] as String? ?? '',
+      if (!isDefault)
+        MenuItem.button(
+          tr('Rename category'),
+          icon: Icons.edit_outlined,
+          onTap: () => showEditCategory(
+            context,
+            serverId,
+            category['id'] as String,
+            category['title'] as String? ?? '',
+          ),
         ),
-      ),
-      MenuItem.button(
-        tr('Delete category'),
-        icon: Icons.delete_outline,
-        destructive: true,
-        onTap: () =>
-            showDeleteCategory(context, serverId, category['id'] as String),
-      ),
+      if (!isDefault)
+        MenuItem.button(
+          tr('Delete category'),
+          icon: Icons.delete_outline,
+          destructive: true,
+          onTap: () =>
+              showDeleteCategory(context, serverId, category['id'] as String),
+        ),
     ],
-    if (settings.copyId) ...[
+    if (!isDefault && settings.copyId) ...[
       const MenuItem.divider(),
       MenuItem.button(
         tr('Copy category ID'),

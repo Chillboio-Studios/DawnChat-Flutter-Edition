@@ -67,6 +67,7 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
       fetchingDown = false;
   String? _lastReadId;
   bool _focused = true;
+  bool _ackScheduled = false;
   String? _jumpedTo;
   List<_Entry> _entries = const [];
 
@@ -161,6 +162,17 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
     if (!_focused || !_atEnd) return;
     final last = store.channels[id]?['last_message_id'] as String?;
     if (last != null && store.isUnread(id)) store.ack(id, last);
+  }
+
+  /// Schedules an ack check after the current frame. Used when the store
+  /// reports unread state (e.g. a live message arrived while viewing).
+  void _scheduleAck() {
+    if (_ackScheduled) return;
+    _ackScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ackScheduled = false;
+      if (mounted) _maybeAck();
+    });
   }
 
   void _onPositions() {
@@ -390,6 +402,10 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
 
     final itemCount = _entries.length + 1; // + header
     final detached = store.detached.contains(id);
+
+    // Ack live arrivals: a message event may have marked this channel unread
+    // while the user is sitting at the bottom looking at it.
+    if (store.isUnread(id)) _scheduleAck();
 
     final listView = ScrollablePositionedList.builder(
       itemScrollController: _scroll,

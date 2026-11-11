@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show exit;
 
 import 'package:flutter/material.dart';
@@ -60,12 +61,23 @@ class InterfaceShell extends StatefulWidget {
 class _InterfaceShellState extends State<InterfaceShell> {
   final _scaffold = GlobalKey<ScaffoldState>();
   late final VoiceManager _voice;
+  late final ClientStore _store;
+  late final SoundService _sounds;
+  StreamSubscription<Json>? _eventsSub;
+
+  /// Channel currently ringing (incoming or outgoing), if any.
+  String? _ringingChannel;
+  bool _ringingIncoming = false;
 
   @override
   void initState() {
     super.initState();
     _voice = context.read<VoiceManager>();
     _voice.lastError.addListener(_onVoiceError);
+    _store = context.read<ClientStore>();
+    _sounds = context.read<SoundService>();
+    _store.dmCall.addListener(_onCallUpdate);
+    _eventsSub = _store.events.listen(_onStoreEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkChangelog();
       _checkUpdate();
@@ -187,7 +199,64 @@ class _InterfaceShellState extends State<InterfaceShell> {
   @override
   void dispose() {
     _voice.lastError.removeListener(_onVoiceError);
+    _store.dmCall.removeListener(_onCallUpdate);
+    _eventsSub?.cancel();
     super.dispose();
+  }
+
+  void _stopRing() {
+    _ringingChannel = null;
+    _sounds.stop();
+  }
+
+  /// Handles `VoiceCallUpdate` events: rings for incoming DM/group calls and
+  /// plays the outgoing tone while our own call is ringing.
+  void _onCallUpdate() {
+    final e = _store.dmCall.value;
+    if (e == null) return;
+    final channelId = e['channel_id'] as String?;
+    if (channelId == null) return;
+
+    if (e['ended'] == true) {
+      if (_ringingChannel == channelId) _stopRing();
+      return;
+    }
+
+    final mine = e['initiator_id'] == _store.userId;
+    if (mine) {
+      // Outgoing ring — skip if we're already ringing for this call.
+      if (_ringingChannel == channelId) return;
+      _stopRing();
+      _ringingChannel = channelId;
+      _ringingIncoming = false;
+      _sounds.play('ringtoneOutgoing', loop: true);
+      return;
+    }
+
+    // Incoming ring — only for unmuted DM/group channels we're a member of.
+    final c = _store.channels[channelId];
+    if (c == null) return;
+    final type = c['channel_type'] as String?;
+    if (type != 'DirectMessage' && type != 'Group') return;
+    if (_store.isMuted(channelId)) return;
+    final recipients = (c['recipients'] as List?)?.cast<String>() ?? const [];
+    if (!recipients.contains(_store.userId)) return;
+    if (_ringingChannel == channelId) return;
+    _stopRing();
+    _ringingChannel = channelId;
+    _ringingIncoming = true;
+    _sounds.play('ringtoneIncoming', loop: true);
+  }
+
+  /// Stops the ring when the call is answered: for outgoing rings any other
+  /// participant joining ends it; for incoming rings our own join does.
+  void _onStoreEvent(Json e) {
+    if (e['type'] != 'VoiceChannelJoin' || e['id'] != _ringingChannel) return;
+    final uid = (e['state'] as Map?)?['id'] as String?;
+    if (uid == null) return;
+    // Outgoing: any join (including our own reconnect) ends the ring.
+    // Incoming: only our own join answers the call.
+    if (!_ringingIncoming || uid == _store.userId) _stopRing();
   }
 
   void _onVoiceError() {

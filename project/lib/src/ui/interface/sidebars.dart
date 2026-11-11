@@ -7,12 +7,10 @@ import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
-import '../../core/links.dart';
 import '../../router.dart';
 import '../../state/channel_ordering.dart';
 import '../../theme/tokens.dart';
 import '../settings/server_settings.dart';
-import '../settings/channel_settings.dart';
 import '../modals/server_modals.dart';
 import '../voice/voice_ui.dart';
 import '../widgets.dart';
@@ -130,63 +128,6 @@ Future<void> showNotificationOptions(
       },
     ),
   );
-}
-
-Future<void> channelMenu(BuildContext context, Map<String, dynamic> c) async {
-  final store = context.read<ClientStore>();
-  final id = c['_id'] as String;
-  final choice = await showModalBottomSheet<String>(
-    context: context,
-    showDragHandle: true,
-    builder: (s) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: Text(tr('Channel Settings')),
-            onTap: () => Navigator.pop(s, 'settings'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.mark_chat_read_outlined),
-            title: Text(tr('Mark as read')),
-            onTap: () => Navigator.pop(s, 'read'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Notification options'),
-            onTap: () => Navigator.pop(s, 'notif'),
-          ),
-          if (store.settings.copyId)
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: Text(tr('Copy ID')),
-              onTap: () => Navigator.pop(s, 'copy'),
-            ),
-          if (store.isAdmin)
-            ListTile(
-              leading: const Icon(Icons.admin_panel_settings_outlined),
-              title: const Text('Open in admin panel'),
-              onTap: () => Navigator.pop(s, 'admin'),
-            ),
-        ],
-      ),
-    ),
-  );
-  if (!context.mounted || choice == null) return;
-  switch (choice) {
-    case 'settings':
-      showChannelSettings(context, id);
-    case 'read':
-      final last = c['last_message_id'] as String?;
-      if (last != null) await store.ack(id, last);
-    case 'notif':
-      await showNotificationOptions(context, 'channel', id);
-    case 'copy':
-      await copyText(context, id);
-    case 'admin':
-      await openUrl(adminInspectUrl('channel', id));
-  }
 }
 
 class _Category extends StatelessWidget {
@@ -345,33 +286,35 @@ class _DmEntry extends StatelessWidget {
         (u?['online'] == true
             ? ((u?['status'] as Map?)?['presence'] ?? 'Online') as String
             : 'Offline');
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1.5),
-      child: MenuButton(
-        height: 48,
-        selected: active,
-        active: unread,
-        leading: isGroup
-            ? IconAvatar(
-                url: store.api.fileUrl(
-                  'icons',
-                  channel['icon'] as Map?,
-                  width: 64,
-                ),
-                name: store.channelName(channel),
-              )
-            : UserAvatar(userId: other, size: 32, showStatus: true),
-        title: Text(store.channelName(channel)),
-        subtitle: Text(
-          isGroup
-              ? '${(channel['recipients'] as List).length} Members'
-              : status,
+    return ContextMenuRegion(
+      builder: (ctx) => menus.channelMenu(ctx, channel),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1.5),
+        child: MenuButton(
+          height: 48,
+          selected: active,
+          active: unread,
+          leading: isGroup
+              ? IconAvatar(
+                  url: store.api.fileUrl(
+                    'icons',
+                    channel['icon'] as Map?,
+                    width: 64,
+                  ),
+                  name: store.channelName(channel),
+                )
+              : UserAvatar(userId: other, size: 32, showStatus: true),
+          title: Text(store.channelName(channel)),
+          subtitle: Text(
+            isGroup
+                ? '${(channel['recipients'] as List).length} Members'
+                : status,
+          ),
+          trailing: unread && !active
+              ? UnreadDot(count: store.mentionCount(id))
+              : null,
+          onTap: () => context.goPath('/channel/$id'),
         ),
-        trailing: unread && !active
-            ? UnreadDot(count: store.mentionCount(id))
-            : null,
-        onTap: () => context.goPath('/channel/$id'),
-        onLongPress: () => channelMenu(context, channel),
       ),
     );
   }
@@ -495,20 +438,19 @@ class ServerSidebar extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             children: [
               for (final cat in categories) ...[
-                if (cat.id != 'default')
-                  GestureDetector(
-                    onSecondaryTapUp: (details) => showContextMenu(
-                      context,
-                      details.globalPosition,
-                      menus.categoryMenu(context, serverId, cat.toMap()),
-                    ),
-                    onLongPressStart: (details) => showContextMenu(
-                      context,
-                      details.globalPosition,
-                      menus.categoryMenu(context, serverId, cat.toMap()),
-                    ),
-                    child: _Category(cat.title.toUpperCase()),
+                GestureDetector(
+                  onSecondaryTapUp: (details) => showContextMenu(
+                    context,
+                    details.globalPosition,
+                    menus.categoryMenu(context, serverId, cat.toMap()),
                   ),
+                  onLongPressStart: (details) => showContextMenu(
+                    context,
+                    details.globalPosition,
+                    menus.categoryMenu(context, serverId, cat.toMap()),
+                  ),
+                  child: _Category(cat.title.toUpperCase()),
+                ),
                 for (final id in cat.channelIds)
                   if (store.channels[id] != null)
                     channelTile(store.channels[id]!),

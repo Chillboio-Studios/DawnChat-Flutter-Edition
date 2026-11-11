@@ -35,13 +35,23 @@ class SoundService {
     'userMoved': 'user_moved.ogg',
   };
 
-  Future<void> play(String key, {bool force = false}) async {
+  Future<void> play(String key, {bool force = false, bool loop = false}) async {
     if (!force && !settings.soundEnabled(key)) return;
     final file = _files[key];
     if (file == null) return;
     try {
       await _player.stop();
+      await _player.setPlaylistMode(
+        loop ? mk.PlaylistMode.single : mk.PlaylistMode.none,
+      );
       await _player.open(mk.Media('asset:///assets/sounds/$file'));
+    } catch (_) {}
+  }
+
+  /// Stops any currently playing sound (e.g. a ringing tone).
+  Future<void> stop() async {
+    try {
+      await _player.stop();
     } catch (_) {}
   }
 }
