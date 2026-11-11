@@ -240,12 +240,9 @@ jobs:
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$APPLE_API_KEY_ID" \
             -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID"
-          IPA=$(find build/ios/ipa -name "*.ipa" | head -n 1)
-          xcrun altool --upload-app \
-            -f "$IPA" \
-            -t ios \
-            --apiKey "$APPLE_API_KEY_ID" \
-            --apiIssuer "$APPLE_API_ISSUER_ID"
+          # ExportOptions.plist has destination=upload, so -exportArchive
+          # already delivered the IPA to App Store Connect — nothing left
+          # to upload manually.
 
   macos:
     name: macOS
