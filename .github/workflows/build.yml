@@ -219,13 +219,14 @@ jobs:
           KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
           # flutter build ipa cannot pass provisioning auth to xcodebuild, so
           # archive + export manually with the App Store Connect API key.
-          # Runner/BroadcastExtension Release configs pin
-          # CODE_SIGN_IDENTITY=Apple Distribution, so automatic signing
-          # creates App Store profiles (no registered devices needed).
+          # Archive unsigned: automatic signing would try to create a
+          # *development* profile, which requires registered devices. The
+          # export step re-signs for App Store (no devices needed).
           (cd ios && xcodebuild -workspace Runner.xcworkspace -scheme Runner \
             -configuration Release -sdk iphoneos \
             -archivePath ../build/ios/Runner.xcarchive \
             archive \
+            CODE_SIGNING_ALLOWED=NO \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$APPLE_API_KEY_ID" \
@@ -309,13 +310,26 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$PROFILE_FILE")" 2>/dev/null || echo "")
-          cp "$PROFILE_FILE" ~/Library/MobileDevice/Provisioning\ Profiles/
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          security cms -D -i "$PROFILE_FILE" > "$PROFILE_PLIST"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$PROFILE_PLIST" 2>/dev/null || echo "")
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST" 2>/dev/null || echo "")
+          PROFILE_TEAM_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.team-identifier" "$PROFILE_PLIST" 2>/dev/null || echo "")
+          BUNDLE_ID=$(sed -n 's/^PRODUCT_BUNDLE_IDENTIFIER = //p' macos/Runner/Configs/AppInfo.xcconfig | head -1)
+          [ -n "$PROFILE_TEAM_ID" ] || PROFILE_TEAM_ID="${PROFILE_APP_ID%%.*}"
+          APP_IDENTIFIER="$PROFILE_TEAM_ID.$BUNDLE_ID"
+          if [ -z "$PROFILE_UUID" ] || [ -z "$PROFILE_APP_ID" ] || [ -z "$PROFILE_TEAM_ID" ] || [ -z "$BUNDLE_ID" ]; then
+            echo "::error::Could not read the UUID, application identifier, or bundle ID needed for macOS signing."
+            exit 1
+          fi
+          cp "$PROFILE_FILE" ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID.provisionprofile"
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "APP_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -i "Apple Distribution" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
           # Installer certs don't satisfy the codesigning policy, so look them
           # up without -p codesigning.
           echo "INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" | grep -i "installer" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
+          echo "APP_IDENTIFIER=$APP_IDENTIFIER" >> "$GITHUB_ENV"
+          echo "PROFILE_TEAM_ID=$PROFILE_TEAM_ID" >> "$GITHUB_ENV"
       - name: App Store Connect API key
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
         env:
@@ -349,8 +363,21 @@ jobs:
             while IFS= read -r -d '' f; do sign_item "$f"; done
           find "$APP_PATH/Contents" \( -name "*.framework" -o -name "*.appex" -o -name "*.xpc" \) -print0 |
             while IFS= read -r -d '' item; do sign_item "$item"; done
+          ENTITLEMENTS_FILE="$RUNNER_TEMP/DawnChat.Release.entitlements"
+          cp macos/Runner/Release.entitlements "$ENTITLEMENTS_FILE"
+          upsert_entitlement() {
+            if /usr/libexec/PlistBuddy -c "Print :$1" "$ENTITLEMENTS_FILE" >/dev/null 2>&1; then
+              /usr/libexec/PlistBuddy -c "Set :$1 $2" "$ENTITLEMENTS_FILE"
+            else
+              /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$ENTITLEMENTS_FILE"
+            fi
+          }
+          # Xcode normally injects these profile-derived values; manual
+          # codesign must claim them explicitly (ITMS-90886).
+          upsert_entitlement "com.apple.application-identifier" "$APP_IDENTIFIER"
+          upsert_entitlement "com.apple.developer.team-identifier" "$PROFILE_TEAM_ID"
           codesign --force --options runtime --timestamp \
-            --entitlements macos/Runner/Release.entitlements \
+            --entitlements "$ENTITLEMENTS_FILE" \
             --sign "$APP_IDENTITY" "$APP_PATH"
           mkdir -p out/make
           PKG_PATH="out/make/DawnChat.pkg"
