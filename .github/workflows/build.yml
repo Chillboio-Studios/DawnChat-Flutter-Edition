@@ -219,10 +219,14 @@ jobs:
           KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
           # flutter build ipa cannot pass provisioning auth to xcodebuild, so
           # archive + export manually with the App Store Connect API key.
+          # Archive unsigned: automatic signing would try to create a
+          # *development* profile, which requires registered devices. The
+          # export step re-signs for App Store (no devices needed).
           (cd ios && xcodebuild -workspace Runner.xcworkspace -scheme Runner \
             -configuration Release -sdk iphoneos \
             -archivePath ../build/ios/Runner.xcarchive \
             archive \
+            CODE_SIGNING_ALLOWED=NO \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$APPLE_API_KEY_ID" \
@@ -336,8 +340,22 @@ jobs:
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
           APP_PATH="build/macos/Build/Products/Release/DawnChat.app"
-          # Re-sign the whole bundle for App Store distribution
-          codesign --force --deep --sign "$APP_IDENTITY" --options runtime "$APP_PATH"
+          # Mac App Store uploads require an embedded provisioning profile.
+          cp "$RUNNER_TEMP/profile.provisionprofile" "$APP_PATH/Contents/embedded.provisionprofile"
+          # Re-sign for App Store distribution. Sign nested code first
+          # (dylibs, then bundles), then the app itself WITH entitlements —
+          # a bare --deep re-sign drops com.apple.security.app-sandbox and
+          # friends, which App Store validation rejects.
+          sign_item() {
+            codesign --force --options runtime --timestamp --sign "$APP_IDENTITY" "$1"
+          }
+          find "$APP_PATH/Contents" -name "*.dylib" -print0 |
+            while IFS= read -r -d '' f; do sign_item "$f"; done
+          find "$APP_PATH/Contents" \( -name "*.framework" -o -name "*.appex" -o -name "*.xpc" \) -print0 |
+            while IFS= read -r -d '' item; do sign_item "$item"; done
+          codesign --force --options runtime --timestamp \
+            --entitlements macos/Runner/Release.entitlements \
+            --sign "$APP_IDENTITY" "$APP_PATH"
           mkdir -p out/make
           PKG_PATH="out/make/DawnChat.pkg"
           # productbuild requires an installer signing identity, which is a
