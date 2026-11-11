@@ -28,10 +28,11 @@ Future<bool> autostartIsEnabled() async {
       }
     }
     if (Platform.isMacOS) {
-      return File('$_home/Library/LaunchAgents/$_bundleId.plist').exists();
+      return await File('$_home/Library/LaunchAgents/$_bundleId.plist')
+          .exists();
     }
     if (Platform.isLinux) {
-      return File('$_home/.config/autostart/$_bundleId.desktop').exists();
+      return await File('$_home/.config/autostart/$_bundleId.desktop').exists();
     }
   } catch (e) {
     debugPrint('autostartIsEnabled failed: $e');
