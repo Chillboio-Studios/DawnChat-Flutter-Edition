@@ -110,7 +110,8 @@ jobs:
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
-          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
+          BN="${BUILD_NUMBER:-$(( $(date +%s) / 60 ))}"
+          awk -v v="${{ inputs.version }}+$BN" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       - run: flutter build apk --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - run: flutter build appbundle --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
@@ -165,7 +166,8 @@ jobs:
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
-          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
+          BN="${BUILD_NUMBER:-$(( $(date +%s) / 60 ))}"
+          awk -v v="${{ inputs.version }}+$BN" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - name: Package unsigned IPA
@@ -270,7 +272,8 @@ jobs:
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
-          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
+          BN="${BUILD_NUMBER:-$(( $(date +%s) / 60 ))}"
+          awk -v v="${{ inputs.version }}+$BN" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-macos-desktop
       - run: flutter pub get
       - run: flutter build macos --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
@@ -379,7 +382,8 @@ jobs:
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
-          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
+          BN="${BUILD_NUMBER:-$(( $(date +%s) / 60 ))}"
+          awk -v v="${{ inputs.version }}+$BN" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - run: flutter build windows --release --build-number=${{ env.BUILD_NUMBER }}
@@ -419,7 +423,8 @@ jobs:
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
-          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
+          BN="${BUILD_NUMBER:-$(( $(date +%s) / 60 ))}"
+          awk -v v="${{ inputs.version }}+$BN" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
       - run: flutter build linux --release --build-number=${{ env.BUILD_NUMBER }}
@@ -482,7 +487,8 @@ jobs:
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
-          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
+          BN="${BUILD_NUMBER:-$(( $(date +%s) / 60 ))}"
+          awk -v v="${{ inputs.version }}+$BN" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       # Our own service worker (web/push_sw.js) handles push, so Flutter's caching worker is disabled.
       - run: flutter build web --release --build-number=${{ env.BUILD_NUMBER }} --pwa-strategy=none --no-wasm-dry-run
