@@ -84,9 +84,14 @@ jobs:
           printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
           chmod 600 "$keystore_path"
           echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+      # Unique, always-increasing build number (Unix minutes) — same scheme
+      # the old Android repo used for versionCode. Maps to Android
+      # versionCode and iOS/macOS CFBundleVersion via --build-number.
+      - name: Set unique build number
+        run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter pub get
-      - run: flutter build apk --release ${{ env.FIREBASE_DEFINES }}
-      - run: flutter build appbundle --release ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build apk --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build appbundle --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - uses: actions/upload-artifact@v4
         with:
           name: dawnchat-android
@@ -129,8 +134,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: project/rust
+      - name: Set unique build number
+        run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter pub get
-      - run: flutter build ios --release --no-codesign ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build ios --release --no-codesign --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - name: Package unsigned IPA
         run: |
           mkdir -p Payload
@@ -180,6 +187,7 @@ jobs:
         run: |
           sed -i '' "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ios/ExportOptions.plist
           flutter build ipa --release \
+            --build-number=${{ env.BUILD_NUMBER }} \
             --export-options-plist=ios/ExportOptions.plist \
             ${{ env.FIREBASE_DEFINES }}
           IPA=$(find build/ios/ipa -name "*.ipa" | head -n 1)
@@ -206,9 +214,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: project/rust
+      - name: Set unique build number
+        run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter config --enable-macos-desktop
       - run: flutter pub get
-      - run: flutter build macos --release ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build macos --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - name: Package app
         run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/DawnChat.app dawnchat-macos.zip
       - uses: actions/upload-artifact@v4
@@ -289,9 +299,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: project/rust
+      - name: Set unique build number
+        run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
-      - run: flutter build windows --release
+      - run: flutter build windows --release --build-number=${{ env.BUILD_NUMBER }}
       - name: Package
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dawnchat-windows.zip
@@ -319,9 +331,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: project/rust
+      - name: Set unique build number
+        run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
-      - run: flutter build linux --release
+      - run: flutter build linux --release --build-number=${{ env.BUILD_NUMBER }}
       - name: Package
         run: tar -C build/linux/x64/release/bundle -czf dawnchat-linux.tar.gz .
       - name: Package AppImage
@@ -367,9 +381,11 @@ jobs:
           channel: stable
           cache: true
       - uses: dtolnay/rust-toolchain@stable
+      - name: Set unique build number
+        run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter pub get
       # Our own service worker (web/push_sw.js) handles push, so Flutter's caching worker is disabled.
-      - run: flutter build web --release --pwa-strategy=none --no-wasm-dry-run
+      - run: flutter build web --release --build-number=${{ env.BUILD_NUMBER }} --pwa-strategy=none --no-wasm-dry-run
       - name: Add SPA fallback for deep links
         run: cp build/web/index.html build/web/404.html
       - uses: actions/upload-artifact@v4

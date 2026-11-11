@@ -20,7 +20,12 @@ import 'embeds.dart';
 import 'markdown_view.dart';
 import '../../core/i18n.dart';
 
-const _klipyKey = String.fromEnvironment('KLIPY_API_KEY');
+const _klipyKeyOverride = String.fromEnvironment('KLIPY_API_KEY');
+// Public KLIPY API token — safe to embed (the web client ships it openly).
+// A --dart-define=KLIPY_API_KEY=<key> build still overrides this.
+const _klipyKeyDefault =
+    'SHu3jVbW8CNALpcbAPW8DeamCPrdXINtj4RtNrv5Q8GIHWX11gfsnUUE7B7mLz4f';
+final _klipyKey = _klipyKeyOverride.isNotEmpty ? _klipyKeyOverride : _klipyKeyDefault;
 const _gifboxDismissKey = 'gifbox-explainer-dismissed';
 
 enum PickerTab { gif, emoji }

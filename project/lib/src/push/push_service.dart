@@ -17,20 +17,65 @@ import 'web_push_stub.dart'
     if (dart.library.js_interop) 'web_push.dart'
     as web_push;
 
-/// Firebase project values are injected at build time (`--dart-define`) so no secret files are committed.
+/// Firebase project values. These are public client identifiers (they ship
+/// inside every released app), embedded per platform; `--dart-define`
+/// overrides still take precedence when provided.
 class FirebaseConfig {
-  static const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
-  static const appId = String.fromEnvironment('FIREBASE_APP_ID');
-  static const messagingSenderId = String.fromEnvironment('FIREBASE_SENDER_ID');
-  static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-  static bool get configured =>
-      apiKey.isNotEmpty && appId.isNotEmpty && projectId.isNotEmpty;
+  // Public values from the Firebase project `bunnyapidash`.
+  static const _webApiKey = 'AIzaSyBpoLdJP74AEqkFKxRPCSwzndWZUJMe_P4';
+  static const _webAppId = '1:108388488557:web:80807c668c938cf022b664';
+  static const _iosApiKey = 'AIzaSyDtdHaysVRhq2Ig1dFYcyLVwT_3RpZttrY';
+  static const _iosAppId = '1:108388488557:ios:a26772de09832ba122b664';
+  static const _androidApiKey = 'AIzaSyAGHDcEk4KtGx_JIs6iGMN8tMlWZWudzZA';
+  static const _androidAppId = '1:108388488557:android:89bc64dd10d6b01222b664';
+  static const senderId = '108388488557';
+  static const projectId = 'bunnyapidash';
 
-  static FirebaseOptions get options => const FirebaseOptions(
+  static String get _platform {
+    if (kIsWeb) return 'WEB';
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => 'IOS',
+      TargetPlatform.android => 'ANDROID',
+      _ => 'DESKTOP',
+    };
+  }
+
+  static String _pick(String name, String fallback) {
+    final v = String.fromEnvironment(name);
+    return v.isNotEmpty ? v : fallback;
+  }
+
+  static String get apiKey => _pick(
+    'FIREBASE_API_KEY_$_platform',
+    _defaultApiKey.isNotEmpty ? _defaultApiKey : _pick('FIREBASE_API_KEY', ''),
+  );
+  static String get appId => _pick(
+    'FIREBASE_APP_ID_$_platform',
+    _defaultAppId.isNotEmpty ? _defaultAppId : _pick('FIREBASE_APP_ID', ''),
+  );
+  static String get messagingSenderId => _pick('FIREBASE_SENDER_ID', senderId);
+  static String get _projectId => _pick('FIREBASE_PROJECT_ID', projectId);
+
+  static String get _defaultApiKey => switch (_platform) {
+    'WEB' => _webApiKey,
+    'IOS' => _iosApiKey,
+    'ANDROID' => _androidApiKey,
+    _ => _androidApiKey,
+  };
+  static String get _defaultAppId => switch (_platform) {
+    'WEB' => _webAppId,
+    'IOS' => _iosAppId,
+    'ANDROID' => _androidAppId,
+    _ => _androidAppId,
+  };
+
+  static bool get configured => apiKey.isNotEmpty && appId.isNotEmpty;
+
+  static FirebaseOptions get options => FirebaseOptions(
     apiKey: apiKey,
     appId: appId,
     messagingSenderId: messagingSenderId,
-    projectId: projectId,
+    projectId: _projectId,
   );
 }
 
