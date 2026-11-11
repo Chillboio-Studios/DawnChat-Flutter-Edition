@@ -22,6 +22,9 @@ RUN curl -fsSL \
     "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
     | tar -xJ -C /opt
 ENV PATH="/opt/flutter/bin:${PATH}" FLUTTER_ROOT=/opt/flutter
+# The tarball preserves archive uids, so git flags /opt/flutter as
+# "dubious ownership" when the flutter tool shells out to it.
+RUN git config --global --add safe.directory /opt/flutter
 
 WORKDIR /app
 
