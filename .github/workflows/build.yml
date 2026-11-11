@@ -107,8 +107,11 @@ jobs:
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        # -i.bak works on both GNU (Linux) and BSD (macOS) sed.
-        run: 'sed -i.bak "s/^version: .*/version: ${{ inputs.version }}+$BUILD_NUMBER/" pubspec.yaml && rm -f pubspec.yaml.bak'
+        # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
+        run: |
+          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" \
+            '{ if ($1 == "version:") print "version: " v; else print }' \
+            pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       - run: flutter build apk --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - run: flutter build appbundle --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
@@ -160,8 +163,11 @@ jobs:
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        # -i.bak works on both GNU (Linux) and BSD (macOS) sed.
-        run: 'sed -i.bak "s/^version: .*/version: ${{ inputs.version }}+$BUILD_NUMBER/" pubspec.yaml && rm -f pubspec.yaml.bak'
+        # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
+        run: |
+          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" \
+            '{ if ($1 == "version:") print "version: " v; else print }' \
+            pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
       - name: Package unsigned IPA
@@ -263,8 +269,11 @@ jobs:
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        # -i.bak works on both GNU (Linux) and BSD (macOS) sed.
-        run: 'sed -i.bak "s/^version: .*/version: ${{ inputs.version }}+$BUILD_NUMBER/" pubspec.yaml && rm -f pubspec.yaml.bak'
+        # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
+        run: |
+          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" \
+            '{ if ($1 == "version:") print "version: " v; else print }' \
+            pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-macos-desktop
       - run: flutter pub get
       - run: flutter build macos --release --build-number=${{ env.BUILD_NUMBER }} ${{ env.FIREBASE_DEFINES }}
@@ -370,8 +379,11 @@ jobs:
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        # -i.bak works on both GNU (Linux) and BSD (macOS) sed.
-        run: 'sed -i.bak "s/^version: .*/version: ${{ inputs.version }}+$BUILD_NUMBER/" pubspec.yaml && rm -f pubspec.yaml.bak'
+        # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
+        run: |
+          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" \
+            '{ if ($1 == "version:") print "version: " v; else print }' \
+            pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - run: flutter build windows --release --build-number=${{ env.BUILD_NUMBER }}
@@ -408,8 +420,11 @@ jobs:
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        # -i.bak works on both GNU (Linux) and BSD (macOS) sed.
-        run: 'sed -i.bak "s/^version: .*/version: ${{ inputs.version }}+$BUILD_NUMBER/" pubspec.yaml && rm -f pubspec.yaml.bak'
+        # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
+        run: |
+          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" \
+            '{ if ($1 == "version:") print "version: " v; else print }' \
+            pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
       - run: flutter build linux --release --build-number=${{ env.BUILD_NUMBER }}
@@ -469,8 +484,11 @@ jobs:
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        # -i.bak works on both GNU (Linux) and BSD (macOS) sed.
-        run: 'sed -i.bak "s/^version: .*/version: ${{ inputs.version }}+$BUILD_NUMBER/" pubspec.yaml && rm -f pubspec.yaml.bak'
+        # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
+        run: |
+          awk -v v="${{ inputs.version }}+$BUILD_NUMBER" \
+            '{ if ($1 == "version:") print "version: " v; else print }' \
+            pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       # Our own service worker (web/push_sw.js) handles push, so Flutter's caching worker is disabled.
       - run: flutter build web --release --build-number=${{ env.BUILD_NUMBER }} --pwa-strategy=none --no-wasm-dry-run
