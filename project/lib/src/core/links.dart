@@ -1,6 +1,6 @@
 const playStoreUrl = '#';
 const desktopDownloadUrl =
-    'https://github.com/Chillboio-Studios/Dawnchat-For-DESKTOP/releases/latest';
+    'https://github.com/Chillboio-Studios/DawnChat-Flutter-Edition/releases/latest';
 const roadmapUrl = '#';
 const feedbackUrl = '#';
 const bugTrackerUrl = '#';
