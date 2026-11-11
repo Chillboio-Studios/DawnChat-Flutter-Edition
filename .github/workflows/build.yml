@@ -200,10 +200,27 @@ jobs:
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
           sed -i '' "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ios/ExportOptions.plist
-          flutter build ipa --release \
-            --build-number=${{ env.BUILD_NUMBER }} \
-            --export-options-plist=ios/ExportOptions.plist \
-            ${{ env.FIREBASE_DEFINES }}
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
+          # flutter build ipa cannot pass provisioning auth to xcodebuild, so
+          # archive + export manually with the App Store Connect API key.
+          (cd ios && xcodebuild -workspace Runner.xcworkspace -scheme Runner \
+            -configuration Release -sdk iphoneos \
+            -archivePath ../build/ios/Runner.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$APPLE_API_KEY_ID" \
+            -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_IDENTITY="Apple Distribution")
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$APPLE_API_KEY_ID" \
+            -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID"
           IPA=$(find build/ios/ipa -name "*.ipa" | head -n 1)
           xcrun altool --upload-app \
             -f "$IPA" \
@@ -245,6 +262,8 @@ jobs:
         env:
           MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_INSTALLER_CERTIFICATE_BASE64: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_BASE64 }}
+          MACOS_INSTALLER_CERTIFICATE_PWD: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_PWD }}
           MACOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
@@ -257,6 +276,13 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security import "$CERT_FILE" -P "$MACOS_CERTIFICATE_PWD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          # Optional: a separate installer certificate (e.g. "Developer ID
+          # Installer" or "3rd Party Mac Developer Installer") for productbuild.
+          if [ -n "$MACOS_INSTALLER_CERTIFICATE_BASE64" ]; then
+            INSTALLER_FILE=$RUNNER_TEMP/installer.p12
+            echo "$MACOS_INSTALLER_CERTIFICATE_BASE64" | base64 --decode > "$INSTALLER_FILE"
+            security import "$INSTALLER_FILE" -P "$MACOS_INSTALLER_CERTIFICATE_PWD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          fi
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
@@ -264,6 +290,7 @@ jobs:
           cp "$PROFILE_FILE" ~/Library/MobileDevice/Provisioning\ Profiles/
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "APP_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -i "Apple Distribution" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
+          echo "INSTALLER_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -i "installer" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
       - name: App Store Connect API key
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
         env:
@@ -288,9 +315,15 @@ jobs:
           codesign --force --deep --sign "$APP_IDENTITY" --options runtime "$APP_PATH"
           mkdir -p out/make
           PKG_PATH="out/make/DawnChat.pkg"
+          # productbuild requires an installer signing identity, which is a
+          # different certificate type than the app-signing identity.
+          if [ -z "$INSTALLER_IDENTITY" ]; then
+            echo "::error::No installer signing identity found. Add an installer certificate (e.g. 'Developer ID Installer' or '3rd Party Mac Developer Installer') to MACOS_INSTALLER_CERTIFICATE_BASE64/MACOS_INSTALLER_CERTIFICATE_PWD, or include it in MACOS_CERTIFICATE_BASE64."
+            exit 1
+          fi
           productbuild \
             --component "$APP_PATH" /Applications \
-            --sign "$APP_IDENTITY" \
+            --sign "$INSTALLER_IDENTITY" \
             "$PKG_PATH"
           xcrun altool --upload-app \
             -f "$PKG_PATH" \
