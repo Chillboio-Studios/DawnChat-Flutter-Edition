@@ -41,7 +41,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libcurl4-openssl-dev
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
@@ -83,7 +83,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libcurl4-openssl-dev
       - name: Prepare release signing key
         env:
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
@@ -335,7 +335,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev liblzma-dev libstdc++-12-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev mpv
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev liblzma-dev libstdc++-12-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev mpv libcurl4-openssl-dev
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -399,7 +399,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libcurl4-openssl-dev
       - name: Set unique build number
         run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter pub get
