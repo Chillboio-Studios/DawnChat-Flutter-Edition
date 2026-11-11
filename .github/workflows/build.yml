@@ -219,14 +219,13 @@ jobs:
           KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
           # flutter build ipa cannot pass provisioning auth to xcodebuild, so
           # archive + export manually with the App Store Connect API key.
-          # Archive unsigned: automatic signing would try to create a
-          # *development* profile, which requires registered devices. The
-          # export step re-signs for App Store (no devices needed).
+          # Runner/BroadcastExtension Release configs pin
+          # CODE_SIGN_IDENTITY=Apple Distribution, so automatic signing
+          # creates App Store profiles (no registered devices needed).
           (cd ios && xcodebuild -workspace Runner.xcworkspace -scheme Runner \
             -configuration Release -sdk iphoneos \
             -archivePath ../build/ios/Runner.xcarchive \
             archive \
-            CODE_SIGNING_ALLOWED=NO \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$APPLE_API_KEY_ID" \
