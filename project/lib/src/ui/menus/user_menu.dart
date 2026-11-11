@@ -168,6 +168,17 @@ List<MenuItem> userMenu(
   final canTimeout = moderate(Perm.timeoutMembers);
   final canKick = moderate(Perm.kickMembers);
   final canBan = moderate(Perm.banMembers);
+  final canMuteVoice = moderate(Perm.muteMembers);
+  final canDeafenVoice = moderate(Perm.deafenMembers);
+  final canDisconnectVoice = moderate(Perm.disconnectMembers);
+  final canMoveVoice = moderate(Perm.moveMembers);
+  final voiceChannels = sid == null
+      ? const <Json>[]
+      : store.channels.values
+            .where(
+              (c) => c['server'] == sid && c['channel_type'] == 'VoiceChannel',
+            )
+            .toList();
   final canBanNonMember =
       !self &&
       member == null &&
@@ -295,7 +306,14 @@ List<MenuItem> userMenu(
         ),
     ],
     if (canRemoveFromGroup ||
-        (member != null && (canTimeout || canKick || canBan))) ...[
+        (member != null &&
+            (canTimeout ||
+                canKick ||
+                canBan ||
+                canMuteVoice ||
+                canDeafenVoice ||
+                canDisconnectVoice ||
+                canMoveVoice))) ...[
       const MenuItem.divider(),
       if (canRemoveFromGroup)
         MenuItem.button(
@@ -332,6 +350,81 @@ List<MenuItem> userMenu(
           destructive: true,
           onTap: () => showBanMember(context, sid!, userId),
         ),
+      if (canMuteVoice ||
+          canDeafenVoice ||
+          canDisconnectVoice ||
+          canMoveVoice) ...[
+        MenuItem.sub(
+          tr('Voice'),
+          icon: Icons.graphic_eq,
+          children: [
+            if (canMuteVoice)
+              MenuItem.button(
+                member?['can_publish'] == false
+                    ? tr('Unmute')
+                    : tr('Force Mute'),
+                icon: Icons.mic_off_outlined,
+                destructive: member?['can_publish'] != false,
+                onTap: () => _guarded(
+                  context,
+                  () => store.api.patch('/servers/$sid/members/$userId', {
+                    if (member?['can_publish'] == false)
+                      'remove': ['CanPublish']
+                    else
+                      'can_publish': false,
+                  }),
+                ),
+              ),
+            if (canDeafenVoice)
+              MenuItem.button(
+                member?['can_receive'] == false
+                    ? tr('Undeafen')
+                    : tr('Force Deafen'),
+                icon: Icons.hearing_disabled_outlined,
+                destructive: member?['can_receive'] != false,
+                onTap: () => _guarded(
+                  context,
+                  () => store.api.patch('/servers/$sid/members/$userId', {
+                    if (member?['can_receive'] == false)
+                      'remove': ['CanReceive']
+                    else
+                      'can_receive': false,
+                  }),
+                ),
+              ),
+            if (canDisconnectVoice)
+              MenuItem.button(
+                tr('Disconnect from Voice'),
+                icon: Icons.call_end_outlined,
+                destructive: true,
+                onTap: () => _guarded(
+                  context,
+                  () => store.api.patch('/servers/$sid/members/$userId', {
+                    'remove': ['VoiceChannel'],
+                  }),
+                ),
+              ),
+            if (canMoveVoice && voiceChannels.isNotEmpty)
+              MenuItem.sub(
+                tr('Move to Voice Channel'),
+                icon: Icons.switch_video_outlined,
+                children: [
+                  for (final c in voiceChannels)
+                    MenuItem.button(
+                      store.channelName(c),
+                      icon: Icons.volume_up_outlined,
+                      onTap: () => _guarded(
+                        context,
+                        () => store.api.patch('/servers/$sid/members/$userId', {
+                          'voice_channel': c['_id'],
+                        }),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ],
     ],
     if (canBanNonMember) ...[
       const MenuItem.divider(),
@@ -377,8 +470,8 @@ List<MenuItem> userMenu(
           ),
         ),
     ],
-    if (settings.adminPanel || settings.copyId) const MenuItem.divider(),
-    if (settings.adminPanel)
+    if (store.isAdmin || settings.copyId) const MenuItem.divider(),
+    if (store.isAdmin)
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.admin_panel_settings_outlined,

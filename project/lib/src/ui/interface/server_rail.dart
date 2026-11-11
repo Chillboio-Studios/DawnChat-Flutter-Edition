@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
@@ -550,6 +551,27 @@ class _ServerRailState extends State<ServerRail> {
                     count: pending,
                   ),
                 ),
+                if (store.isAdmin)
+                  entry(
+                    tooltip: 'Admin',
+                    selected:
+                        relPath(GoRouterState.of(context).uri.path) == '/admin',
+                    onTap: () => context.goPath('/admin'),
+                    child: badge(
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.admin_panel_settings_outlined,
+                          color: cs.primary,
+                        ),
+                      ),
+                    ),
+                  ),
                 Builder(
                   builder: (c) => entry(
                     tooltipRich: Column(

@@ -36,6 +36,11 @@ class Perm {
   static final mentionEveryone = _b(37);
   static final mentionRoles = _b(38);
   static final bypassSlowmode = _b(39);
+  static final viewAuditLogs = _b(40);
+  static final useExternalEmojis = _b(41);
+  static final shareScreen = _b(42);
+  static final shareCamera = _b(43);
+  static final disconnectMembers = _b(44);
   static final all = (BigInt.one << 52) - BigInt.one;
 
   /// Default permissions of a user in a DM/group.
@@ -49,6 +54,8 @@ class Perm {
       connect |
       speak |
       video |
+      shareScreen |
+      shareCamera |
       listen |
       inviteOthers;
 }

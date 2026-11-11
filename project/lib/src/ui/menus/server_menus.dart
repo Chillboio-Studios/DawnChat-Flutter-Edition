@@ -185,8 +185,8 @@ List<MenuItem> serverMenu(BuildContext context, String serverId) {
         destructive: true,
         onTap: () => showLeaveServer(context, serverId),
       ),
-    if (settings.adminPanel && settings.copyId) const MenuItem.divider(),
-    if (settings.adminPanel)
+    if (store.isAdmin && settings.copyId) const MenuItem.divider(),
+    if (store.isAdmin)
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.shield_outlined,
@@ -269,7 +269,7 @@ List<MenuItem> channelMenu(BuildContext context, Json channel) {
       ),
     ],
     if (canManageServerChannels || canManage) const MenuItem.divider(),
-    if (settings.adminPanel)
+    if (store.isAdmin)
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.shield_outlined,

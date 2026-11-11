@@ -1,0 +1,8 @@
+build/
+.dart_tool/
+.git/
+.idea/
+.vscode/
+*.iml
+integration_test/
+test_driver/

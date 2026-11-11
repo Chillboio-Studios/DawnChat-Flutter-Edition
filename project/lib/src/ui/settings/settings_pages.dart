@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +13,6 @@ import 'package:provider/provider.dart';
 import '../../api/client_store.dart';
 import '../../router.dart';
 import '../profile/profile.dart' show showAddBot;
-import '../../api/transport.dart';
 import '../../core/languages.dart';
 import '../../core/links.dart';
 import '../../push/push_service.dart';
@@ -1766,11 +1764,6 @@ class AdvancedPage extends StatelessWidget {
       children: [
         cb('Compact mode', s.compactMode, (v) => s.compactMode = v),
         cb("Show 'copy ID' in context menus", s.copyId, (v) => s.copyId = v),
-        cb(
-          'Show admin panel shortcuts in context menus',
-          s.adminPanel,
-          (v) => s.adminPanel = v,
-        ),
         _gap(24),
         CategoryGroup(
           children: [
@@ -1793,49 +1786,68 @@ class AdvancedPage extends StatelessWidget {
 
 // ---------------- Changelog ----------------
 
-Future<void> showChangelog(BuildContext context) async {
+/// Fetches the latest published changelog from the API.
+Future<Map<String, dynamic>?> fetchLatestChangelog(ClientStore store) async {
   try {
-    final res = await sendRequest(
-      'GET',
-      changelogUrl,
-      headers: {'Accept': 'application/json'},
-    );
-    if (res.status >= 400) return;
-    final data = jsonDecode(res.text) as Map;
-    if (!context.mounted) return;
-    final s = context.read<SettingsStore>();
-    await showDialog<void>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(data['title'] as String? ?? "What's New"),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (data['published_at'] != null)
-                  Text(
-                    formatDate(
-                      s,
-                      DateTime.tryParse(data['published_at'] as String)
-                              ?.toLocal() ??
-                          DateTime.now(),
-                    ),
+    final res = await store.api.get('/changelogs') as Map;
+    final list = (res['changelogs'] as List?) ?? const [];
+    if (list.isEmpty) return null;
+    return (list.first as Map).cast<String, dynamic>();
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Shows the "What's new" dialog for a changelog entry.
+Future<void> showChangelogEntry(
+  BuildContext context,
+  Map<String, dynamic> data,
+) async {
+  if (!context.mounted) return;
+  final s = context.read<SettingsStore>();
+  await showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text(data['title'] as String? ?? "What's New"),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (data['published_at'] != null)
+                Text(
+                  formatDate(
+                    s,
+                    DateTime.tryParse(data['published_at'] as String)
+                            ?.toLocal() ??
+                        DateTime.now(),
                   ),
-                const SizedBox(height: 8),
-                RichContent((data['markdown_content'] as String?) ?? ''),
-              ],
-            ),
+                ),
+              if (data['client_version'] != null)
+                Text(
+                  tr('Version {v}', {'v': data['client_version']}),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              const SizedBox(height: 8),
+              RichContent((data['markdown_content'] as String?) ?? ''),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(tr('Close')),
-          ),
-        ],
       ),
-    );
-  } catch (_) {}
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: Text(tr('Close')),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> showChangelog(BuildContext context) async {
+  final store = context.read<ClientStore>();
+  final data = await fetchLatestChangelog(store);
+  if (data == null || !context.mounted) return;
+  await showChangelogEntry(context, data);
 }

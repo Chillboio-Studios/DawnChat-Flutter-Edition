@@ -415,6 +415,70 @@ class _FriendsPageState extends State<FriendsPage> {
       _ => people('Online', lists['online']!),
     };
 
+    final isNarrow = MediaQuery.sizeOf(context).width < 720;
+
+    Future<void> addFriend() async {
+      final name = await promptText(
+        context,
+        tr('Add a friend'),
+        label: 'Username#0000',
+        action: tr('Send request'),
+      );
+      if (name == null || name.isEmpty) return;
+      try {
+        await store.addFriend(name);
+        if (context.mounted) showSnack(context, 'Friend request sent');
+      } catch (e) {
+        if (context.mounted) showSnack(context, errorText(e));
+      }
+    }
+
+    final header = Column(
+      children: [
+        PageHeader(
+          icon: const Icon(Icons.group),
+          title: Text(tr('Friends')),
+          actions: [
+            IconButton.filled(
+              tooltip: tr('Add a new friend'),
+              icon: const Icon(Icons.add),
+              onPressed: addFriend,
+            ),
+          ],
+        ),
+        if (isNarrow)
+          SizedBox(
+            height: 48,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              children: [
+                for (final (id, label, icon, badge) in railItems)
+                  _RailChip(
+                    icon: icon,
+                    label: tr(label),
+                    badge: badge,
+                    selected: _page == id,
+                    onTap: () => setState(() => _page = id),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    final body = SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: content,
+    );
+
+    if (isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [header, const Divider(height: 1), Expanded(child: body)],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -423,33 +487,7 @@ class _FriendsPageState extends State<FriendsPage> {
           width: 200,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton.filled(
-                    tooltip: tr('Add a new friend'),
-                    icon: const Icon(Icons.add),
-                    onPressed: () async {
-                      final name = await promptText(
-                        context,
-                        tr('Add a friend'),
-                        label: 'Username#0000',
-                        action: tr('Send request'),
-                      );
-                      if (name == null || name.isEmpty) return;
-                      try {
-                        await store.addFriend(name);
-                        if (context.mounted) {
-                          showSnack(context, 'Friend request sent');
-                        }
-                      } catch (e) {
-                        if (context.mounted) showSnack(context, errorText(e));
-                      }
-                    },
-                  ),
-                ),
-              ),
+              const SizedBox(height: 8),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -470,22 +508,81 @@ class _FriendsPageState extends State<FriendsPage> {
         ),
         VerticalDivider(width: 1, color: cs.outlineVariant),
         Expanded(
-          child: Column(
-            children: [
-              PageHeader(
-                icon: const Icon(Icons.group),
-                title: Text(tr('Friends')),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: content,
-                ),
-              ),
-            ],
-          ),
+          child: Column(children: [header, Expanded(child: body)]),
         ),
       ],
+    );
+  }
+}
+
+/// Compact horizontal chip used by the friends rail on narrow screens.
+class _RailChip extends StatelessWidget {
+  const _RailChip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.badge,
+  });
+  final IconData icon;
+  final String label;
+  final int? badge;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.cs;
+    final fg = selected ? cs.onSecondaryContainer : cs.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+      child: Material(
+        color: selected ? cs.secondaryContainer : cs.surfaceContainerHighest,
+        borderRadius: br(Radius_.xl),
+        child: InkWell(
+          borderRadius: br(Radius_.xl),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: fg),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: fg,
+                  ),
+                ),
+                if (badge != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.primary,
+                      borderRadius: br(Radius_.md),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

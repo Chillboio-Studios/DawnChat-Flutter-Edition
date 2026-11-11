@@ -173,6 +173,15 @@ class ClientStore extends ChangeNotifier {
         return null;
       case 'MFA':
         return res.cast<String, dynamic>();
+      case 'AccountBanned':
+        throw ApiException(403, 'AccountBanned', {
+          'message':
+              'Your account has been banned. Please check your email for more information.',
+        });
+      case 'Disabled':
+        throw ApiException(403, 'AccountDisabled', {
+          'message': 'This account is disabled. Please contact support.',
+        });
       default:
         throw ApiException(403, 'AccountDisabled', res);
     }
@@ -197,9 +206,33 @@ class ClientStore extends ChangeNotifier {
     api.token = res['token'] as String;
     userId = res['user_id'] as String?;
     settings.setSession(host, api.token, res['_id'] as String?, userId);
+
+    // Pick the correct limit tier: accounts younger than `new_user_hours`
+    // get the restricted `new_user` limits, everyone else gets `default`.
+    final cfg = api.config;
+    if (cfg != null) {
+      final global =
+          (cfg.limits['global'] as Map?)?.cast<String, dynamic>() ?? {};
+      final hours = (global['new_user_hours'] as num?)?.toInt() ?? 72;
+      final created = _ulidTime(userId ?? '');
+      cfg.newUserAccount =
+          DateTime.now().difference(created).inHours < hours;
+    }
+
     authState = AuthState.loggedIn;
     notifyListeners();
     _connect();
+  }
+
+  /// ULID timestamp decoding (Crockford base32, first 10 chars).
+  static DateTime _ulidTime(String id) {
+    const alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+    if (id.length < 10) return DateTime.fromMillisecondsSinceEpoch(0);
+    var ms = 0;
+    for (final ch in id.substring(0, 10).split('')) {
+      ms = ms * 32 + alphabet.indexOf(ch.toUpperCase());
+    }
+    return DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   /// Pending policy changes pushed by the server (`PolicyChange` event).
@@ -679,6 +712,28 @@ class ClientStore extends ChangeNotifier {
     );
     return (p & perm) == perm;
   }
+
+  /// Admin panel permission bitfield of the current user (0 if none).
+  /// Mirrors the backend `perms` constants in `routes/admin`.
+  int get adminPerms => (me?['admin_permissions'] as num?)?.toInt() ?? 0;
+
+  /// Whether the current user can see the admin panel at all.
+  bool get isAdmin => me?['privileged'] == true || adminPerms != 0;
+
+  /// Admin permission bits (must match backend `routes/admin/mod.rs`).
+  static const adminViewUsers = 1 << 0;
+  static const adminEditUsers = 1 << 1;
+  static const adminBanUsers = 1 << 2;
+  static const adminViewReports = 1 << 3;
+  static const adminManageReports = 1 << 4;
+  static const adminViewAudit = 1 << 5;
+  static const adminViewServers = 1 << 6;
+  static const adminEditServers = 1 << 7;
+  static const adminBroadcast = 1 << 8;
+
+  /// Whether the current user holds an admin panel permission.
+  bool canAdmin(int perm) =>
+      me?['privileged'] == true || adminPerms & perm == perm;
 
   bool canAny(String channelId, List<BigInt> perms) =>
       perms.any((p) => can(channelId, p));

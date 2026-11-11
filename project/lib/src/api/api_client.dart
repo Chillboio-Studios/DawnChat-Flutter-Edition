@@ -35,15 +35,38 @@ class InstanceConfig {
       (features['legal_links'] as Map?)?.cast<String, dynamic>() ?? {};
   Map<String, dynamic> get limits =>
       (features['limits'] as Map?)?.cast<String, dynamic>() ?? {};
-  bool get video {
-    final g = (limits['new_user'] ?? limits['global']) as Map?;
-    return (g?['video'] as bool?) ?? true;
+  bool get video => videoAllowed;
+
+  /// Whether the logged-in account is still within the `new_user` limit tier.
+  /// Set by ClientStore after login based on account age vs `new_user_hours`.
+  bool newUserAccount = false;
+
+  Map<String, dynamic> get _userLimits {
+    final l = limits;
+    final global = (l['global'] as Map?)?.cast<String, dynamic>() ?? {};
+    final tier = newUserAccount
+        ? (l['new_user'] ?? l['default'])
+        : (l['default'] ?? l['new_user']);
+    return (tier as Map?)?.cast<String, dynamic>() ??
+        global.cast<String, dynamic>();
   }
 
-  Map<String, dynamic> get _userLimits =>
-      ((limits['new_user'] ?? limits['global']) as Map?)
-          ?.cast<String, dynamic>() ??
-      {};
+  /// Max camera/screenshare resolution [width, height] in pixels for this user.
+  /// A 0 component means unlimited.
+  List<int> get videoResolution {
+    final r = (_userLimits['video_resolution'] as List?) ?? const [0, 0];
+    return [
+      (r.isNotEmpty ? r[0] : 0) as int,
+      (r.length > 1 ? r[1] : 0) as int,
+    ];
+  }
+
+  /// Max voice bitrate for this user.
+  int get voiceQuality =>
+      (_userLimits['voice_quality'] as num?)?.toInt() ?? 64000;
+
+  /// Whether the user may use camera/video at all.
+  bool get videoAllowed => (_userLimits['video'] as bool?) ?? true;
   int get messageLength =>
       (_userLimits['message_length'] as num?)?.toInt() ?? 2000;
   int get messageAttachments =>

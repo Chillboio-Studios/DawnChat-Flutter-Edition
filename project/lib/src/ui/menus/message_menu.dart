@@ -189,7 +189,7 @@ List<MenuItem> messageMenu(
         ),
       ),
     const MenuItem.divider(),
-    if (settings.adminPanel)
+    if (store.isAdmin)
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.shield_outlined,

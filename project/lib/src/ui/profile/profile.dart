@@ -233,19 +233,15 @@ class _ProfileBannerState extends State<ProfileBanner> {
                     fit: BoxFit.cover,
                   ),
           ),
-          foregroundDecoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0x33000000), Color(0xB3000000)],
-            ),
-          ),
           alignment: Alignment.bottomLeft,
           child: DefaultTextStyle.merge(
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
               height: 1.15,
+              shadows: [
+                Shadow(color: Color(0xB3000000), blurRadius: 10),
+              ],
             ),
             child: Row(
               spacing: Gap.lg,

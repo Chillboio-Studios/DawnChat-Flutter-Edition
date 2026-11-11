@@ -442,6 +442,7 @@ class VoiceManager extends ChangeNotifier {
     final r = room;
     if (r == null) return;
     final params = switch (quality) {
+      'ultra' => VideoParametersPresets.h2160_169,
       'high' => VideoParametersPresets.h1080_169,
       'text' => VideoParametersPresets.screenShareH1080FPS15,
       _ => VideoParametersPresets.h720_169,

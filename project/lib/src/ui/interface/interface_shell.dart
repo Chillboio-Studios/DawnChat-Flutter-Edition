@@ -1,3 +1,5 @@
+import 'dart:io' show exit;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +15,8 @@ import 'server_rail.dart';
 import 'sidebars.dart';
 import '../../core/i18n.dart';
 import '../modals/app_dialog.dart';
+import '../settings/settings_pages.dart';
+import '../../updater/desktop_updater.dart';
 
 /// Parsed in-app location used to pick sidebars.
 class NavTarget {
@@ -62,6 +66,122 @@ class _InterfaceShellState extends State<InterfaceShell> {
     super.initState();
     _voice = context.read<VoiceManager>();
     _voice.lastError.addListener(_onVoiceError);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkChangelog();
+      _checkUpdate();
+    });
+  }
+
+  /// Checks GitHub releases for a newer desktop build (Windows/Linux).
+  Future<void> _checkUpdate() async {
+    if (!mounted || !DesktopUpdater.isSupported) return;
+    final update = await DesktopUpdater.check();
+    if (update == null || !mounted) return;
+    await _showUpdateDialog(update);
+  }
+
+  Future<void> _showUpdateDialog(ReleaseInfo update) async {
+    var progress = 0.0;
+    var installing = false;
+    var shouldExit = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: Text(tr('Update available')),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('DawnChat {v} is available.', {'v': update.version}),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (update.notes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 160),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        update.notes,
+                        style: const TextStyle(fontSize: 12),
+                        maxLines: 12,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                if (installing) ...[
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(value: progress),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${(progress * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: installing
+                  ? null
+                  : () {
+                      shouldExit = true;
+                      Navigator.pop(c);
+                    },
+              child: Text(tr('Later')),
+            ),
+            FilledButton(
+              onPressed: installing || shouldExit
+                  ? null
+                  : () async {
+                      set(() => installing = true);
+                      final quit = await DesktopUpdater.install(
+                        update,
+                        onProgress: (p) => set(() => progress = p),
+                      );
+                      if (quit) {
+                        shouldExit = true;
+                        exit(0);
+                      } else {
+                        set(() => installing = false);
+                      }
+                    },
+              child: Text(tr('Update now')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Shows the "What's new" dialog once per new changelog entry,
+  /// mirroring the web client's release-notes flow.
+  Future<void> _checkChangelog() async {
+    if (!mounted) return;
+    final store = context.read<ClientStore>();
+    final settings = context.read<SettingsStore>();
+    final entry = await fetchLatestChangelog(store);
+    if (entry == null || !mounted) return;
+
+    final seen =
+        (settings.raw<Map>('sync.releaseNotes')?['lastSeenId'] as String?) ??
+        '';
+    final id = entry['id'] as String? ?? '';
+    if (id.isEmpty || id == seen) return;
+
+    settings.setRaw('sync.releaseNotes', {
+      'lastSeenId': id,
+      'lastSeenAt': entry['published_at'] ?? '',
+    }, syncKey: 'release-notes');
+
+    if (!mounted) return;
+    await showChangelogEntry(context, entry);
   }
 
   @override
@@ -217,8 +337,6 @@ class _InterfaceShellState extends State<InterfaceShell> {
     }
 
     if (sc == ScreenClass.phone) {
-      final onHome =
-          relPath(widget.location) == '/app' || relPath(widget.location) == '/';
       return Scaffold(
         key: _scaffold,
         backgroundColor: cs.surfaceContainerHigh,
@@ -236,20 +354,7 @@ class _InterfaceShellState extends State<InterfaceShell> {
         ),
         drawerEnableOpenDragGesture: true,
         body: SafeArea(
-          child: onHome && target.serverId == null
-              ? Row(
-                  children: [
-                    rail,
-                    Expanded(child: sidebar),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Expanded(
-                      child: _PhoneContent(scaffold: _scaffold, child: content),
-                    ),
-                  ],
-                ),
+          child: _PhoneContent(scaffold: _scaffold, child: content),
         ),
       );
     }

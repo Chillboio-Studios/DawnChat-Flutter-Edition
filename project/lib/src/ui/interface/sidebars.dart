@@ -163,7 +163,7 @@ Future<void> channelMenu(BuildContext context, Map<String, dynamic> c) async {
               title: Text(tr('Copy ID')),
               onTap: () => Navigator.pop(s, 'copy'),
             ),
-          if (store.settings.adminPanel)
+          if (store.isAdmin)
             ListTile(
               leading: const Icon(Icons.admin_panel_settings_outlined),
               title: const Text('Open in admin panel'),

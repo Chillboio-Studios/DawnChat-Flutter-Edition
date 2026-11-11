@@ -373,7 +373,7 @@ class _ChannelHeader extends StatelessWidget {
             tooltip: tr('Copy ID'),
             onPressed: () => copyText(context, id),
           ),
-        if (settings.adminPanel)
+        if (store.isAdmin)
           IconButton(
             icon: const Icon(Icons.admin_panel_settings_outlined),
             tooltip: tr('Admin Panel'),

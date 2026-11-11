@@ -273,12 +273,25 @@ Future<void> toggleScreenshareUi(
   if (settings.screenShareQualityAsk && context.mounted) {
     final res = await showDialog<(String, bool)>(
       context: context,
-      builder: (c) =>
-          _ScreenShareSettingsDialog(quality: quality, audio: audio),
+      builder: (c) => _ScreenShareSettingsDialog(
+        quality: quality,
+        audio: audio,
+        videoResolution:
+            context.read<ClientStore>().api.config?.videoResolution ?? [0, 0],
+      ),
     );
     if (res == null) return;
     quality = res.$1;
     audio = res.$2;
+  }
+  // Clamp the chosen quality to what this account's limits allow.
+  final vr = context.read<ClientStore>().api.config?.videoResolution ?? [0, 0];
+  bool allows(int w, int h) =>
+      (vr[0] == 0 || vr[0] >= w) && (vr[1] == 0 || vr[1] >= h);
+  if (quality == 'ultra' && !allows(3840, 2160)) {
+    quality = allows(1920, 1080) ? 'high' : 'low';
+  } else if (quality == 'high' && !allows(1920, 1080)) {
+    quality = 'low';
   }
   await voice.startScreenshare(
     sourceId: sourceId,
@@ -291,9 +304,11 @@ class _ScreenShareSettingsDialog extends StatefulWidget {
   const _ScreenShareSettingsDialog({
     required this.quality,
     required this.audio,
+    required this.videoResolution,
   });
   final String quality;
   final bool audio;
+  final List<int> videoResolution;
   @override
   State<_ScreenShareSettingsDialog> createState() =>
       _ScreenShareSettingsDialogState();
@@ -314,17 +329,33 @@ class _ScreenShareSettingsDialogState
         RadioGroup<String>(
           groupValue: q,
           onChanged: (v) => setState(() => q = v ?? q),
-          child: const Column(
+          child: Column(
             children: [
-              RadioListTile<String>(value: 'low', title: Text('720p at 30fps')),
-              RadioListTile<String>(
-                value: 'high',
-                title: Text('1080p at 30fps'),
+              const RadioListTile<String>(
+                value: 'low',
+                title: Text('720p at 30fps'),
               ),
-              RadioListTile<String>(
-                value: 'text',
-                title: Text('Source resolution at 5fps (text)'),
-              ),
+              if ((widget.videoResolution[0] == 0 ||
+                      widget.videoResolution[0] >= 1920) &&
+                  (widget.videoResolution[1] == 0 ||
+                      widget.videoResolution[1] >= 1080)) ...[
+                const RadioListTile<String>(
+                  value: 'high',
+                  title: Text('1080p at 30fps'),
+                ),
+                const RadioListTile<String>(
+                  value: 'text',
+                  title: Text('Source resolution at 5fps (text)'),
+                ),
+              ],
+              if ((widget.videoResolution[0] == 0 ||
+                      widget.videoResolution[0] >= 3840) &&
+                  (widget.videoResolution[1] == 0 ||
+                      widget.videoResolution[1] >= 2160))
+                const RadioListTile<String>(
+                  value: 'ultra',
+                  title: Text('4K at 30fps'),
+                ),
             ],
           ),
         ),

@@ -143,8 +143,6 @@ class SettingsStore extends ChangeNotifier {
   set compactMode(bool v) => _set('settings.appearance:compact_mode', v);
   bool get copyId => _get('settings.advanced:copy_id', false);
   set copyId(bool v) => _set('settings.advanced:copy_id', v);
-  bool get adminPanel => _get('settings.advanced:admin_panel', false);
-  set adminPanel(bool v) => _set('settings.advanced:admin_panel', v);
 
   // --- locale ---
   String get lang => _get('locale.lang', preferredLanguageCode());

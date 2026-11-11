@@ -73,6 +73,11 @@ const permissionEntries = <(String, int)>[
   ('Listen', 36),
   ('Mention Everyone', 37),
   ('Mention Roles', 38),
+  ('View Audit Logs', 40),
+  ('Use External Emojis', 41),
+  ('Share Screen', 42),
+  ('Share Camera', 43),
+  ('Disconnect Members', 44),
 ];
 
 class PermissionEditor extends StatelessWidget {

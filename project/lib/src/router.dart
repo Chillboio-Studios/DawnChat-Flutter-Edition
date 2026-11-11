@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'api/client_store.dart';
 import 'state/settings_store.dart';
+import 'ui/admin/admin_page.dart';
 import 'ui/auth/auth_page.dart';
 import 'ui/auth/flows.dart';
 import 'ui/interface/channel_page.dart';
@@ -133,6 +134,13 @@ GoRouter buildRouter(ClientStore store, SettingsStore settings) {
                   messageId: s.pathParameters['message'],
                 ),
               ),
+              // Legacy wildcard — the web client matches any subpath here.
+              GoRoute(
+                path: ':rest(.*)',
+                redirect: (c, s) =>
+                    '${s.pathParameters['host'] != null ? '/i/${s.pathParameters['host']}' : ''}'
+                    '/server/${s.pathParameters['server']}',
+              ),
             ],
           ),
           GoRoute(
@@ -150,6 +158,14 @@ GoRouter buildRouter(ClientStore store, SettingsStore settings) {
               messageId: s.pathParameters['message'],
             ),
           ),
+          // Legacy wildcard — extra segments still open the channel.
+          GoRoute(
+            path: p('channel/:channel/:rest(.*)'),
+            redirect: (c, s) =>
+                '${s.pathParameters['host'] != null ? '/i/${s.pathParameters['host']}' : ''}'
+                '/channel/${s.pathParameters['channel']}',
+          ),
+          GoRoute(path: p('admin'), builder: (c, s) => const AdminPage()),
           GoRoute(path: p('app'), builder: (c, s) => const HomePage()),
           if (abs) GoRoute(path: '/', builder: (c, s) => const HomePage()),
         ],
