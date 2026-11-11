@@ -11,27 +11,45 @@ String newUlid() {
     t ~/= 32;
   }
   final r = Random.secure();
-  return time.toString().split('').reversed.join() + List.generate(16, (_) => _alphabet[r.nextInt(32)]).join();
+  return time.toString().split('').reversed.join() +
+      List.generate(16, (_) => _alphabet[r.nextInt(32)]).join();
 }
 
 class ServerFolder {
-  ServerFolder({required this.id, required this.name, this.colour, this.collapsed = false, required this.servers});
+  ServerFolder({
+    required this.id,
+    required this.name,
+    this.colour,
+    this.collapsed = false,
+    required this.servers,
+  });
   final String id;
   String name;
   String? colour;
   bool collapsed;
   List<String> servers;
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'colour': ?colour, if (collapsed) 'collapsed': true, 'servers': servers};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'colour': ?colour,
+    if (collapsed) 'collapsed': true,
+    'servers': servers,
+  };
 
   static ServerFolder? fromJson(Object? j) {
-    if (j is! Map || j['id'] is! String || (j['id'] as String).isEmpty) return null;
+    if (j is! Map || j['id'] is! String || (j['id'] as String).isEmpty)
+      return null;
     return ServerFolder(
       id: j['id'] as String,
       name: j['name'] as String? ?? '',
       colour: j['colour'] as String?,
       collapsed: j['collapsed'] == true,
-      servers: [if (j['servers'] is List) for (final s in j['servers'] as List) if (s is String) s],
+      servers: [
+        if (j['servers'] is List)
+          for (final s in j['servers'] as List)
+            if (s is String) s,
+      ],
     );
   }
 }
@@ -63,10 +81,13 @@ class ServerOrdering {
     return out;
   }
 
-  void _write(List<ServerFolder> folders) =>
-      s.setRaw('folders.list', [for (final f in folders) if (f.servers.isNotEmpty) f.toJson()], syncKey: 'server-folders');
+  void _write(List<ServerFolder> folders) => s.setRaw('folders.list', [
+    for (final f in folders)
+      if (f.servers.isNotEmpty) f.toJson(),
+  ], syncKey: 'server-folders');
 
-  ServerFolder? folderOf(String serverId) => folders().where((f) => f.servers.contains(serverId)).firstOrNull;
+  ServerFolder? folderOf(String serverId) =>
+      folders().where((f) => f.servers.contains(serverId)).firstOrNull;
 
   String createFolder(String name, List<String> serverIds) {
     final id = 'folder-${newUlid()}';
@@ -91,7 +112,8 @@ class ServerOrdering {
     _write(list);
   }
 
-  void deleteFolder(String id) => _write(folders().where((f) => f.id != id).toList());
+  void deleteFolder(String id) =>
+      _write(folders().where((f) => f.id != id).toList());
 
   void toggleFolder(String id) {
     final list = folders();
@@ -136,7 +158,10 @@ class ServerOrdering {
     _write(list);
   }
 
-  List<String> _sidebar() => s.raw<List>('ordering.serverSidebar')?.cast<String>() ?? s.raw<List>('ordering.servers')?.cast<String>() ?? const [];
+  List<String> _sidebar() =>
+      s.raw<List>('ordering.serverSidebar')?.cast<String>() ??
+      s.raw<List>('ordering.servers')?.cast<String>() ??
+      const [];
 
   /// Entries to draw, with folder contents grouped and unordered servers appended.
   List<RailEntry> orderedEntries(Iterable<String> knownServers) {
@@ -169,16 +194,15 @@ class ServerOrdering {
   }
 
   List<String> orderedServers(Iterable<String> knownServers) => [
-    for (final e in orderedEntries(knownServers)) ...(e.isFolder ? e.servers : [e.id]),
+    for (final e in orderedEntries(knownServers))
+      ...(e.isFolder ? e.servers : [e.id]),
   ];
 
   /// Sets the order of top-level entries (folder members trail their folder).
   void setServerOrder(List<String> ids) {
     final byId = {for (final f in folders()) f.id: f};
-    s.setRaw(
-      'ordering.serverSidebar',
-      [for (final id in ids) ...[id, ...(byId[id]?.servers ?? const [])]],
-      syncKey: 'ordering',
-    );
+    s.setRaw('ordering.serverSidebar', [
+      for (final id in ids) ...[id, ...(byId[id]?.servers ?? const [])],
+    ], syncKey: 'ordering');
   }
 }

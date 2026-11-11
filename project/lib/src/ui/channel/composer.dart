@@ -6,8 +6,10 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../net_image.dart';
 import '../image_paste_region.dart';
+
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -29,7 +31,14 @@ import '../modals/app_dialog.dart';
 import '../widgets.dart';
 import '../../core/i18n.dart';
 
-const _imageTypes = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp'};
+const _imageTypes = {
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/bmp',
+};
 
 String mimeFromName(String name) {
   final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
@@ -53,20 +62,35 @@ String mimeFromName(String name) {
 }
 
 final _rnd = Random();
-String _fileId() => '${DateTime.now().microsecondsSinceEpoch}${_rnd.nextInt(1 << 20)}';
+String _fileId() =>
+    '${DateTime.now().microsecondsSinceEpoch}${_rnd.nextInt(1 << 20)}';
 
 /// Adds files to a channel draft after enforcing the instance upload limits.
-void addDraftFiles(BuildContext context, String channelId, List<({String name, Uint8List bytes, String? mime})> files) {
+void addDraftFiles(
+  BuildContext context,
+  String channelId,
+  List<({String name, Uint8List bytes, String? mime})> files,
+) {
   final store = context.read<ClientStore>();
   final drafts = context.read<DraftStore>();
-  if (!store.can(channelId, Perm.sendMessage) || !store.can(channelId, Perm.uploadFiles)) return;
+  if (!store.can(channelId, Perm.sendMessage) ||
+      !store.can(channelId, Perm.uploadFiles))
+    return;
   final max = store.api.config?.fileLimit('attachments') ?? 20000000;
   final rejected = <({String name, int size})>[];
   for (final f in files) {
     if (f.bytes.length > max) {
       rejected.add((name: f.name, size: f.bytes.length));
     } else {
-      drafts.addFile(channelId, DraftFile(id: _fileId(), name: f.name, mime: f.mime ?? mimeFromName(f.name), bytes: f.bytes));
+      drafts.addFile(
+        channelId,
+        DraftFile(
+          id: _fileId(),
+          name: f.name,
+          mime: f.mime ?? mimeFromName(f.name),
+          bytes: f.bytes,
+        ),
+      );
     }
   }
   if (rejected.isNotEmpty) {
@@ -84,11 +108,11 @@ void addDraftFiles(BuildContext context, String channelId, List<({String name, U
 }
 
 Future<void> pickFilesInto(BuildContext context, String channelId) async {
-  final res = await FilePicker.pickFiles(allowMultiple: true, withData: true);
-  if (res == null || !context.mounted) return;
+  final files = await FilePicker.pickFiles();
+  if (files.isEmpty || !context.mounted) return;
   addDraftFiles(context, channelId, [
-    for (final f in res.files)
-      if (f.bytes != null) (name: f.name, bytes: f.bytes!, mime: null),
+    for (final f in files)
+      (name: f.name, bytes: await f.readAsBytes(), mime: null),
   ]);
 }
 
@@ -96,22 +120,62 @@ Future<void> pickFilesInto(BuildContext context, String channelId) async {
 class MarkdownEditingController extends TextEditingController {
   MarkdownEditingController({super.text});
 
-  static final _rules = <(RegExp, TextStyle Function(TextStyle base, ColorScheme cs))>[
-    (RegExp(r'^#{1,6} .*$', multiLine: true), (b, cs) => b.copyWith(fontWeight: FontWeight.w600)),
-    (RegExp(r'\*\*[^*\n]+\*\*'), (b, cs) => b.copyWith(fontWeight: FontWeight.bold)),
-    (RegExp(r'(?<![*\w])\*[^*\n]+\*(?![*\w])|(?<!\w)_[^_\n]+_(?!\w)'), (b, cs) => b.copyWith(fontStyle: FontStyle.italic)),
-    (RegExp(r'~~[^~\n]+~~'), (b, cs) => b.copyWith(decoration: TextDecoration.lineThrough)),
-    (RegExp(r'`[^`\n]+`'), (b, cs) => b.copyWith(fontFamily: 'monospace', backgroundColor: const Color(0xFF0D1117), color: const Color(0xFFC9D1D9))),
-    (RegExp(r'^> .*$', multiLine: true), (b, cs) => b.copyWith(color: cs.onSecondaryContainer, backgroundColor: cs.secondaryContainer)),
-    (RegExp(r'https?://[^\s<>]+'), (b, cs) => b.copyWith(decoration: TextDecoration.underline)),
-  ];
+  static final _rules =
+      <(RegExp, TextStyle Function(TextStyle base, ColorScheme cs))>[
+        (
+          RegExp(r'^#{1,6} .*$', multiLine: true),
+          (b, cs) => b.copyWith(fontWeight: FontWeight.w600),
+        ),
+        (
+          RegExp(r'\*\*[^*\n]+\*\*'),
+          (b, cs) => b.copyWith(fontWeight: FontWeight.bold),
+        ),
+        (
+          RegExp(r'(?<![*\w])\*[^*\n]+\*(?![*\w])|(?<!\w)_[^_\n]+_(?!\w)'),
+          (b, cs) => b.copyWith(fontStyle: FontStyle.italic),
+        ),
+        (
+          RegExp(r'~~[^~\n]+~~'),
+          (b, cs) => b.copyWith(decoration: TextDecoration.lineThrough),
+        ),
+        (
+          RegExp(r'`[^`\n]+`'),
+          (b, cs) => b.copyWith(
+            fontFamily: 'monospace',
+            backgroundColor: const Color(0xFF0D1117),
+            color: const Color(0xFFC9D1D9),
+          ),
+        ),
+        (
+          RegExp(r'^> .*$', multiLine: true),
+          (b, cs) => b.copyWith(
+            color: cs.onSecondaryContainer,
+            backgroundColor: cs.secondaryContainer,
+          ),
+        ),
+        (
+          RegExp(r'https?://[^\s<>]+'),
+          (b, cs) => b.copyWith(decoration: TextDecoration.underline),
+        ),
+      ];
 
   @override
-  TextSpan buildTextSpan({required BuildContext context, TextStyle? style, required bool withComposing}) {
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
     final base = style ?? const TextStyle();
     final cs = Theme.of(context).colorScheme;
-    if (text.isEmpty || value.composing.isValid && withComposing && !value.composing.isCollapsed) {
-      return super.buildTextSpan(context: context, style: style, withComposing: withComposing);
+    if (text.isEmpty ||
+        value.composing.isValid &&
+            withComposing &&
+            !value.composing.isCollapsed) {
+      return super.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: withComposing,
+      );
     }
     final styles = List<TextStyle?>.filled(text.length, null);
     for (final (re, fn) in _rules) {
@@ -126,7 +190,12 @@ class MarkdownEditingController extends TextEditingController {
     var start = 0;
     for (var i = 1; i <= text.length; i++) {
       if (i == text.length || styles[i] != styles[start]) {
-        spans.add(TextSpan(text: text.substring(start, i), style: styles[start] ?? base));
+        spans.add(
+          TextSpan(
+            text: text.substring(start, i),
+            style: styles[start] ?? base,
+          ),
+        );
         start = i;
       }
     }
@@ -137,7 +206,15 @@ class MarkdownEditingController extends TextEditingController {
 // ----- autocomplete -----
 
 class _Suggestion {
-  _Suggestion({required this.label, required this.apply, this.detail, this.url, this.colour, this.unicode, this.icon});
+  _Suggestion({
+    required this.label,
+    required this.apply,
+    this.detail,
+    this.url,
+    this.colour,
+    this.unicode,
+    this.icon,
+  });
   final String label, apply;
   final String? detail, url, unicode;
   final Color? colour;
@@ -148,7 +225,11 @@ final _tokenRe = RegExp(r'(?<![\p{L}\w])[:@%#][\p{L}\w\-+]*$', unicode: true);
 
 /// Composition area of a channel (`MessageComposition`).
 class MessageComposer extends StatefulWidget {
-  const MessageComposer({super.key, required this.channel, required this.onSent});
+  const MessageComposer({
+    super.key,
+    required this.channel,
+    required this.onSent,
+  });
   final Json channel;
   final VoidCallback onSent;
   @override
@@ -188,7 +269,10 @@ class _MessageComposerState extends State<MessageComposer> {
     final text = _ctl.text;
     final at = sel.isValid ? sel.start : text.length;
     final ins = '$t ';
-    _ctl.value = TextEditingValue(text: text.replaceRange(at, sel.isValid ? sel.end : at, ins), selection: TextSelection.collapsed(offset: at + ins.length));
+    _ctl.value = TextEditingValue(
+      text: text.replaceRange(at, sel.isValid ? sel.end : at, ins),
+      selection: TextSelection.collapsed(offset: at + ins.length),
+    );
     _focus.requestFocus();
   }
 
@@ -196,7 +280,10 @@ class _MessageComposerState extends State<MessageComposer> {
   void didUpdateWidget(covariant MessageComposer old) {
     super.didUpdateWidget(old);
     if (old.channel['_id'] != id) {
-      context.read<DraftStore>().setText(old.channel['_id'] as String, _ctl.text);
+      context.read<DraftStore>().setText(
+        old.channel['_id'] as String,
+        _ctl.text,
+      );
       _ctl.text = context.read<DraftStore>().textFor(id);
       suggestions = const [];
     }
@@ -214,7 +301,8 @@ class _MessageComposerState extends State<MessageComposer> {
     super.dispose();
   }
 
-  bool get _phone => screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
+  bool get _phone =>
+      screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
 
   bool _timedOut(ClientStore store) {
     final sid = serverId;
@@ -285,7 +373,13 @@ class _MessageComposerState extends State<MessageComposer> {
         for (final e in store.emojis.values) {
           final name = (e['name'] as String? ?? '');
           if (name.toLowerCase().contains(q)) {
-            out.add(_Suggestion(label: ':$name:', apply: ':${e['_id']}: ', url: '$customEmojiBaseUrl/${e['_id']}'));
+            out.add(
+              _Suggestion(
+                label: ':$name:',
+                apply: ':${e['_id']}: ',
+                url: '$customEmojiBaseUrl/${e['_id']}',
+              ),
+            );
           }
         }
         final d = EmojiData.loaded;
@@ -293,7 +387,9 @@ class _MessageComposerState extends State<MessageComposer> {
           for (final e in d.all) {
             for (final s in e.shorthands) {
               if (s.toLowerCase().contains(q)) {
-                out.add(_Suggestion(label: ':$s:', apply: e.emoji, unicode: e.emoji));
+                out.add(
+                  _Suggestion(label: ':$s:', apply: e.emoji, unicode: e.emoji),
+                );
                 break;
               }
             }
@@ -311,34 +407,64 @@ class _MessageComposerState extends State<MessageComposer> {
         }
         if (sid != null) {
           for (final special in ['everyone', 'online']) {
-            if (special.contains(q)) out.add(_Suggestion(label: '@$special', apply: '@$special ', icon: Icons.alternate_email));
+            if (special.contains(q))
+              out.add(
+                _Suggestion(
+                  label: '@$special',
+                  apply: '@$special ',
+                  icon: Icons.alternate_email,
+                ),
+              );
           }
         }
         for (final uid in ids) {
           final name = store.displayName(uid, server: sid);
           final uname = store.user(uid)?['username'] as String? ?? '';
-          if (name.toLowerCase().contains(q) || uname.toLowerCase().contains(q)) {
-            out.add(_Suggestion(
-              label: '@$name',
-              apply: '<@$uid> ',
-              detail: name != uname ? '$uname#${store.user(uid)?['discriminator'] ?? ''}' : null,
-              url: store.avatarUrl(uid, size: 48),
-            ));
+          if (name.toLowerCase().contains(q) ||
+              uname.toLowerCase().contains(q)) {
+            out.add(
+              _Suggestion(
+                label: '@$name',
+                apply: '<@$uid> ',
+                detail: name != uname
+                    ? '$uname#${store.user(uid)?['discriminator'] ?? ''}'
+                    : null,
+                url: store.avatarUrl(uid, size: 48),
+              ),
+            );
           }
         }
       case '%':
-        final roles = (store.servers[serverId]?['roles'] as Map?)?.cast<String, dynamic>() ?? const {};
+        final roles =
+            (store.servers[serverId]?['roles'] as Map?)
+                ?.cast<String, dynamic>() ??
+            const {};
         for (final e in roles.entries) {
           final name = (e.value['name'] as String? ?? '');
           if (name.toLowerCase().contains(q)) {
-            out.add(_Suggestion(label: '%$name', apply: '<%${e.key}> ', colour: parseCssColour(e.value['colour'] as String?)));
+            out.add(
+              _Suggestion(
+                label: '%$name',
+                apply: '<%${e.key}> ',
+                colour: parseCssColour(e.value['colour'] as String?),
+              ),
+            );
           }
         }
       case '#':
-        final chans = serverId != null ? store.channelsOfServer(serverId!) : store.channels.values.toList();
+        final chans = serverId != null
+            ? store.channelsOfServer(serverId!)
+            : store.channels.values.toList();
         for (final c in chans) {
           final name = c['name'] as String? ?? '';
-          if (name.toLowerCase().contains(q)) out.add(_Suggestion(label: '#$name', apply: '<#${c['_id']}> ', icon: Icons.tag));
+          if (name.toLowerCase().contains(q))
+            out.add(
+              _Suggestion(
+                label: '#$name',
+                apply: '<#${c['_id']}> ',
+                icon: Icons.tag,
+              ),
+            );
         }
     }
     out.sort((a, b) {
@@ -355,13 +481,17 @@ class _MessageComposerState extends State<MessageComposer> {
     final text = _ctl.text;
     final end = sel.start;
     final newText = text.replaceRange(tokenStart, end, s.apply);
-    _ctl.value = TextEditingValue(text: newText, selection: TextSelection.collapsed(offset: tokenStart + s.apply.length));
+    _ctl.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: tokenStart + s.apply.length),
+    );
     suggestions = const [];
     _focus.requestFocus();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
-    if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent)
+      return KeyEventResult.ignored;
     final k = e.logicalKey;
     if (suggestions.isNotEmpty) {
       if (k == LogicalKeyboardKey.arrowDown) {
@@ -369,10 +499,15 @@ class _MessageComposerState extends State<MessageComposer> {
         return KeyEventResult.handled;
       }
       if (k == LogicalKeyboardKey.arrowUp) {
-        setState(() => selected = (selected - 1 + suggestions.length) % suggestions.length);
+        setState(
+          () => selected =
+              (selected - 1 + suggestions.length) % suggestions.length,
+        );
         return KeyEventResult.handled;
       }
-      if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.tab || k == LogicalKeyboardKey.numpadEnter) {
+      if (k == LogicalKeyboardKey.enter ||
+          k == LogicalKeyboardKey.tab ||
+          k == LogicalKeyboardKey.numpadEnter) {
         _accept(suggestions[selected]);
         return KeyEventResult.handled;
       }
@@ -381,9 +516,14 @@ class _MessageComposerState extends State<MessageComposer> {
         return KeyEventResult.handled;
       }
     }
-    if ((k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter) && !_phone) {
+    if ((k == LogicalKeyboardKey.enter ||
+            k == LogicalKeyboardKey.numpadEnter) &&
+        !_phone) {
       final shift = HardwareKeyboard.instance.isShiftPressed;
-      final inFence = RegExp(r'```').allMatches(_ctl.text.substring(0, max(0, _ctl.selection.start))).length.isOdd;
+      final inFence = RegExp(r'```')
+          .allMatches(_ctl.text.substring(0, max(0, _ctl.selection.start)))
+          .length
+          .isOdd;
       if (shift || inFence) return KeyEventResult.ignored;
       _send();
       return KeyEventResult.handled;
@@ -409,8 +549,16 @@ class _MessageComposerState extends State<MessageComposer> {
 
   void _editLast() {
     final store = context.read<ClientStore>();
-    final mine = (store.messages[id] ?? const []).reversed.where((m) => m['author'] == store.userId && m['system'] == null && m['pending'] != true).firstOrNull;
-    if (mine != null) context.read<DraftStore>().setEditing(id, mine['_id'] as String);
+    final mine = (store.messages[id] ?? const []).reversed
+        .where(
+          (m) =>
+              m['author'] == store.userId &&
+              m['system'] == null &&
+              m['pending'] != true,
+        )
+        .firstOrNull;
+    if (mine != null)
+      context.read<DraftStore>().setEditing(id, mine['_id'] as String);
   }
 
   // ----- sending -----
@@ -432,7 +580,9 @@ class _MessageComposerState extends State<MessageComposer> {
     if (_slowmodeRemaining(store) != null) return;
     _stopTyping();
     final content = override ?? _ctl.text.trim();
-    final files = override == null ? List<DraftFile>.of(drafts.filesFor(id)) : <DraftFile>[];
+    final files = override == null
+        ? List<DraftFile>.of(drafts.filesFor(id))
+        : <DraftFile>[];
     final replies = [
       for (final r in drafts.repliesFor(id)) {'id': r.id, 'mention': r.mention},
     ];
@@ -447,7 +597,16 @@ class _MessageComposerState extends State<MessageComposer> {
     try {
       final ids = <String>[];
       for (final f in files) {
-        ids.add(await store.api.uploadFile('attachments', f.spoiler && !f.name.startsWith('SPOILER_') ? 'SPOILER_${f.name}' : f.name, f.mime, f.bytes));
+        ids.add(
+          await store.api.uploadFile(
+            'attachments',
+            f.spoiler && !f.name.startsWith('SPOILER_')
+                ? 'SPOILER_${f.name}'
+                : f.name,
+            f.mime,
+            f.bytes,
+          ),
+        );
       }
       await store.sendMessage(id, content, attachments: ids, replies: replies);
     } catch (e) {
@@ -482,7 +641,10 @@ class _MessageComposerState extends State<MessageComposer> {
         final sel = _ctl.selection;
         final t = _ctl.text;
         final at = sel.isValid ? sel.start : t.length;
-        _ctl.value = TextEditingValue(text: t.replaceRange(at, sel.isValid ? sel.end : at, text), selection: TextSelection.collapsed(offset: at + text.length));
+        _ctl.value = TextEditingValue(
+          text: t.replaceRange(at, sel.isValid ? sel.end : at, text),
+          selection: TextSelection.collapsed(offset: at + text.length),
+        );
       },
       onMessage: (c) => _send(c),
     );
@@ -521,7 +683,8 @@ class _MessageComposerState extends State<MessageComposer> {
 
     final replies = drafts.repliesFor(id);
     final files = drafts.filesFor(id);
-    final maxHeight = MediaQuery.sizeOf(context).height * Layout.messageBoxHeightFactor;
+    final maxHeight =
+        MediaQuery.sizeOf(context).height * Layout.messageBoxHeightFactor;
 
     Widget box = Container(
       key: _anchorKey,
@@ -531,23 +694,51 @@ class _MessageComposerState extends State<MessageComposer> {
         color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.horizontal(
           left: Radius.circular(Radius_.xl),
-          right: Radius.circular(settings.showSendButton ? Radius_.md : Radius_.xl),
+          right: Radius.circular(
+            settings.showSendButton ? Radius_.md : Radius_.xl,
+          ),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (timedOut || !canSendPerm)
-            Padding(padding: const EdgeInsets.only(bottom: 8, right: 8), child: Icon(Icons.block, size: 24, color: cs.onSurface))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8, right: 8),
+              child: Icon(Icons.block, size: 24, color: cs.onSurface),
+            )
           else if (store.can(id, Perm.uploadFiles))
-            SizedBox(width: 42, height: 42, child: IconButton(icon: const Icon(Icons.add), onPressed: () => pickFilesInto(context, id)))
+            SizedBox(
+              width: 42,
+              height: 42,
+              child: IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => pickFilesInto(context, id),
+              ),
+            )
           else
             const SizedBox(width: 14),
           Expanded(
             child: timedOut
-                ? Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text(tr("You are timed out and can't send messages right now."), style: TextStyle(fontSize: 14)))
+                ? Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Text(
+                      tr(
+                        "You are timed out and can't send messages right now.",
+                      ),
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  )
                 : !canSendPerm
-                ? Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text(tr("You don't have permission to send messages in this channel."), style: TextStyle(fontSize: 14)))
+                ? Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Text(
+                      tr(
+                        "You don't have permission to send messages in this channel.",
+                      ),
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  )
                 : ImagePasteRegion(
                     key: ValueKey(id),
                     focusNode: _focus,
@@ -567,14 +758,19 @@ class _MessageComposerState extends State<MessageComposer> {
                       maxLines: 12,
                       keyboardType: TextInputType.multiline,
                       textInputAction: TextInputAction.newline,
-                      style: TextStyle(fontSize: settings.messageSize, color: cs.onSurface),
+                      style: TextStyle(
+                        fontSize: settings.messageSize,
+                        color: cs.onSurface,
+                      ),
                       decoration: InputDecoration(
                         hintText: placeholder,
                         filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -585,12 +781,35 @@ class _MessageComposerState extends State<MessageComposer> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (len > maxLen - 200)
-                  Text(len > maxLen + 9999 ? 'Too Long' : '${maxLen - len}', style: TextStyle(fontSize: 12, color: len > maxLen ? cs.error : cs.onSurface)),
+                  Text(
+                    len > maxLen + 9999 ? 'Too Long' : '${maxLen - len}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: len > maxLen ? cs.error : cs.onSurface,
+                    ),
+                  ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!canSend) SizedBox(width: 42, height: 42, child: IconButton(tooltip: 'GIFs', icon: const Icon(Icons.gif_box_outlined), onPressed: () => _openPicker(PickerTab.gif))),
-                    SizedBox(width: 42, height: 42, child: IconButton(tooltip: tr('Emoji'), icon: const Icon(Icons.mood), onPressed: () => _openPicker(PickerTab.emoji))),
+                    if (!canSend)
+                      SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: IconButton(
+                          tooltip: 'GIFs',
+                          icon: const Icon(Icons.gif_box_outlined),
+                          onPressed: () => _openPicker(PickerTab.gif),
+                        ),
+                      ),
+                    SizedBox(
+                      width: 42,
+                      height: 42,
+                      child: IconButton(
+                        tooltip: tr('Emoji'),
+                        icon: const Icon(Icons.mood),
+                        onPressed: () => _openPicker(PickerTab.emoji),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -608,11 +827,19 @@ class _MessageComposerState extends State<MessageComposer> {
               child: IconButton.filled(
                 style: IconButton.styleFrom(
                   backgroundColor: canSend ? cs.primary : cs.secondaryContainer,
-                  foregroundColor: canSend ? cs.onPrimary : cs.onSecondaryContainer,
+                  foregroundColor: canSend
+                      ? cs.onPrimary
+                      : cs.onSecondaryContainer,
                   shape: RoundedRectangleBorder(borderRadius: br(Radius_.md)),
                 ),
                 onPressed: canSend ? _send : null,
-                icon: sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send),
+                icon: sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send),
               ),
             ),
           )
@@ -622,8 +849,19 @@ class _MessageComposerState extends State<MessageComposer> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (suggestions.isNotEmpty) _SuggestionList(items: suggestions, selected: selected, onPick: _accept),
-        if (files.isNotEmpty) FileCarousel(files: files, channelId: id, onAdd: () => pickFilesInto(context, id), limit: store.api.config?.messageAttachments ?? 5),
+        if (suggestions.isNotEmpty)
+          _SuggestionList(
+            items: suggestions,
+            selected: selected,
+            onPick: _accept,
+          ),
+        if (files.isNotEmpty)
+          FileCarousel(
+            files: files,
+            channelId: id,
+            onAdd: () => pickFilesInto(context, id),
+            limit: store.api.config?.messageAttachments ?? 5,
+          ),
         for (final r in replies)
           _ReplyPreview(
             channelId: id,
@@ -633,7 +871,13 @@ class _MessageComposerState extends State<MessageComposer> {
           ),
         Padding(
           padding: const EdgeInsets.only(bottom: Gap.md),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [Expanded(child: box), sendButton]),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: box),
+              sendButton,
+            ],
+          ),
         ),
       ],
     );
@@ -643,7 +887,11 @@ class _MessageComposerState extends State<MessageComposer> {
             onDragDone: (d) async {
               final list = <({String name, Uint8List bytes, String? mime})>[];
               for (final f in d.files) {
-                list.add((name: f.name, bytes: await f.readAsBytes(), mime: f.mimeType));
+                list.add((
+                  name: f.name,
+                  bytes: await f.readAsBytes(),
+                  mime: f.mimeType,
+                ));
               }
               if (mounted) addDraftFiles(context, id, list);
             },
@@ -655,7 +903,11 @@ class _MessageComposerState extends State<MessageComposer> {
 }
 
 class _SuggestionList extends StatelessWidget {
-  const _SuggestionList({required this.items, required this.selected, required this.onPick});
+  const _SuggestionList({
+    required this.items,
+    required this.selected,
+    required this.onPick,
+  });
   final List<_Suggestion> items;
   final int selected;
   final void Function(_Suggestion) onPick;
@@ -665,7 +917,11 @@ class _SuggestionList extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: Gap.md),
       constraints: const BoxConstraints(maxHeight: 240),
-      decoration: BoxDecoration(color: cs.surfaceContainer, borderRadius: br(Radius_.md), boxShadow: [BoxShadow(color: cs.shadow, blurRadius: 3)]),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainer,
+        borderRadius: br(Radius_.md),
+        boxShadow: [BoxShadow(color: cs.shadow, blurRadius: 3)],
+      ),
       clipBehavior: Clip.antiAlias,
       child: ListView.builder(
         shrinkWrap: true,
@@ -676,22 +932,46 @@ class _SuggestionList extends StatelessWidget {
           if (s.unicode != null) {
             lead = EmojiView(s.unicode!, size: 22);
           } else if (s.url != null) {
-            lead = ClipRRect(borderRadius: br(s.label.startsWith(':') ? 2 : 11), child: NetImage(s.url!, width: 22, height: 22, errorBuilder: (_, _, _) => const SizedBox(width: 22, height: 22)));
+            lead = ClipRRect(
+              borderRadius: br(s.label.startsWith(':') ? 2 : 11),
+              child: NetImage(
+                s.url!,
+                width: 22,
+                height: 22,
+                errorBuilder: (_, _, _) =>
+                    const SizedBox(width: 22, height: 22),
+              ),
+            );
           } else if (s.icon != null) {
             lead = Icon(s.icon, size: 18);
           }
           return Material(
-            color: i == selected ? cs.onSurface.withValues(alpha: .08) : Colors.transparent,
+            color: i == selected
+                ? cs.onSurface.withValues(alpha: .08)
+                : Colors.transparent,
             child: InkWell(
               onTap: () => onPick(s),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 child: Row(
                   spacing: 8,
                   children: [
                     ?lead,
-                    Text(s.label, style: TextStyle(color: s.colour ?? cs.onSurface, fontWeight: FontWeight.w500)),
-                    if (s.detail != null) Text(s.detail!, style: TextStyle(fontSize: 12, color: cs.outline)),
+                    Text(
+                      s.label,
+                      style: TextStyle(
+                        color: s.colour ?? cs.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (s.detail != null)
+                      Text(
+                        s.detail!,
+                        style: TextStyle(fontSize: 12, color: cs.outline),
+                      ),
                   ],
                 ),
               ),
@@ -704,7 +984,12 @@ class _SuggestionList extends StatelessWidget {
 }
 
 class _ReplyPreview extends StatelessWidget {
-  const _ReplyPreview({required this.channelId, required this.serverId, required this.reply, required this.self});
+  const _ReplyPreview({
+    required this.channelId,
+    required this.serverId,
+    required this.reply,
+    required this.self,
+  });
   final String channelId;
   final String? serverId;
   final ({String id, bool mention}) reply;
@@ -716,27 +1001,51 @@ class _ReplyPreview extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: Gap.md),
       padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
-      decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: br(Radius_.lg)),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        borderRadius: br(Radius_.lg),
+      ),
       child: DefaultTextStyle.merge(
         style: TextStyle(fontSize: 12.8, color: cs.onPrimaryContainer),
         child: Row(
           spacing: 8,
           children: [
             Text(tr('Replying to')),
-            Expanded(child: MessageReply(channelId: channelId, messageId: reply.id, serverId: serverId, noDecorations: true)),
+            Expanded(
+              child: MessageReply(
+                channelId: channelId,
+                messageId: reply.id,
+                serverId: serverId,
+                noDecorations: true,
+              ),
+            ),
             if (!self)
               InkWell(
                 onTap: () => drafts.toggleMention(channelId, reply.id),
                 child: Row(
                   spacing: 4,
                   children: [
-                    Icon(Icons.alternate_email, size: 16, color: reply.mention ? cs.onPrimaryContainer : cs.outline),
-                    Text(reply.mention ? 'ON' : 'OFF', style: TextStyle(color: reply.mention ? cs.onPrimaryContainer : cs.outline)),
+                    Icon(
+                      Icons.alternate_email,
+                      size: 16,
+                      color: reply.mention ? cs.onPrimaryContainer : cs.outline,
+                    ),
+                    Text(
+                      reply.mention ? 'ON' : 'OFF',
+                      style: TextStyle(
+                        color: reply.mention
+                            ? cs.onPrimaryContainer
+                            : cs.outline,
+                      ),
+                    ),
                   ],
                 ),
               ),
             const SizedBox(width: 4),
-            InkWell(onTap: () => drafts.removeReply(channelId, reply.id), child: const Icon(Icons.cancel, size: 16)),
+            InkWell(
+              onTap: () => drafts.removeReply(channelId, reply.id),
+              child: const Icon(Icons.cancel, size: 16),
+            ),
           ],
         ),
       ),
@@ -746,7 +1055,13 @@ class _ReplyPreview extends StatelessWidget {
 
 /// Preview strip of attached files (`FileCarousel`).
 class FileCarousel extends StatelessWidget {
-  const FileCarousel({super.key, required this.files, required this.channelId, required this.onAdd, required this.limit});
+  const FileCarousel({
+    super.key,
+    required this.files,
+    required this.channelId,
+    required this.onAdd,
+    required this.limit,
+  });
   final List<DraftFile> files;
   final String channelId;
   final VoidCallback onAdd;
@@ -758,10 +1073,18 @@ class FileCarousel extends StatelessWidget {
     final drafts = context.read<DraftStore>();
     const size = 100.0;
 
-    Widget actionIcon(IconData icon, VoidCallback onTap, {bool danger = false}) => InkWell(
+    Widget actionIcon(
+      IconData icon,
+      VoidCallback onTap, {
+      bool danger = false,
+    }) => InkWell(
       onTap: onTap,
       borderRadius: br(Radius_.sm),
-      child: SizedBox(width: 22, height: 22, child: Icon(icon, size: 16, color: danger ? cs.error : cs.onSurface)),
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: Icon(icon, size: 16, color: danger ? cs.error : cs.onSurface),
+      ),
     );
 
     Widget entry(int i, DraftFile f) {
@@ -786,15 +1109,34 @@ class FileCarousel extends StatelessWidget {
                         child: Image.memory(f.bytes, fit: BoxFit.cover),
                       )
                     else
-                      Center(child: Icon(Icons.description_outlined, size: 36, color: cs.onSurfaceVariant)),
+                      Center(
+                        child: Icon(
+                          Icons.description_outlined,
+                          size: 36,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
                     if (f.spoiler)
                       Center(
                         child: InkWell(
                           onTap: () => drafts.toggleSpoiler(channelId, f.id),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
-                            decoration: BoxDecoration(color: cs.surface, borderRadius: br(Radius_.lg)),
-                            child: Text('SPOILER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: cs.onSurface)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Gap.sm,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cs.surface,
+                              borderRadius: br(Radius_.lg),
+                            ),
+                            child: Text(
+                              'SPOILER',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: cs.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -803,13 +1145,25 @@ class FileCarousel extends StatelessWidget {
                       right: Gap.sm,
                       child: Container(
                         padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(color: cs.surface, borderRadius: br(Radius_.md)),
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: br(Radius_.md),
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           spacing: 2,
                           children: [
-                            actionIcon(f.spoiler ? Icons.visibility_off : Icons.visibility, () => drafts.toggleSpoiler(channelId, f.id)),
-                            actionIcon(Icons.delete, () => drafts.removeFile(channelId, f.id), danger: true),
+                            actionIcon(
+                              f.spoiler
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              () => drafts.toggleSpoiler(channelId, f.id),
+                            ),
+                            actionIcon(
+                              Icons.delete,
+                              () => drafts.removeFile(channelId, f.id),
+                              danger: true,
+                            ),
                           ],
                         ),
                       ),
@@ -818,8 +1172,26 @@ class FileCarousel extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(width: size, child: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
-            Text(humanFileSize(f.bytes.length), style: TextStyle(fontSize: 11, color: cs.onPrimaryContainer.withValues(alpha: .8))),
+            SizedBox(
+              width: size,
+              child: Text(
+                f.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              humanFileSize(f.bytes.length),
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onPrimaryContainer.withValues(alpha: .8),
+              ),
+            ),
           ],
         ),
       );
@@ -828,7 +1200,10 @@ class FileCarousel extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: Gap.md, top: Gap.md),
       padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: br(Radius_.lg)),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        borderRadius: br(Radius_.lg),
+      ),
       child: DefaultTextStyle.merge(
         style: TextStyle(color: cs.onPrimaryContainer),
         child: SingleChildScrollView(
@@ -838,7 +1213,15 @@ class FileCarousel extends StatelessWidget {
             spacing: Gap.md,
             children: [
               for (var i = 0; i < files.length; i++) ...[
-                if (i == limit) Container(height: 130, width: Gap.sm, decoration: BoxDecoration(color: cs.outline, borderRadius: br(Radius_.md))),
+                if (i == limit)
+                  Container(
+                    height: 130,
+                    width: Gap.sm,
+                    decoration: BoxDecoration(
+                      color: cs.outline,
+                      borderRadius: br(Radius_.md),
+                    ),
+                  ),
                 entry(i, files[i]),
               ],
               InkWell(
@@ -847,7 +1230,10 @@ class FileCarousel extends StatelessWidget {
                 child: Container(
                   width: size,
                   height: size,
-                  decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: br(Gap.md)),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: br(Gap.md),
+                  ),
                   child: Icon(Icons.add, size: 48, color: cs.onSurfaceVariant),
                 ),
               ),
@@ -886,7 +1272,11 @@ class _CompositionInfoBarState extends State<CompositionInfoBar> {
 
   String _human(int seconds) {
     final h = seconds ~/ 3600, m = (seconds % 3600) ~/ 60, s = seconds % 60;
-    return [if (h > 0) '$h hour${h == 1 ? '' : 's'}', if (m > 0) '$m minute${m == 1 ? '' : 's'}', if (s > 0) '$s second${s == 1 ? '' : 's'}'].join(' ');
+    return [
+      if (h > 0) '$h hour${h == 1 ? '' : 's'}',
+      if (m > 0) '$m minute${m == 1 ? '' : 's'}',
+      if (s > 0) '$s second${s == 1 ? '' : 's'}',
+    ].join(' ');
   }
 
   @override
@@ -894,7 +1284,15 @@ class _CompositionInfoBarState extends State<CompositionInfoBar> {
     final store = context.watch<ClientStore>();
     final cs = context.cs;
     final id = widget.channel['_id'] as String;
-    final typers = (store.typing[id] ?? {}).where((u) => u != store.userId && store.user(u)?['relationship'] != 'Blocked').toList()..sort();
+    final typers =
+        (store.typing[id] ?? {})
+            .where(
+              (u) =>
+                  u != store.userId &&
+                  store.user(u)?['relationship'] != 'Blocked',
+            )
+            .toList()
+          ..sort();
     final slowmode = (widget.channel['slowmode'] as num?)?.toInt() ?? 0;
     if (slowmode == 0 && typers.isEmpty) return const SizedBox.shrink();
 
@@ -916,7 +1314,10 @@ class _CompositionInfoBarState extends State<CompositionInfoBar> {
       }
     }
 
-    final names = [for (final u in typers) store.user(u)?['username'] as String? ?? 'Unknown'];
+    final names = [
+      for (final u in typers)
+        store.user(u)?['username'] as String? ?? 'Unknown',
+    ];
     final typingText = typers.isEmpty
         ? null
         : typers.length == 1
@@ -938,20 +1339,40 @@ class _CompositionInfoBarState extends State<CompositionInfoBar> {
               width: 15.0 + (typers.length - 1) * 9,
               child: Stack(
                 children: [
-                  for (var i = 0; i < typers.length; i++) Positioned(left: i * 9.0, child: UserAvatar(userId: typers[i], size: 15)),
+                  for (var i = 0; i < typers.length; i++)
+                    Positioned(
+                      left: i * 9.0,
+                      child: UserAvatar(userId: typers[i], size: 15),
+                    ),
                 ],
               ),
             ),
-          if (typingText != null) Flexible(child: Text(typingText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: cs.onSurface))),
+          if (typingText != null)
+            Flexible(
+              child: Text(
+                typingText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: cs.onSurface),
+              ),
+            ),
           const Spacer(),
           if (slowText != null)
             Tooltip(
-              message: 'Members can send one message every ${_human(slowmode)}.',
+              message:
+                  'Members can send one message every ${_human(slowmode)}.',
               child: Row(
                 spacing: 4,
                 children: [
                   Icon(Icons.schedule, size: 16, color: cs.outline),
-                  Text(slowText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.outline)),
+                  Text(
+                    slowText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: cs.outline,
+                    ),
+                  ),
                 ],
               ),
             ),

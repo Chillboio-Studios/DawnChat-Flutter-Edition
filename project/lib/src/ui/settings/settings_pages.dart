@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:launch_at_startup/launch_at_startup.dart';
+
+import '../../desktop/autostart.dart';
+
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +24,7 @@ import '../../theme/tokens.dart';
 import '../../voice/voice_manager.dart';
 import '../messaging/markdown_view.dart';
 import '../messaging/time_utils.dart';
+import '../modals/app_dialog.dart';
 import '../widgets.dart';
 import 'settings_page.dart' show isDesktopPlatform;
 import 'profile_editor.dart';
@@ -332,7 +335,9 @@ class _AccountPageState extends State<AccountPage> {
               icon: const Icon(Icons.verified_user_outlined),
               title: Text(tr('Recovery Codes')),
               description: Text(
-                tr('Configure a way to get back into your account in case your 2FA is lost'),
+                tr(
+                  'Configure a way to get back into your account in case your 2FA is lost',
+                ),
               ),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
@@ -352,18 +357,60 @@ class _AccountPageState extends State<AccountPage> {
                           headers: {'x-mfa-ticket': ticket},
                         );
                   if (!mounted) return;
-                  await showDialog<void>(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      title: Text(tr('Recovery Codes')),
-                      content: SelectableText((codes as List).join('\n')),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(c),
-                          child: Text(tr('Close')),
+                  final list = (codes as List).cast<String>();
+                  await showAppDialog<void>(
+                    context,
+                    title: tr('Your recovery codes'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          tr('Please save these to a safe location.'),
+                          style: TextStyle(color: cs.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: Gap.md),
+                        SelectableText(
+                          list.join('\n'),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
+                    actions: [
+                      DlgAction(
+                        tr('Reset'),
+                        onPressed: () async {
+                          // Regenerate: re-run the same MFA-ticket flow.
+                          final t2 = await _ticket();
+                          if (t2 == null) return false;
+                          final fresh = await store.api.request(
+                            'POST',
+                            '/auth/mfa/recovery',
+                            headers: {'x-mfa-ticket': t2},
+                          );
+                          if (!mounted) return false;
+                          await showAppDialog<void>(
+                            context,
+                            title: tr('Your recovery codes'),
+                            content: SelectableText(
+                              (fresh as List).join('\n'),
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          );
+                          _loadMfa();
+                          return null;
+                        },
+                      ),
+                      DlgAction(tr('Done')),
+                    ],
                   );
                   _loadMfa();
                 });
@@ -421,7 +468,9 @@ class _AccountPageState extends State<AccountPage> {
               icon: Icon(Icons.block, color: cs.error),
               title: Text(tr('Disable Account')),
               description: Text(
-                tr("You won't be able to access your account unless you contact support - however, your data will not be deleted."),
+                tr(
+                  "You won't be able to access your account unless you contact support - however, your data will not be deleted.",
+                ),
               ),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
@@ -445,7 +494,9 @@ class _AccountPageState extends State<AccountPage> {
                     : 'Delete Account',
               ),
               description: Text(
-                tr('Your account and all of your data (including your messages and friends list) will be queued for deletion. A confirmation email will be sent - you can cancel this within 7 days by contacting support.'),
+                tr(
+                  'Your account and all of your data (including your messages and friends list) will be queued for deletion. A confirmation email will be sent - you can cancel this within 7 days by contacting support.',
+                ),
               ),
               action: stillOwn ? null : const Icon(Icons.chevron_right),
               onTap: stillOwn
@@ -545,13 +596,43 @@ class _SessionsPageState extends State<SessionsPage> {
     final list = _list;
     if (list == null) return const Center(child: CircularProgressIndicator());
     final current = context.read<SettingsStore>().sessionIdFor(store.host);
+    Future<String?> mfaTicket() async {
+      final store = context.read<ClientStore>();
+      final pw = await _password(context, 'Confirm your password');
+      if (pw == null) return null;
+      final r =
+          await store.api.put('/auth/mfa/ticket', {'password': pw}) as Map;
+      return r['token'] as String;
+    }
+
+    Future<void> signOutAll() async {
+      final ticket = await mfaTicket();
+      if (ticket == null || !mounted) return;
+      await store.api.request(
+        'DELETE',
+        '/auth/session/all',
+        headers: {'x-mfa-ticket': ticket},
+      );
+      _load();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FilledButton.tonal(
           onPressed: () async {
-            await store.revokeAllSessions();
-            _load();
+            if (await confirm(
+              context,
+              'Are you sure you want to clear your sessions?',
+              'You cannot undo this action.',
+              action: tr('Accept'),
+            )) {
+              try {
+                await signOutAll();
+              } catch (e) {
+                if (mounted) showSnack(context, errorText(e));
+              }
+            }
           },
           child: Text(tr('Log out of all other sessions')),
         ),
@@ -567,15 +648,40 @@ class _SessionsPageState extends State<SessionsPage> {
                   '${s['name'] ?? 'Unknown'}${s['_id'] == current ? ' (this device)' : ''}',
                 ),
                 description: Text(s['_id'] as String),
-                action: s['_id'] == current
-                    ? null
-                    : IconButton(
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      tooltip: tr('Rename session'),
+                      onPressed: () async {
+                        final name = await promptText(
+                          context,
+                          tr('Rename Session'),
+                          label: tr('Name'),
+                          initial: s['name'] as String?,
+                        );
+                        if (name == null || name.isEmpty || !mounted) return;
+                        try {
+                          await store.api.patch('/auth/session/${s['_id']}', {
+                            'friendly_name': name,
+                          });
+                          _load();
+                        } catch (e) {
+                          if (mounted) showSnack(context, errorText(e));
+                        }
+                      },
+                    ),
+                    if (s['_id'] != current)
+                      IconButton(
                         icon: Icon(Icons.logout, color: cs.error),
                         onPressed: () async {
                           await store.revokeSession(s['_id'] as String);
                           _load();
                         },
                       ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -674,20 +780,25 @@ class _BotViewState extends State<BotView> {
       final response = await store.api.get('/bots/${widget.id}') as Map;
       final bot = (response['bot'] as Map?) ?? response;
       if (response['user'] is Map) {
-        store.users[widget.id] = (response['user'] as Map).cast<String, dynamic>();
+        store.users[widget.id] = (response['user'] as Map)
+            .cast<String, dynamic>();
       } else {
         await store.fetchUser(widget.id);
       }
       if (mounted) {
         setState(() {
-        _token = bot['token'] as String?;
-        _public = bot['public'] == true;
-        _loading = false;
-        _error = null;
-      });
+          _token = bot['token'] as String?;
+          _public = bot['public'] == true;
+          _loading = false;
+          _error = null;
+        });
       }
     } catch (error) {
-      if (mounted) setState(() { _loading = false; _error = errorText(error); });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _error = errorText(error);
+        });
     }
   }
 
@@ -711,44 +822,85 @@ class _BotViewState extends State<BotView> {
     final store = context.read<ClientStore>();
     final cs = context.cs;
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Column(children: [Text(_error!), TextButton(onPressed: _load, child: Text(tr('Try again')))]);
+    if (_error != null)
+      return Column(
+        children: [
+          Text(_error!),
+          TextButton(onPressed: _load, child: Text(tr('Try again'))),
+        ],
+      );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ProfilePage(key: ValueKey(widget.id), userId: widget.id, onNavigate: (_) {}),
+        ProfilePage(
+          key: ValueKey(widget.id),
+          userId: widget.id,
+          onNavigate: (_) {},
+        ),
         _gap(24),
         CategoryGroup(
           children: [
             CategoryButton(
-              icon: const Icon(Icons.badge_outlined), title: Text(tr('Change Username')),
+              icon: const Icon(Icons.badge_outlined),
+              title: Text(tr('Change Username')),
               action: const Icon(Icons.chevron_right),
               onTap: () async {
-                final name = await promptText(context, tr('Change bot username'), label: tr('Username'), initial: store.user(widget.id)?['username'] as String?);
-                if (name != null && name.trim().isNotEmpty) await _update({'name': name.trim()});
+                final name = await promptText(
+                  context,
+                  tr('Change bot username'),
+                  label: tr('Username'),
+                  initial: store.user(widget.id)?['username'] as String?,
+                );
+                if (name != null && name.trim().isNotEmpty)
+                  await _update({'name': name.trim()});
               },
             ),
             CategoryButton(
-              icon: const Icon(Icons.restart_alt), title: Text(tr('Reset Token')),
-              description: Text(tr('Generate a new token if it gets lost or compromised')),
+              icon: const Icon(Icons.restart_alt),
+              title: Text(tr('Reset Token')),
+              description: Text(
+                tr('Generate a new token if it gets lost or compromised'),
+              ),
               onTap: () async {
-                if (await confirm(context, tr('Reset Token'), tr('This will invalidate the current token and stop any existing instances of the bot from running.'), action: tr('Reset'))) {
-                  await _update({'remove': ['Token']});
+                if (await confirm(
+                  context,
+                  tr('Reset Token'),
+                  tr(
+                    'This will invalidate the current token and stop any existing instances of the bot from running.',
+                  ),
+                  action: tr('Reset'),
+                )) {
+                  await _update({
+                    'remove': ['Token'],
+                  });
                 }
               },
             ),
             CategoryButton(
-              icon: const Icon(Icons.person_add_outlined), title: Text(tr('Invite Bot')),
+              icon: const Icon(Icons.person_add_outlined),
+              title: Text(tr('Invite Bot')),
               onTap: () async {
                 try {
-                  final invite = await store.api.get('/bots/${widget.id}/invite') as Map;
-                  if (context.mounted) await showAddBot(context, invite.cast<String, dynamic>());
+                  final invite =
+                      await store.api.get('/bots/${widget.id}/invite') as Map;
+                  if (context.mounted)
+                    await showAddBot(context, invite.cast<String, dynamic>());
                 } catch (error) {
                   if (context.mounted) showSnack(context, errorText(error));
                 }
               },
             ),
-            CategoryButton(icon: const Icon(Icons.link), title: Text(tr('Copy Invite URL')), onTap: () => copyText(context, context.fullHref('/bot/${widget.id}'))),
-            CategoryButton(icon: const Icon(Icons.copy), title: Text(tr('Copy ID')), onTap: () => copyText(context, widget.id)),
+            CategoryButton(
+              icon: const Icon(Icons.link),
+              title: Text(tr('Copy Invite URL')),
+              onTap: () =>
+                  copyText(context, context.fullHref('/bot/${widget.id}')),
+            ),
+            CategoryButton(
+              icon: const Icon(Icons.copy),
+              title: Text(tr('Copy ID')),
+              onTap: () => copyText(context, widget.id),
+            ),
             CategoryButton(
               icon: const Icon(Icons.key),
               title: const Text('Token'),
@@ -835,7 +987,9 @@ class FeedbackPage extends StatelessWidget {
             inLounge ? 'Go to the DawnChat Lounge' : 'Join the DawnChat Lounge',
           ),
           description: Text(
-            tr('You can report issues and discuss improvements with us directly here.'),
+            tr(
+              'You can report issues and discuss improvements with us directly here.',
+            ),
           ),
           onTap: () {
             Navigator.of(context).pop();
@@ -1032,7 +1186,8 @@ class AppearancePage extends StatelessWidget {
             )
           : null,
       segments: [
-        for (final i in items) ButtonSegment(value: i.$2, label: Text(tr(i.$1))),
+        for (final i in items)
+          ButtonSegment(value: i.$2, label: Text(tr(i.$1))),
       ],
       selected: {value},
       onSelectionChanged: (v) => onSel(v.first),
@@ -1152,7 +1307,9 @@ class AppearancePage extends StatelessWidget {
           value: s.blur,
           onChanged: (v) => s.blur = v ?? true,
           title: Text(
-            tr('Enable transparency glass/blur effects (slow on older machines)'),
+            tr(
+              'Enable transparency glass/blur effects (slow on older machines)',
+            ),
           ),
         ),
         Container(
@@ -1482,8 +1639,7 @@ class _NativePageState extends State<NativePage> {
   @override
   void initState() {
     super.initState();
-    launchAtStartup
-        .isEnabled()
+    autostartIsEnabled()
         .then((v) {
           if (mounted) setState(() => _autostart = v);
         })
@@ -1517,12 +1673,10 @@ class _NativePageState extends State<NativePage> {
               Icons.exit_to_app,
               _autostart,
               (v) async {
-                if (v) {
-                  await launchAtStartup.enable();
-                } else {
-                  await launchAtStartup.disable();
-                }
-                setState(() => _autostart = v);
+                try {
+                  await autostartSetEnabled(v);
+                  setState(() => _autostart = v);
+                } catch (_) {}
               },
             ),
             if (_autostart)

@@ -227,9 +227,12 @@ class SettingsStore extends ChangeNotifier {
   }
 
   /// Boolean UI section state (member sidebar, mature confirmation, collapsed categories ...).
-  bool sectionState(String key, bool fallback) => _get<bool>('layout.sections.$key', fallback);
-  void setSectionState(String key, bool value) => _set('layout.sections.$key', value);
-  void toggleSectionState(String key, bool fallback) => setSectionState(key, !sectionState(key, fallback));
+  bool sectionState(String key, bool fallback) =>
+      _get<bool>('layout.sections.$key', fallback);
+  void setSectionState(String key, bool value) =>
+      _set('layout.sections.$key', value);
+  void toggleSectionState(String key, bool fallback) =>
+      setSectionState(key, !sectionState(key, fallback));
 
   String get lastActivePath => _get('layout.lastActivePath', '/');
   set lastActivePath(String v) => _set('layout.lastActivePath', v);
@@ -239,7 +242,8 @@ class SettingsStore extends ChangeNotifier {
   set savedPush(String? v) => _set('push.subscription', v);
 
   // --- link safety ---
-  List<String> get trustedOrigins => (_get<List>('linkSafety.savedOrigins', const [])).cast<String>();
+  List<String> get trustedOrigins =>
+      (_get<List>('linkSafety.savedOrigins', const [])).cast<String>();
   bool isTrusted(Uri u) => u.hasAuthority && trustedOrigins.contains(u.origin);
   void trustOrigin(Uri u) {
     if (!u.hasAuthority || trustedOrigins.contains(u.origin)) return;
@@ -247,7 +251,8 @@ class SettingsStore extends ChangeNotifier {
   }
 
   // --- per-user voice settings ---
-  double userVolume(String id) => (_map('voice.userVolumes')[id] as num?)?.toDouble() ?? 1.0;
+  double userVolume(String id) =>
+      (_map('voice.userVolumes')[id] as num?)?.toDouble() ?? 1.0;
   void setUserVolume(String id, double v) {
     final m = _map('voice.userVolumes')..[id] = v;
     _set('voice.userVolumes', m);
@@ -260,13 +265,15 @@ class SettingsStore extends ChangeNotifier {
     _set('voice.userMutes', m);
   }
 
-  double screenShareVolume(String id) => (_map('voice.screenShareVolumes')[id] as num?)?.toDouble() ?? 1.0;
+  double screenShareVolume(String id) =>
+      (_map('voice.screenShareVolumes')[id] as num?)?.toDouble() ?? 1.0;
   void setScreenShareVolume(String id, double v) {
     final m = _map('voice.screenShareVolumes')..[id] = v;
     _set('voice.screenShareVolumes', m);
   }
 
-  bool screenShareMuted(String id) => _map('voice.screenShareMutes')[id] == true;
+  bool screenShareMuted(String id) =>
+      _map('voice.screenShareMutes')[id] == true;
   void setScreenShareMuted(String id, bool v) {
     final m = _map('voice.screenShareMutes');
     v ? m[id] = true : m.remove(id);
@@ -278,7 +285,8 @@ class SettingsStore extends ChangeNotifier {
       Map<String, dynamic>.from(_get<Map>(k, {}));
 
   /// kind is 'server' or 'channel'; value is all | mention | none.
-  String? notifFor(String kind, String id) => _map('notif.$kind')[id] as String?;
+  String? notifFor(String kind, String id) =>
+      _map('notif.$kind')[id] as String?;
   void setNotif(String kind, String id, String? v) {
     final m = _map('notif.$kind');
     v == null ? m.remove(id) : m[id] = v;
@@ -314,11 +322,17 @@ class SettingsStore extends ChangeNotifier {
   }
 
   // --- cross-device sync (ordering, notifications, server folders, release notes) ---
-  static const syncKeys = ['ordering', 'notifications', 'release-notes', 'server-folders'];
+  static const syncKeys = [
+    'ordering',
+    'notifications',
+    'release-notes',
+    'server-folders',
+  ];
   final Set<String> syncQueue = {};
   void Function()? onSyncQueued;
 
-  int revision(String key) => (_map('sync.revision')[key] as num?)?.toInt() ?? 0;
+  int revision(String key) =>
+      (_map('sync.revision')[key] as num?)?.toInt() ?? 0;
   void _setRevision(String key, int ts) {
     final m = _map('sync.revision')..[key] = ts;
     _set('sync.revision', m);
@@ -355,7 +369,8 @@ class SettingsStore extends ChangeNotifier {
         final now = DateTime.now().millisecondsSinceEpoch;
         Map<String, dynamic> mutes(String kind) => {
           for (final e in _map('mute.$kind').entries)
-            if (e.value == -1 || (e.value as num) > now) e.key: e.value == -1 ? <String, dynamic>{} : {'until': e.value},
+            if (e.value == -1 || (e.value as num) > now)
+              e.key: e.value == -1 ? <String, dynamic>{} : {'until': e.value},
         };
         return jsonEncode({
           'server': _map('notif.server'),
@@ -364,7 +379,9 @@ class SettingsStore extends ChangeNotifier {
           'channel_mutes': mutes('channel'),
         });
       default:
-        return jsonEncode(raw<Map>('sync.releaseNotes') ?? {'lastSeenId': '', 'lastSeenAt': ''});
+        return jsonEncode(
+          raw<Map>('sync.releaseNotes') ?? {'lastSeenId': '', 'lastSeenAt': ''},
+        );
     }
   }
 
@@ -383,9 +400,17 @@ class SettingsStore extends ChangeNotifier {
       switch (key) {
         case 'ordering':
           _set('ordering.servers', _stringList(parsed['servers']));
-          _set('ordering.serverSidebar', parsed['serverSidebar'] is List ? _stringList(parsed['serverSidebar']) : null);
+          _set(
+            'ordering.serverSidebar',
+            parsed['serverSidebar'] is List
+                ? _stringList(parsed['serverSidebar'])
+                : null,
+          );
         case 'server-folders':
-          _set('folders.list', parsed['folders'] is List ? parsed['folders'] : <dynamic>[]);
+          _set(
+            'folders.list',
+            parsed['folders'] is List ? parsed['folders'] : <dynamic>[],
+          );
         case 'notifications':
           final now = DateTime.now().millisecondsSinceEpoch;
           Map<String, dynamic> states(Object? m) => {
@@ -417,5 +442,9 @@ class SettingsStore extends ChangeNotifier {
     }
   }
 
-  static List<String> _stringList(Object? v) => [if (v is List) for (final e in v) if (e is String) e];
+  static List<String> _stringList(Object? v) => [
+    if (v is List)
+      for (final e in v)
+        if (e is String) e,
+  ];
 }

@@ -208,7 +208,10 @@ void main() {
       auth: AuthState.loggedIn,
       seed: (s) {
         _seed(s);
-        s.users['U2']!['status'] = {'text': 'Working on things', 'presence': 'Online'};
+        s.users['U2']!['status'] = {
+          'text': 'Working on things',
+          'presence': 'Online',
+        };
         s.users['U2']!['badges'] = 16 | 1 | 4;
         s.users['U2']!['display_name'] = 'Mystic Pixie';
         s.servers['01SERVER00000000000000000A']!['roles'] = {
@@ -217,7 +220,11 @@ void main() {
         s.members['01SERVER00000000000000000A']!['U2']!['roles'] = ['R1'];
       },
       onReady: (t) async {
-        showUserProfile(t.element(find.byType(Scaffold).first), 'U2', serverId: '01SERVER00000000000000000A');
+        showUserProfile(
+          t.element(find.byType(Scaffold).first),
+          'U2',
+          serverId: '01SERVER00000000000000000A',
+        );
         for (var i = 0; i < 4; i++) {
           await t.pump(const Duration(milliseconds: 300));
           _drain(t);
@@ -274,8 +281,18 @@ void main() {
       seed: (s) {
         _seed(s);
         s.messages['C2'] = [
-          {'_id': '01HZZZZZZZ0000000000000011', 'channel': 'C2', 'author': 'U2', 'content': 'First line'},
-          {'_id': '01HZZZZZZZ0000000000000012', 'channel': 'C2', 'author': 'U2', 'content': 'Second line right after'},
+          {
+            '_id': '01HZZZZZZZ0000000000000011',
+            'channel': 'C2',
+            'author': 'U2',
+            'content': 'First line',
+          },
+          {
+            '_id': '01HZZZZZZZ0000000000000012',
+            'channel': 'C2',
+            'author': 'U2',
+            'content': 'Second line right after',
+          },
           {
             '_id': '01HZZZZZZZ0000000000000013',
             'channel': 'C2',
@@ -296,7 +313,11 @@ void main() {
                 'site_name': 'YouTube',
                 'title': 'Video title',
                 'special': {'type': 'YouTube', 'id': 'x'},
-                'video': {'url': 'https://example.com/v.mp4', 'width': 1280, 'height': 720},
+                'video': {
+                  'url': 'https://example.com/v.mp4',
+                  'width': 1280,
+                  'height': 720,
+                },
               },
             ],
           },
@@ -306,7 +327,13 @@ void main() {
             'author': 'U1',
             'content': 'With a file',
             'attachments': [
-              {'_id': 'F1', 'tag': 'attachments', 'filename': 'report.pdf', 'size': 123456, 'metadata': {'type': 'File'}},
+              {
+                '_id': 'F1',
+                'tag': 'attachments',
+                'filename': 'report.pdf',
+                'size': 123456,
+                'metadata': {'type': 'File'},
+              },
             ],
           },
         ];

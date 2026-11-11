@@ -24,9 +24,8 @@ Future<PickedImage?> pickImageForUpload(
   double aspectRatio = 1,
   String name = 'image',
 }) async {
-  final res = await FilePicker.pickFiles(type: FileType.image, withData: true);
-  final f = res?.files.firstOrNull;
-  final bytes = f?.bytes;
+  final f = await FilePicker.pickFile(type: FileType.image);
+  final bytes = f == null ? null : await f.readAsBytes();
   if (bytes == null || !context.mounted) return null;
 
   final decoded = decodeForCrop(bytes);

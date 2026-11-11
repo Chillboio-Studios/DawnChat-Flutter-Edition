@@ -4,7 +4,9 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../net_image.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -22,7 +24,6 @@ import '../interface/discover_embed_stub.dart'
 import '../widgets.dart';
 import 'markdown_view.dart';
 import '../../core/i18n.dart';
-
 
 String humanFileSize(num bytes) {
   if (bytes < 1000) return '$bytes B';
@@ -55,7 +56,11 @@ bool isGif(Map embed) {
 
 bool isGifBox(Map embed) {
   final type = embed['type'];
-  final u = (type == 'Website' ? (embed['original_url'] ?? embed['url']) : embed['url']) as String?;
+  final u =
+      (type == 'Website'
+              ? (embed['original_url'] ?? embed['url'])
+              : embed['url'])
+          as String?;
   return u != null && _origin(u) == gifboxOrigin;
 }
 
@@ -70,16 +75,25 @@ class ApiClientUrls {
     return ApiClientUrls(c?.autumnUrl ?? '', c?.januaryUrl ?? '');
   }
 
-  String proxied(String url) => '$januaryBase/proxy?url=${Uri.encodeQueryComponent(url)}';
-  String originalUrl(Map f) => '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}/original/${Uri.encodeComponent(f['filename'] as String? ?? '')}';
-  String previewUrl(Map f) => '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}';
+  String proxied(String url) =>
+      '$januaryBase/proxy?url=${Uri.encodeQueryComponent(url)}';
+  String originalUrl(Map f) =>
+      '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}/original/${Uri.encodeComponent(f['filename'] as String? ?? '')}';
+  String previewUrl(Map f) =>
+      '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}';
 }
 
-bool isSpoilerFile(Map f) => (f['filename'] as String? ?? '').startsWith('SPOILER_');
+bool isSpoilerFile(Map f) =>
+    (f['filename'] as String? ?? '').startsWith('SPOILER_');
 
 /// Automatic sizing for images, videos and embeds.
 class SizedContent extends StatelessWidget {
-  const SizedContent({super.key, required this.width, required this.height, required this.child});
+  const SizedContent({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.child,
+  });
   final double width, height;
   final Widget child;
 
@@ -135,7 +149,8 @@ class SpoilerCover extends StatelessWidget {
   final Widget child;
   final bool spoiler;
   @override
-  Widget build(BuildContext context) => spoiler ? _SpoilerBox(child: child) : child;
+  Widget build(BuildContext context) =>
+      spoiler ? _SpoilerBox(child: child) : child;
 }
 
 class _SpoilerBox extends StatefulWidget {
@@ -162,22 +177,34 @@ class _SpoilerBoxState extends State<_SpoilerBox> {
                 cursor: SystemMouseCursors.click,
                 child: ClipRect(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28, tileMode: TileMode.clamp),
+                    filter: ImageFilter.blur(
+                      sigmaX: 28,
+                      sigmaY: 28,
+                      tileMode: TileMode.clamp,
+                    ),
                     child: ColoredBox(
                       color: Colors.black.withValues(alpha: 0.45),
                       child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: cs.inverseSurface,
-                          borderRadius: br(Radius_.lg),
-                          boxShadow: const [BoxShadow(color: Color(0x44000000), blurRadius: 8)],
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: cs.inverseSurface,
+                            borderRadius: br(Radius_.lg),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x44000000),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            tr('Click to show spoiler'),
+                            style: TextStyle(
+                              color: cs.onInverseSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          tr('Click to show spoiler'),
-                          style: TextStyle(color: cs.onInverseSurface, fontWeight: FontWeight.w600),
-                        ),
-                      ),
                       ),
                     ),
                   ),
@@ -215,7 +242,9 @@ class _MediaVideoState extends State<MediaVideo> {
   @override
   void initState() {
     super.initState();
-    _player.setPlaylistMode(widget.loop ? PlaylistMode.single : PlaylistMode.none);
+    _player.setPlaylistMode(
+      widget.loop ? PlaylistMode.single : PlaylistMode.none,
+    );
     if (widget.muted) _player.setVolume(0);
     _player.open(Media(widget.url), play: widget.autoplay);
   }
@@ -270,14 +299,18 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
     super.dispose();
   }
 
-  String _fmt(Duration d) => '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  String _fmt(Duration d) =>
+      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
     final cs = context.cs;
     return Container(
       height: 48,
-      decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: br(Radius_.xl)),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: br(Radius_.xl),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         children: [
@@ -289,7 +322,9 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
           Text(_fmt(pos), style: TextStyle(fontSize: 12, color: cs.onSurface)),
           Expanded(
             child: Slider(
-              value: dur.inMilliseconds == 0 ? 0 : pos.inMilliseconds.clamp(0, dur.inMilliseconds).toDouble(),
+              value: dur.inMilliseconds == 0
+                  ? 0
+                  : pos.inMilliseconds.clamp(0, dur.inMilliseconds).toDouble(),
               max: dur.inMilliseconds == 0 ? 1 : dur.inMilliseconds.toDouble(),
               onChanged: (v) => player.seek(Duration(milliseconds: v.round())),
             ),
@@ -329,7 +364,10 @@ Future<void> showImageViewer(
 
       Widget card(List<Widget> children) => Container(
         padding: const EdgeInsets.all(Gap.md),
-        decoration: BoxDecoration(color: cs.surface, borderRadius: br(Radius_.lg)),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: br(Radius_.lg),
+        ),
         child: Row(mainAxisSize: MainAxisSize.min, children: children),
       );
       return Dialog.fullscreen(
@@ -341,7 +379,10 @@ Future<void> showImageViewer(
             children: [
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 120),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 120,
+                  ),
                   child: Center(
                     child: GestureDetector(
                       onTap: () {},
@@ -350,11 +391,20 @@ Future<void> showImageViewer(
                         minScale: 0.1,
                         maxScale: 5,
                         child: AspectRatio(
-                          aspectRatio: (width != null && height != null && height > 0) ? width / height : 1,
+                          aspectRatio:
+                              (width != null && height != null && height > 0)
+                              ? width / height
+                              : 1,
                           child: Container(
                             color: const Color(0x99000000),
                             child: videoUrl != null
-                                ? MediaVideo(url: videoUrl, loop: true, muted: true, autoplay: true, controls: false)
+                                ? MediaVideo(
+                                    url: videoUrl,
+                                    loop: true,
+                                    muted: true,
+                                    autoplay: true,
+                                    controls: false,
+                                  )
                                 : NetImage(imageUrl!, fit: BoxFit.contain),
                           ),
                         ),
@@ -375,12 +425,29 @@ Future<void> showImageViewer(
                         onTap: () {},
                         child: Container(
                           padding: const EdgeInsets.all(Gap.md),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: br(Radius_.lg)),
+                          decoration: BoxDecoration(
+                            color: cs.surface,
+                            borderRadius: br(Radius_.lg),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(filename, style: TextStyle(color: cs.onSurface, fontSize: 16, fontWeight: FontWeight.w600)),
-                              if (size != null) Text(size, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                              Text(
+                                filename,
+                                style: TextStyle(
+                                  color: cs.onSurface,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (size != null)
+                                Text(
+                                  size,
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -390,13 +457,28 @@ Future<void> showImageViewer(
                     GestureDetector(
                       onTap: () {},
                       child: card([
-                        IconButton(icon: const Icon(Icons.zoom_out), onPressed: () => zoom(0.8)),
-                        IconButton(icon: const Icon(Icons.zoom_in), onPressed: () => zoom(1.25)),
+                        IconButton(
+                          icon: const Icon(Icons.zoom_out),
+                          onPressed: () => zoom(0.8),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.zoom_in),
+                          onPressed: () => zoom(1.25),
+                        ),
                         if (downloadUrl != null)
-                          IconButton(icon: const Icon(Icons.download), onPressed: () => openUrl(downloadUrl)),
+                          IconButton(
+                            icon: const Icon(Icons.download),
+                            onPressed: () => openUrl(downloadUrl),
+                          ),
                         if (openUrlLink != null)
-                          IconButton(icon: const Icon(Icons.open_in_new), onPressed: () => openUrl(openUrlLink)),
-                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(c)),
+                          IconButton(
+                            icon: const Icon(Icons.open_in_new),
+                            onPressed: () => openUrl(openUrlLink),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(c),
+                        ),
                       ]),
                     ),
                   ],
@@ -431,7 +513,10 @@ class _InfoRow extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(color: cs.secondaryContainer, borderRadius: br(Radius_.md)),
+          decoration: BoxDecoration(
+            color: cs.secondaryContainer,
+            borderRadius: br(Radius_.md),
+          ),
           child: Icon(icon, size: 22, color: cs.onSecondaryContainer),
         ),
         const SizedBox(width: Gap.l),
@@ -439,9 +524,21 @@ class _InfoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(file['filename'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 14)),
+              Text(
+                file['filename'] as String? ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
               if (size != null && size > 0)
-                Text(humanFileSize(size), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                Text(
+                  humanFileSize(size),
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                ),
             ],
           ),
         ),
@@ -465,9 +562,15 @@ class _AttachmentContainer extends StatelessWidget {
     decoration: BoxDecoration(
       color: context.cs.surfaceContainerHigh,
       borderRadius: br(Radius_.lg),
-      border: Border.all(color: context.cs.outlineVariant.withValues(alpha: .5)),
+      border: Border.all(
+        color: context.cs.outlineVariant.withValues(alpha: .5),
+      ),
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: children),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    ),
   );
 }
 
@@ -495,7 +598,10 @@ class _TextFileState extends State<_TextFile> {
     setState(() => loading = true);
     try {
       final res = await http.get(Uri.parse(widget.url));
-      if (mounted) setState(() => contents = utf8.decode(res.bodyBytes, allowMalformed: true));
+      if (mounted)
+        setState(
+          () => contents = utf8.decode(res.bodyBytes, allowMalformed: true),
+        );
     } catch (_) {
       if (mounted) setState(() => contents = 'Failed to load file');
     }
@@ -506,12 +612,21 @@ class _TextFileState extends State<_TextFile> {
     final cs = context.cs;
     if (contents != null) {
       return SingleChildScrollView(
-        child: SelectableText(contents!, style: monoStyle(context.read<SettingsStore>(), TextStyle(color: cs.onSurface, fontSize: 12))),
+        child: SelectableText(
+          contents!,
+          style: monoStyle(
+            context.read<SettingsStore>(),
+            TextStyle(color: cs.onSurface, fontSize: 12),
+          ),
+        ),
       );
     }
     if (loading) return const Center(child: CircularProgressIndicator());
     return Center(
-      child: FilledButton(onPressed: _load, child: Text('Load file (${humanFileSize(widget.size ?? 0)})')),
+      child: FilledButton(
+        onPressed: _load,
+        child: Text('Load file (${humanFileSize(widget.size ?? 0)})'),
+      ),
     );
   }
 }
@@ -562,7 +677,12 @@ class AttachmentView extends StatelessWidget {
                     width: w,
                     height: h,
                   ),
-                  child: NetImage(src, fit: BoxFit.contain, errorBuilder: (_, _, _) => const Center(child: Icon(Icons.broken_image))),
+                  child: NetImage(
+                    src,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) =>
+                        const Center(child: Icon(Icons.broken_image)),
+                  ),
                 ),
               ),
             ),
@@ -573,7 +693,10 @@ class AttachmentView extends StatelessWidget {
           SizedContent(
             width: w,
             height: h,
-            child: SpoilerCover(spoiler: spoiler, child: MediaVideo(url: original)),
+            child: SpoilerCover(
+              spoiler: spoiler,
+              child: MediaVideo(url: original),
+            ),
           ),
         );
       case 'Audio':
@@ -592,12 +715,22 @@ class AttachmentView extends StatelessWidget {
             children: [
               _InfoRow(file: file, url: original),
               const SizedBox(height: Gap.md),
-              SizedBox(height: 120, child: _TextFile(url: original, size: (file['size'] as num?)?.toInt())),
+              SizedBox(
+                height: 120,
+                child: _TextFile(
+                  url: original,
+                  size: (file['size'] as num?)?.toInt(),
+                ),
+              ),
             ],
           ),
         );
       default:
-        return wrapMenu(_AttachmentContainer(children: [_InfoRow(file: file, url: original)]));
+        return wrapMenu(
+          _AttachmentContainer(
+            children: [_InfoRow(file: file, url: original)],
+          ),
+        );
     }
   }
 }
@@ -680,9 +813,17 @@ class _SpecialEmbedViewState extends State<SpecialEmbedView> {
     final src = _src;
     if (src == null) return const SizedBox.shrink();
     final (w, h) = _size();
-    Widget? inner = kIsWeb ? buildPlainIframe(src) : (_controller != null ? WebViewWidget(controller: _controller!) : null);
+    Widget? inner = kIsWeb
+        ? buildPlainIframe(src)
+        : (_controller != null
+              ? WebViewWidget(controller: _controller!)
+              : null);
     inner ??= _poster(context, src);
-    return SizedContent(width: w, height: h, child: ColoredBox(color: Colors.black, child: inner));
+    return SizedContent(
+      width: w,
+      height: h,
+      child: ColoredBox(color: Colors.black, child: inner),
+    );
   }
 
   /// Thumbnail with a play button for platforms that cannot host the web player.
@@ -690,8 +831,11 @@ class _SpecialEmbedViewState extends State<SpecialEmbedView> {
     final cs = context.cs;
     final urls = ApiClientUrls.of(context);
     final special = widget.embed['special'] as Map;
-    final thumb = (widget.embed['image'] as Map?)?['url'] as String? ??
-        (special['type'] == 'YouTube' ? 'https://img.youtube.com/vi/${special['id']}/hqdefault.jpg' : null);
+    final thumb =
+        (widget.embed['image'] as Map?)?['url'] as String? ??
+        (special['type'] == 'YouTube'
+            ? 'https://img.youtube.com/vi/${special['id']}/hqdefault.jpg'
+            : null);
     final open = widget.embed['url'] as String? ?? src;
     return Material(
       color: Colors.black,
@@ -701,14 +845,25 @@ class _SpecialEmbedViewState extends State<SpecialEmbedView> {
           fit: StackFit.expand,
           children: [
             if (thumb != null)
-              NetImage(urls.proxied(thumb), fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+              NetImage(
+                urls.proxied(thumb),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
             ColoredBox(color: Colors.black.withValues(alpha: .25)),
             Center(
               child: Container(
                 width: 56,
                 height: 56,
-                decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
-                child: Icon(Icons.play_arrow_rounded, size: 36, color: cs.onPrimary),
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  size: 36,
+                  color: cs.onPrimary,
+                ),
               ),
             ),
             Positioned(
@@ -718,7 +873,14 @@ class _SpecialEmbedViewState extends State<SpecialEmbedView> {
                 spacing: 4,
                 children: [
                   const Icon(Icons.open_in_new, size: 14, color: Colors.white),
-                  Text(tr('Continue in browser'), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(
+                    tr('Continue in browser'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -767,7 +929,18 @@ class TextEmbedView extends StatelessWidget {
         Row(
           children: [
             if (icon != null) favicon(),
-            Flexible(child: Text(siteName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurfaceVariant))),
+            Flexible(
+              child: Text(
+                siteName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
           ],
         ),
       if (title != null && title.isNotEmpty)
@@ -776,10 +949,24 @@ class TextEmbedView extends StatelessWidget {
             if (icon != null && !isWebsite) favicon(),
             Flexible(
               child: MouseRegion(
-                cursor: embed['url'] != null ? SystemMouseCursors.click : MouseCursor.defer,
+                cursor: embed['url'] != null
+                    ? SystemMouseCursors.click
+                    : MouseCursor.defer,
                 child: GestureDetector(
-                  onTap: embed['url'] != null ? () => handleLink(context, embed['url'] as String) : null,
-                  child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.25, color: cs.primary)),
+                  onTap: embed['url'] != null
+                      ? () => handleLink(context, embed['url'] as String)
+                      : null,
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                      color: cs.primary,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -787,8 +974,20 @@ class TextEmbedView extends StatelessWidget {
         ),
       if (desc != null && desc.isNotEmpty)
         embed['type'] == 'Text'
-            ? DefaultTextStyle.merge(style: const TextStyle(fontSize: 13), child: RichContent(desc))
-            : Text(desc, maxLines: 4, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, height: 1.35, color: cs.onSurfaceVariant)),
+            ? DefaultTextStyle.merge(
+                style: const TextStyle(fontSize: 13),
+                child: RichContent(desc),
+              )
+            : Text(
+                desc,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
     ];
 
     final body = <Widget>[
@@ -816,13 +1015,20 @@ class TextEmbedView extends StatelessWidget {
                   width: (image['width'] as num?)?.toDouble(),
                   height: (image['height'] as num?)?.toDouble(),
                 ),
-                child: NetImage(urls.proxied(image['url'] as String), fit: BoxFit.contain),
+                child: NetImage(
+                  urls.proxied(image['url'] as String),
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),
     ];
 
-    final previewImage = isWebsite && image != null && image['size'] == 'Preview' && video == null;
+    final previewImage =
+        isWebsite &&
+        image != null &&
+        image['size'] == 'Preview' &&
+        video == null;
 
     final headColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -850,7 +1056,8 @@ class TextEmbedView extends StatelessWidget {
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const SizedBox(width: 80, height: 80),
+                        errorBuilder: (_, _, _) =>
+                            const SizedBox(width: 80, height: 80),
                       ),
                     ),
                   ],
@@ -865,14 +1072,27 @@ class TextEmbedView extends StatelessWidget {
       child: ClipRRect(
         borderRadius: br(Radius_.lg),
         child: DecoratedBox(
-          decoration: BoxDecoration(color: cs.surfaceContainerHigh, border: Border.all(color: cs.outlineVariant.withValues(alpha: .5)), borderRadius: br(Radius_.lg)),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHigh,
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: .5)),
+            borderRadius: br(Radius_.lg),
+          ),
           child: Stack(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
-                child: DefaultTextStyle.merge(style: TextStyle(color: cs.onSurface), child: content),
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: cs.onSurface),
+                  child: content,
+                ),
               ),
-              Positioned(left: 0, top: 0, bottom: 0, width: 4, child: ColoredBox(color: colour)),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 4,
+                child: ColoredBox(color: colour),
+              ),
             ],
           ),
         ),
@@ -892,9 +1112,14 @@ class EmbedView extends StatelessWidget {
     final gif = isGif(embed);
     final box = isGifBox(embed);
     final type = embed['type'];
-    final Map? video = type == 'Video' ? embed : (gif ? embed['video'] as Map? : null);
-    final Map? image = type == 'Image' ? embed : (gif ? embed['image'] as Map? : null);
-    String pick(Map m) => (gif && !box ? m['url'] : urls.proxied(m['url'] as String)) as String;
+    final Map? video = type == 'Video'
+        ? embed
+        : (gif ? embed['video'] as Map? : null);
+    final Map? image = type == 'Image'
+        ? embed
+        : (gif ? embed['image'] as Map? : null);
+    String pick(Map m) =>
+        (gif && !box ? m['url'] : urls.proxied(m['url'] as String)) as String;
 
     if (image != null) {
       final w = (image['width'] as num?)?.toDouble() ?? 0;
@@ -912,7 +1137,12 @@ class EmbedView extends StatelessWidget {
               width: w,
               height: h,
             ),
-            child: NetImage(pick(image), fit: BoxFit.contain, errorBuilder: (_, _, _) => const Center(child: Icon(Icons.broken_image))),
+            child: NetImage(
+              pick(image),
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) =>
+                  const Center(child: Icon(Icons.broken_image)),
+            ),
           ),
         ),
       );
@@ -926,7 +1156,13 @@ class EmbedView extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            MediaVideo(url: pick(video), controls: !gif, loop: gif, muted: gif, autoplay: gif),
+            MediaVideo(
+              url: pick(video),
+              controls: !gif,
+              loop: gif,
+              muted: gif,
+              autoplay: gif,
+            ),
             if (gif)
               Positioned.fill(
                 child: MouseRegion(
@@ -935,7 +1171,9 @@ class EmbedView extends StatelessWidget {
                     behavior: HitTestBehavior.translucent,
                     onTap: () => showImageViewer(
                       context,
-                      videoUrl: box ? urls.proxied(video['url'] as String) : video['url'] as String,
+                      videoUrl: box
+                          ? urls.proxied(video['url'] as String)
+                          : video['url'] as String,
                       openUrlLink: video['url'] as String,
                       width: w,
                       height: h,

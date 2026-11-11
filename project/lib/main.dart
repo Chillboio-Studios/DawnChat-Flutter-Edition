@@ -1,9 +1,6 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'src/api/client_store.dart';
@@ -24,11 +21,6 @@ Future<void> main(List<String> args) async {
   final settings = await SettingsStore.load();
   await I18n.load(settings.lang);
   if (isDesktop) {
-    launchAtStartup.setup(
-      appName: 'DawnChat',
-      appPath: Platform.resolvedExecutable,
-      args: const ['--autostart'],
-    );
     await DesktopIntegration.init(
       settings,
       launchedAtStartup: args.contains('--autostart'),

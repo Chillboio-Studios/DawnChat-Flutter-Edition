@@ -8,7 +8,10 @@ import '../../router.dart';
 import '../../theme/tokens.dart';
 import '../settings/settings_page.dart';
 import '../widgets.dart';
+import '../menus/context_menu.dart';
+import '../menus/user_menu.dart';
 import '../modals/server_modals.dart';
+import '../profile/profile.dart' show showUserProfile;
 import '../../core/i18n.dart';
 
 /// Primary page header shared by Home, Friends and channels.
@@ -139,13 +142,17 @@ class HomePage extends StatelessWidget {
       tile(
         Icons.add_circle,
         tr('Create a group or server'),
-        tr('Invite all of your friends, some cool bots, and throw a big party.'),
+        tr(
+          'Invite all of your friends, some cool bots, and throw a big party.',
+        ),
         () => showCreateOrJoinServer(context),
       ),
       tile(
         Icons.groups_3,
         inLounge ? 'Go to the DawnChat Lounge' : 'Join the DawnChat Lounge',
-        tr('You can report issues and discuss improvements with us directly here.'),
+        tr(
+          'You can report issues and discuss improvements with us directly here.',
+        ),
         () async {
           if (inLounge) {
             context.goPath('/server/$loungeServerId');
@@ -330,129 +337,302 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage> {
-  int _tab = 0;
+  String _page = 'online';
+
+  static int _pending(ClientStore store) {
+    final n = store.incomingRequests.length;
+    return n > 99 ? 99 : n;
+  }
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ClientStore>();
     final cs = context.cs;
-    final lists = [
-      store.friends.where((u) => u['online'] == true).toList(),
-      store.friends,
-      store.incomingRequests,
-      store.outgoingRequests,
-      store.blocked,
-    ];
-    final names = ['Online', 'All', 'Pending', 'Outgoing', 'Blocked'];
-    final list = lists[_tab];
 
-    return Column(
+    List<Json> sorted(List<Json> l) => [...l]
+      ..sort((a, b) {
+        final an = store.displayName(a['_id'] as String).toLowerCase();
+        final bn = store.displayName(b['_id'] as String).toLowerCase();
+        return an.compareTo(bn);
+      });
+
+    final friends = sorted(store.friends);
+    final lists = <String, List<Json>>{
+      'online': friends.where((u) => u['online'] == true).toList(),
+      'all': friends,
+      'incoming': sorted(store.incomingRequests),
+      'outgoing': sorted(store.outgoingRequests),
+      'blocked': sorted(store.blocked),
+    };
+
+    final pending = _pending(store);
+    final railItems = <(String, String, IconData, int?)>[
+      ('online', 'Online', Icons.waving_hand_outlined, null),
+      ('all', 'All', Icons.all_inbox_outlined, null),
+      (
+        'pending',
+        'Pending',
+        Icons.notifications_outlined,
+        pending > 0 ? pending : null,
+      ),
+      ('blocked', 'Blocked', Icons.block_outlined, null),
+    ];
+
+    Widget people(String title, List<Json> users) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PageHeader(
-          icon: const Icon(Icons.group),
-          title: Text(tr('Friends')),
-          actions: [
-            IconButton(
-              tooltip: tr('Add friend'),
-              icon: const Icon(Icons.person_add_alt_1),
-              onPressed: () async {
-                final name = await promptText(
-                  context,
-                  'Add a friend',
-                  label: 'Username#0000',
-                  action: 'Send request',
-                );
-                if (name == null || name.isEmpty) return;
-                try {
-                  await store.addFriend(name);
-                  if (context.mounted) {
-                    showSnack(context, 'Friend request sent');
-                  }
-                } catch (e) {
-                  if (context.mounted) showSnack(context, errorText(e));
-                }
-              },
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text(
+            '$title – ${users.length}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: cs.outline,
             ),
-          ],
+          ),
         ),
+        if (users.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text('Nobody here right now!'),
+          )
+        else
+          for (final u in users) _FriendEntry(user: u, page: _page),
+      ],
+    );
+
+    final content = switch (_page) {
+      'all' => people('All', lists['all']!),
+      'pending' => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          people('Incoming', lists['incoming']!),
+          people('Outgoing', lists['outgoing']!),
+        ],
+      ),
+      'blocked' => people('Blocked', lists['blocked']!),
+      _ => people('Online', lists['online']!),
+    };
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Left rail — matches the web client's NavigationRail.
         SizedBox(
-          height: 52,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+          width: 200,
+          child: Column(
             children: [
-              for (var i = 0; i < names.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-                  child: ChoiceChip(
-                    label: Text(
-                      '${names[i]}${lists[i].isNotEmpty && i >= 2 ? ' (${lists[i].length})' : ''}',
-                    ),
-                    selected: _tab == i,
-                    onSelected: (_) => setState(() => _tab = i),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton.filled(
+                    tooltip: tr('Add a new friend'),
+                    icon: const Icon(Icons.add),
+                    onPressed: () async {
+                      final name = await promptText(
+                        context,
+                        tr('Add a friend'),
+                        label: 'Username#0000',
+                        action: tr('Send request'),
+                      );
+                      if (name == null || name.isEmpty) return;
+                      try {
+                        await store.addFriend(name);
+                        if (context.mounted) {
+                          showSnack(context, 'Friend request sent');
+                        }
+                      } catch (e) {
+                        if (context.mounted) showSnack(context, errorText(e));
+                      }
+                    },
                   ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  children: [
+                    for (final (id, label, icon, badge) in railItems)
+                      _RailItem(
+                        icon: icon,
+                        label: tr(label),
+                        badge: badge,
+                        selected: _page == id,
+                        onTap: () => setState(() => _page = id),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        VerticalDivider(width: 1, color: cs.outlineVariant),
+        Expanded(
+          child: Column(
+            children: [
+              PageHeader(
+                icon: const Icon(Icons.group),
+                title: Text(tr('Friends')),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: content,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RailItem extends StatelessWidget {
+  const _RailItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.badge,
+  });
+  final IconData icon;
+  final String label;
+  final int? badge;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.cs;
+    final fg = selected ? cs.onSecondaryContainer : cs.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Material(
+        color: selected ? cs.secondaryContainer : Colors.transparent,
+        borderRadius: br(Radius_.xl),
+        child: InkWell(
+          borderRadius: br(Radius_.xl),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: fg),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w500, color: fg),
+                  ),
+                ),
+                if (badge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.primary,
+                      borderRadius: br(Radius_.md),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onPrimary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FriendEntry extends StatelessWidget {
+  const _FriendEntry({required this.user, required this.page});
+  final Json user;
+  final String page;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.read<ClientStore>();
+    final cs = context.cs;
+    final id = user['_id'] as String;
+    final isFriend = user['relationship'] == 'Friend';
+    void openMenu(Offset pos) =>
+        showContextMenu(context, pos, userMenu(context, id));
+    return GestureDetector(
+      onSecondaryTapUp: (d) => openMenu(d.globalPosition),
+      onLongPressStart: (d) => openMenu(d.globalPosition),
+      child: InkWell(
+        onTap: isFriend
+            ? () async {
+                final dm = await store.openDm(id);
+                if (context.mounted) context.goPath('/channel/${dm['_id']}');
+              }
+            : () => showUserProfile(context, id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          child: Row(
+            children: [
+              UserAvatar(userId: id, size: 36, showStatus: isFriend),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  store.displayName(id),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+              if (page == 'pending' && user['relationship'] == 'Incoming')
+                IconButton(
+                  icon: const Icon(Icons.check, size: 20),
+                  tooltip: tr('Accept'),
+                  onPressed: () => store.acceptFriend(id),
+                )
+              else if (page == 'pending')
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  tooltip: tr('Decline'),
+                  onPressed: () => store.removeFriend(id),
+                )
+              else if (page == 'blocked')
+                IconButton(
+                  icon: const Icon(Icons.lock_open_outlined, size: 20),
+                  tooltip: tr('Unblock'),
+                  onPressed: () => store.unblockUser(id),
+                )
+              else
+                IconButton(
+                  icon: Icon(
+                    isFriend
+                        ? Icons.person_remove_outlined
+                        : Icons.block_outlined,
+                    size: 20,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  tooltip: isFriend ? tr('Remove friend') : tr('Block'),
+                  onPressed: () async {
+                    if (isFriend) {
+                      await store.removeFriend(id);
+                    } else {
+                      await store.blockUser(id);
+                    }
+                  },
                 ),
             ],
           ),
         ),
-        Expanded(
-          child: list.isEmpty
-              ? Center(
-                  child: Text(
-                    'Nothing here.',
-                    style: TextStyle(color: cs.outline),
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: list.length,
-                  itemBuilder: (c, i) {
-                    final u = list[i];
-                    final id = u['_id'] as String;
-                    return ListTile(
-                      leading: UserAvatar(
-                        userId: id,
-                        size: 40,
-                        showStatus: true,
-                      ),
-                      title: Text(store.displayName(id)),
-                      subtitle: Text('${u['username']}#${u['discriminator']}'),
-                      onTap: () async {
-                        if (_tab > 1) return;
-                        final dm = await store.openDm(id);
-                        if (context.mounted) {
-                          context.goPath('/channel/${dm['_id']}');
-                        }
-                      },
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_tab == 2)
-                            IconButton(
-                              icon: const Icon(Icons.check),
-                              onPressed: () => store.acceptFriend(id),
-                            ),
-                          if (_tab == 4)
-                            IconButton(
-                              icon: const Icon(Icons.lock_open),
-                              tooltip: 'Unblock',
-                              onPressed: () => store.unblockUser(id),
-                            )
-                          else
-                            IconButton(
-                              icon: Icon(
-                                _tab == 2 || _tab == 3
-                                    ? Icons.close
-                                    : Icons.person_remove_outlined,
-                              ),
-                              onPressed: () => store.removeFriend(id),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+      ),
     );
   }
 }

@@ -12,6 +12,7 @@ import '../widgets.dart';
 import 'server_rail.dart';
 import 'sidebars.dart';
 import '../../core/i18n.dart';
+import '../modals/app_dialog.dart';
 
 /// Parsed in-app location used to pick sidebars.
 class NavTarget {
@@ -74,6 +75,90 @@ class _InterfaceShellState extends State<InterfaceShell> {
     if (e != null && mounted) showSnack(context, e);
   }
 
+  /// The change-set instance already shown — the web client only shows the
+  /// policy dialog once per session per set of changes.
+  List<Json>? _shownPolicyChanges;
+
+  Future<void> _showPolicyChange(ClientStore store) async {
+    final changes = store.policyChanges;
+    if (changes == null ||
+        changes.isEmpty ||
+        identical(changes, _shownPolicyChanges)) {
+      return;
+    }
+    _shownPolicyChanges = changes;
+    var confirm = false;
+    await showAppDialog<void>(
+      context,
+      title: tr('Review policy changes'),
+      content: StatefulBuilder(
+        builder: (c, set) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr(
+                'Click on the items below to learn more about different changes!',
+              ),
+            ),
+            const SizedBox(height: Gap.md),
+            for (final change in changes)
+              InkWell(
+                onTap: () => openUrl(change['url'] as String? ?? ''),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              change['description'] as String? ?? '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (change['effective_time'] != null)
+                              Text(
+                                'Effective ${change['effective_time']}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: context.cs.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.open_in_new, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            CheckboxListTile(
+              value: confirm,
+              onChanged: (v) => set(() => confirm = v ?? false),
+              title: Text(tr("I've read and reviewed the changes.")),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        DlgAction(tr('Close')),
+        DlgAction(
+          tr('Acknowledge'),
+          enabled: confirm,
+          onPressed: () async {
+            await store.acknowledgePolicies();
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   void didUpdateWidget(InterfaceShell old) {
     super.didUpdateWidget(old);
@@ -120,6 +205,16 @@ class _InterfaceShellState extends State<InterfaceShell> {
       currentChannelId: target.channelId,
       child: widget.child,
     );
+
+    // Policy change review — port of the web client's `PolicyChangeModal`.
+    // The server pushes `PolicyChange` events; we show the dialog once per
+    // pending set and acknowledge on accept.
+    if (store.policyChanges != null && store.policyChanges!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showPolicyChange(store);
+      });
+    }
 
     if (sc == ScreenClass.phone) {
       final onHome =
@@ -238,4 +333,3 @@ class _Offline extends StatelessWidget {
     ),
   );
 }
-

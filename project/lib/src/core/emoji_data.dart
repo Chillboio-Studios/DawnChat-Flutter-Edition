@@ -23,7 +23,9 @@ class EmojiData {
   static Future<EmojiData> load() => _loading ??= _doLoad();
 
   static Future<EmojiData> _doLoad() async {
-    final raw = jsonDecode(await rootBundle.loadString('assets/data/emojiMapping.json')) as List;
+    final raw = jsonDecode(
+      await rootBundle.loadString('assets/data/emojiMapping.json'),
+    ) as List;
     final all = <EmojiDef>[];
     final dedupe = <EmojiDef>[];
     final seen = <String>{};

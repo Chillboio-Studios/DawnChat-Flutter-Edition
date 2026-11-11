@@ -70,7 +70,11 @@ String _capitalise(String s) => s.splitMapJoin(
 );
 
 /// Shows a floating context menu next to [position] (global coordinates).
-Future<void> showContextMenu(BuildContext context, Offset position, List<MenuItem> items) {
+Future<void> showContextMenu(
+  BuildContext context,
+  Offset position,
+  List<MenuItem> items,
+) {
   final cleaned = _tidy(items);
   if (cleaned.isEmpty) return Future.value();
   return showGeneralDialog<void>(
@@ -80,7 +84,8 @@ Future<void> showContextMenu(BuildContext context, Offset position, List<MenuIte
     barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 120),
     pageBuilder: (c, _, _) => _MenuHost(position: position, items: cleaned),
-    transitionBuilder: (c, a, _, child) => FadeTransition(opacity: a, child: child),
+    transitionBuilder: (c, a, _, child) =>
+        FadeTransition(opacity: a, child: child),
   );
 }
 
@@ -108,7 +113,10 @@ class _MenuHost extends StatelessWidget {
       children: [
         CustomSingleChildLayout(
           delegate: _MenuLayout(position, size),
-          child: MenuPanel(items: items, onClose: () => Navigator.of(context).pop()),
+          child: MenuPanel(
+            items: items,
+            onClose: () => Navigator.of(context).pop(),
+          ),
         ),
       ],
     );
@@ -125,13 +133,16 @@ class _MenuLayout extends SingleChildLayoutDelegate {
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     var x = pos.dx, y = pos.dy;
-    if (x + childSize.width > size.width - 8) x = size.width - childSize.width - 8;
-    if (y + childSize.height > size.height - 8) y = size.height - childSize.height - 8;
+    if (x + childSize.width > size.width - 8)
+      x = size.width - childSize.width - 8;
+    if (y + childSize.height > size.height - 8)
+      y = size.height - childSize.height - 8;
     return Offset(x < 8 ? 8 : x, y < 8 ? 8 : y);
   }
 
   @override
-  bool shouldRelayout(_MenuLayout old) => old.pos != pos || old.screen != screen;
+  bool shouldRelayout(_MenuLayout old) =>
+      old.pos != pos || old.screen != screen;
 }
 
 class MenuPanel extends StatelessWidget {
@@ -156,7 +167,9 @@ class MenuPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
-              children: [for (final i in items) _Row(item: i, onClose: onClose)],
+              children: [
+                for (final i in items) _Row(item: i, onClose: onClose),
+              ],
             ),
           ),
         ),
@@ -194,7 +207,10 @@ class _RowState extends State<_Row> {
         showWhenUnlinked: false,
         child: Align(
           alignment: Alignment.topLeft,
-          child: MenuPanel(items: widget.item.children!, onClose: widget.onClose),
+          child: MenuPanel(
+            items: widget.item.children!,
+            onClose: widget.onClose,
+          ),
         ),
       ),
     );
@@ -206,7 +222,11 @@ class _RowState extends State<_Row> {
     final i = widget.item;
     final cs = Theme.of(context).colorScheme;
     if (i.divider) {
-      return Container(height: 1, margin: const EdgeInsets.symmetric(vertical: Gap.sm), color: cs.outlineVariant);
+      return Container(
+        height: 1,
+        margin: const EdgeInsets.symmetric(vertical: Gap.sm),
+        color: cs.outlineVariant,
+      );
     }
     if (i.custom != null) return i.custom!;
     final colour = i.destructive ? cs.error : cs.onSurface;
@@ -232,22 +252,43 @@ class _RowState extends State<_Row> {
           if (isSub && h) _openSub();
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.lg,
+            vertical: Gap.md,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (i.icon != null) ...[Icon(i.icon, size: 16, color: colour), const SizedBox(width: Gap.md)],
+              if (i.icon != null) ...[
+                Icon(i.icon, size: 16, color: colour),
+                const SizedBox(width: Gap.md),
+              ],
               Flexible(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(i.capitalise ? _capitalise(tr(i.label ?? '')) : tr(i.label ?? ''), style: TextStyle(color: colour, fontSize: 14)),
-                    if (i.sublabel != null) Text(tr(i.sublabel!), style: TextStyle(color: cs.outline, fontSize: 12)),
+                    Text(
+                      i.capitalise
+                          ? _capitalise(tr(i.label ?? ''))
+                          : tr(i.label ?? ''),
+                      style: TextStyle(color: colour, fontSize: 14),
+                    ),
+                    if (i.sublabel != null)
+                      Text(
+                        tr(i.sublabel!),
+                        style: TextStyle(color: cs.outline, fontSize: 12),
+                      ),
                   ],
                 ),
               ),
-              if (i.trailing != null) ...[const SizedBox(width: Gap.md), i.trailing!],
-              if (isSub) ...[const SizedBox(width: 24), Icon(Icons.chevron_right, size: 20, color: colour)],
+              if (i.trailing != null) ...[
+                const SizedBox(width: Gap.md),
+                i.trailing!,
+              ],
+              if (isSub) ...[
+                const SizedBox(width: 24),
+                Icon(Icons.chevron_right, size: 20, color: colour),
+              ],
             ],
           ),
         ),
@@ -258,7 +299,12 @@ class _RowState extends State<_Row> {
 
 /// Wraps a child so that right-click and long-press open [builder]'s menu.
 class ContextMenuRegion extends StatelessWidget {
-  const ContextMenuRegion({super.key, required this.child, required this.builder, this.behavior = HitTestBehavior.deferToChild});
+  const ContextMenuRegion({
+    super.key,
+    required this.child,
+    required this.builder,
+    this.behavior = HitTestBehavior.deferToChild,
+  });
   final Widget child;
   final List<MenuItem> Function(BuildContext context) builder;
   final HitTestBehavior behavior;
@@ -266,8 +312,10 @@ class ContextMenuRegion extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: behavior,
-    onSecondaryTapUp: (d) => showContextMenu(context, d.globalPosition, builder(context)),
-    onLongPressStart: (d) => showContextMenu(context, d.globalPosition, builder(context)),
+    onSecondaryTapUp: (d) =>
+        showContextMenu(context, d.globalPosition, builder(context)),
+    onLongPressStart: (d) =>
+        showContextMenu(context, d.globalPosition, builder(context)),
     child: child,
   );
 }

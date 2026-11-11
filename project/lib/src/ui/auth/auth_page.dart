@@ -6,10 +6,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../api/client_store.dart';
 import '../../core/links.dart';
 import '../../router.dart';
 import '../../state/settings_store.dart';
 import '../../theme/tokens.dart';
+import '../modals/app_dialog.dart';
 import '../widgets.dart';
 import '../../core/i18n.dart';
 
@@ -103,9 +105,27 @@ class AuthPageState extends State<AuthPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSignedOut());
+  }
+
+  void _maybeSignedOut() {
+    final store = context.read<ClientStore>();
+    if (store.sessionExpired && mounted) {
+      store.sessionExpired = false;
+      showSignedOutDialog(context);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = context.cs;
+    final store = context.watch<ClientStore>();
     final settings = context.watch<SettingsStore>();
+    if (store.sessionExpired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSignedOut());
+    }
     final size = MediaQuery.sizeOf(context);
     final wide = size.width > 900;
     final isCreate = GoRouterState.of(context).uri.path

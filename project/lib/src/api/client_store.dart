@@ -17,7 +17,6 @@ import 'transport.dart';
 
 export '../core/json.dart';
 
-
 enum LinkState { disconnected, connecting, connected, offline }
 
 enum AuthState { unknown, loggedOut, loggedIn }
@@ -40,12 +39,17 @@ class ClientStore extends ChangeNotifier {
   /// Downloads rail icons and avatars of people you talk to in parallel.
   void _prefetchImages() {
     final urls = <String>[
-      for (final s in servers.values) ?api.fileUrl('icons', s['icon'] as Map?, width: 256),
+      for (final s in servers.values)
+        ?api.fileUrl('icons', s['icon'] as Map?, width: 256),
     ];
     final ids = <String>{
       for (final c in channels.values)
-        if (c['channel_type'] == 'DirectMessage' || c['channel_type'] == 'Group') ...((c['recipients'] as List?) ?? const []).cast<String>(),
-      ...users.values.where((u) => u['relationship'] == 'Friend').map((u) => u['_id'] as String),
+        if (c['channel_type'] == 'DirectMessage' ||
+            c['channel_type'] == 'Group')
+          ...((c['recipients'] as List?) ?? const []).cast<String>(),
+      ...users.values
+          .where((u) => u['relationship'] == 'Friend')
+          .map((u) => u['_id'] as String),
     };
     for (final id in ids.take(200)) {
       final u = avatarUrl(id, size: 128);
@@ -61,10 +65,16 @@ class ClientStore extends ChangeNotifier {
 
   Future<void> _initialSync() async {
     try {
-      final res = await api.post('/sync/settings/fetch', {'keys': SettingsStore.syncKeys}) as Map;
+      final res = await api.post('/sync/settings/fetch', {
+        'keys': SettingsStore.syncKeys,
+      }) as Map;
       for (final e in res.entries) {
         final v = e.value as List;
-        settings.importSync(e.key as String, (v[0] as num).toInt(), v[1] as String);
+        settings.importSync(
+          e.key as String,
+          (v[0] as num).toInt(),
+          v[1] as String,
+        );
       }
       notifyListeners();
       if (settings.syncQueue.isNotEmpty) _scheduleSyncSave();
@@ -75,7 +85,12 @@ class ClientStore extends ChangeNotifier {
     if (api.token == null || settings.syncQueue.isEmpty) return;
     final p = settings.takeSyncPayload();
     try {
-      await api.post('/sync/settings/set', {'timestamp': p.ts, ...p.payload});
+      await api.request(
+        'POST',
+        '/sync/settings/set',
+        query: {'timestamp': p.ts},
+        body: p.payload,
+      );
     } catch (_) {
       settings.syncQueue.addAll(p.payload.keys);
     }
@@ -187,7 +202,23 @@ class ClientStore extends ChangeNotifier {
     _connect();
   }
 
-  Future<void> logout() async {
+  /// Pending policy changes pushed by the server (`PolicyChange` event).
+  /// The UI shows the review dialog and calls [acknowledgePolicies] on accept.
+  List<Json>? policyChanges;
+
+  Future<void> acknowledgePolicies() async {
+    policyChanges = null;
+    notifyListeners();
+    // Backend route: POST /policy/acknowledge (no body).
+    await api.post('/policy/acknowledge');
+  }
+
+  /// Set when the session ended unexpectedly (server `Logout` event or an
+  /// `InvalidSession` API error) so the UI can show the signed-out notice.
+  bool sessionExpired = false;
+
+  Future<void> logout({bool expired = false}) async {
+    if (expired) sessionExpired = true;
     try {
       await api.post('/auth/session/logout');
     } catch (_) {}
@@ -280,6 +311,13 @@ class ClientStore extends ChangeNotifier {
             m[p['id']] = (p as Map).cast<String, dynamic>();
           }
         }
+        // Unacknowledged policy changes arrive in the Ready payload.
+        final pendingPolicies = e['policy_changes'] as List?;
+        if (pendingPolicies != null && pendingPolicies.isNotEmpty) {
+          policyChanges = [
+            for (final c in pendingPolicies) (c as Map).cast<String, dynamic>(),
+          ];
+        }
         ready = true;
         connection = LinkState.connected;
         _loadUnreads();
@@ -288,12 +326,19 @@ class ClientStore extends ChangeNotifier {
       case 'UserSettingsUpdate':
         for (final entry in ((e['update'] as Map?) ?? const {}).entries) {
           final v = entry.value;
-          if (v is List && v.length >= 2) settings.importSync(entry.key as String, (v[0] as num).toInt(), v[1] as String);
+          if (v is List && v.length >= 2)
+            settings.importSync(
+              entry.key as String,
+              (v[0] as num).toInt(),
+              v[1] as String,
+            );
         }
       case 'Message':
         final ch = e['channel'] as String;
         final list = messages[ch];
-        if (list != null && !detached.contains(ch) && !list.any((x) => x['_id'] == e['_id'])) {
+        if (list != null &&
+            !detached.contains(ch) &&
+            !list.any((x) => x['_id'] == e['_id'])) {
           list.removeWhere(
             (x) => x['nonce'] != null && x['nonce'] == e['nonce'],
           );
@@ -383,8 +428,8 @@ class ClientStore extends ChangeNotifier {
         if (st != null) st.addAll((e['data'] as Map).cast<String, dynamic>());
       case 'VoiceChannelMove':
         voiceStates[e['from']]?.remove(e['user']);
-        (voiceStates[e['to']] ??= {})[e['user']] =
-            (e['state'] as Map).cast<String, dynamic>();
+        (voiceStates[e['to']] ??= {})[e['user']] = (e['state'] as Map)
+            .cast<String, dynamic>();
       case 'ChannelGroupJoin':
         final rec = channels[e['id']]?['recipients'] as List?;
         if (rec != null && !rec.contains(e['user'])) rec.add(e['user']);
@@ -400,7 +445,8 @@ class ClientStore extends ChangeNotifier {
           }
         }
       case 'ServerRoleUpdate':
-        final roles = (servers[e['id']]?['roles'] ??= <String, dynamic>{}) as Map;
+        final roles =
+            (servers[e['id']]?['roles'] ??= <String, dynamic>{}) as Map;
         final role = (roles[e['role_id']] ??= <String, dynamic>{}) as Map;
         role.addAll((e['data'] as Map).cast<String, dynamic>());
       case 'ServerRoleDelete':
@@ -413,14 +459,24 @@ class ClientStore extends ChangeNotifier {
         final list = messages[e['channel']];
         final i = list?.indexWhere((x) => x['_id'] == e['id']) ?? -1;
         if (i >= 0) {
-          final emb = [...(list![i]['embeds'] as List? ?? []), ...((e['append'] as Map?)?['embeds'] as List? ?? [])];
+          final emb = [
+            ...(list![i]['embeds'] as List? ?? []),
+            ...((e['append'] as Map?)?['embeds'] as List? ?? []),
+          ];
           list[i] = {...list[i], 'embeds': emb};
         }
       case 'BulkMessageDelete':
         final ids = (e['ids'] as List).toSet();
         messages[e['channel']]?.removeWhere((x) => ids.contains(x['_id']));
       case 'Logout':
-        logout();
+        logout(expired: true);
+        return;
+      case 'PolicyChange':
+        policyChanges = [
+          for (final c in (e['changes'] as List? ?? const []))
+            (c as Map).cast<String, dynamic>(),
+        ];
+        notifyListeners();
         return;
     }
     notifyListeners();
@@ -532,12 +588,20 @@ class ClientStore extends ChangeNotifier {
   /// Server roles a member holds, highest ranked first.
   List<Json> memberRoles(String? serverId, String? userId) {
     if (serverId == null || userId == null) return const [];
-    final roles = (servers[serverId]?['roles'] as Map?)?.cast<String, dynamic>() ?? const {};
-    final mine = ((members[serverId]?[userId]?['roles'] as List?) ?? const []).cast<String>();
-    final out = [
-      for (final r in mine)
-        if (roles[r] != null) {...(roles[r] as Map).cast<String, dynamic>(), '_id': r},
-    ]..sort((a, b) => ((a['rank'] as num?) ?? 0).compareTo((b['rank'] as num?) ?? 0));
+    final roles =
+        (servers[serverId]?['roles'] as Map?)?.cast<String, dynamic>() ??
+        const {};
+    final mine = ((members[serverId]?[userId]?['roles'] as List?) ?? const [])
+        .cast<String>();
+    final out =
+        [
+          for (final r in mine)
+            if (roles[r] != null)
+              {...(roles[r] as Map).cast<String, dynamic>(), '_id': r},
+        ]..sort(
+          (a, b) =>
+              ((a['rank'] as num?) ?? 0).compareTo((b['rank'] as num?) ?? 0),
+        );
     return out;
   }
 
@@ -546,11 +610,14 @@ class ClientStore extends ChangeNotifier {
     if (serverId == null) return double.infinity;
     if (servers[serverId]?['owner'] == userId) return double.negativeInfinity;
     final roles = memberRoles(serverId, userId);
-    return roles.isEmpty ? double.infinity : ((roles.first['rank'] as num?) ?? 0).toDouble();
+    return roles.isEmpty
+        ? double.infinity
+        : ((roles.first['rank'] as num?) ?? 0).toDouble();
   }
 
   /// Whether [userId] ranks below the current user in [serverId].
-  bool inferiorToMe(String serverId, String userId) => memberRank(serverId, userId) > memberRank(serverId, this.userId);
+  bool inferiorToMe(String serverId, String userId) =>
+      memberRank(serverId, userId) > memberRank(serverId, this.userId);
 
   /// Server-level permission check for the current user (ignores channel overrides).
   bool canInServer(String serverId, BigInt perm) {
@@ -564,23 +631,39 @@ class ClientStore extends ChangeNotifier {
   /// Colour of the member's highest-ranked coloured role.
   Color? roleColour(String? userId, String? serverId) {
     if (userId == null || serverId == null) return null;
-    final roles = (servers[serverId]?['roles'] as Map?)?.cast<String, dynamic>();
-    final mine = ((members[serverId]?[userId]?['roles'] as List?) ?? const []).cast<String>();
+    final roles = (servers[serverId]?['roles'] as Map?)
+        ?.cast<String, dynamic>();
+    final mine = ((members[serverId]?[userId]?['roles'] as List?) ?? const [])
+        .cast<String>();
     if (roles == null || mine.isEmpty) return null;
     final ranked = mine.where((r) => roles[r]?['colour'] != null).toList()
-      ..sort((a, b) => ((roles[a]['rank'] as num?) ?? 0).compareTo((roles[b]['rank'] as num?) ?? 0));
-    return ranked.isEmpty ? null : parseCssColour(roles[ranked.first]['colour'] as String?);
+      ..sort(
+        (a, b) => ((roles[a]['rank'] as num?) ?? 0).compareTo(
+          (roles[b]['rank'] as num?) ?? 0,
+        ),
+      );
+    return ranked.isEmpty
+        ? null
+        : parseCssColour(roles[ranked.first]['colour'] as String?);
   }
 
   /// Server icon role (`iconRole`) of the member's top role, if any.
   Map<String, dynamic>? iconRole(String? userId, String? serverId) {
     if (userId == null || serverId == null) return null;
-    final roles = (servers[serverId]?['roles'] as Map?)?.cast<String, dynamic>();
-    final mine = ((members[serverId]?[userId]?['roles'] as List?) ?? const []).cast<String>();
+    final roles = (servers[serverId]?['roles'] as Map?)
+        ?.cast<String, dynamic>();
+    final mine = ((members[serverId]?[userId]?['roles'] as List?) ?? const [])
+        .cast<String>();
     if (roles == null) return null;
     final withIcon = mine.where((r) => roles[r]?['icon'] != null).toList()
-      ..sort((a, b) => ((roles[a]['rank'] as num?) ?? 0).compareTo((roles[b]['rank'] as num?) ?? 0));
-    return withIcon.isEmpty ? null : (roles[withIcon.first] as Map).cast<String, dynamic>();
+      ..sort(
+        (a, b) => ((roles[a]['rank'] as num?) ?? 0).compareTo(
+          (roles[b]['rank'] as num?) ?? 0,
+        ),
+      );
+    return withIcon.isEmpty
+        ? null
+        : (roles[withIcon.first] as Map).cast<String, dynamic>();
   }
 
   /// Whether the current user holds a permission in a channel.
@@ -597,7 +680,8 @@ class ClientStore extends ChangeNotifier {
     return (p & perm) == perm;
   }
 
-  bool canAny(String channelId, List<BigInt> perms) => perms.any((p) => can(channelId, p));
+  bool canAny(String channelId, List<BigInt> perms) =>
+      perms.any((p) => can(channelId, p));
 
   /// Channels that support calls: voice-enabled text channels, legacy voice channels, DMs and groups.
   bool isVoice(Json c) =>
@@ -630,7 +714,8 @@ class ClientStore extends ChangeNotifier {
   }
 
   List<Json> get serverList => [
-    for (final id in ServerOrdering(settings).orderedServers(servers.keys)) servers[id]!,
+    for (final id in ServerOrdering(settings).orderedServers(servers.keys))
+      servers[id]!,
   ];
 
   ServerOrdering get ordering => ServerOrdering(settings);
@@ -704,7 +789,8 @@ class ClientStore extends ChangeNotifier {
   Future<void> fetchMessage(String channel, String id) async {
     if (fetchedMessages.containsKey(id) || !_fetching.add(id)) return;
     try {
-      final m = (await api.get('/channels/$channel/messages/$id') as Map).cast<String, dynamic>();
+      final m = (await api.get('/channels/$channel/messages/$id') as Map)
+          .cast<String, dynamic>();
       fetchedMessages[id] = m;
       if (users[m['author']] == null) {
         try {
@@ -754,7 +840,8 @@ class ClientStore extends ChangeNotifier {
           .cast<String, dynamic>();
     }
     final list = messages[channel] ??= [];
-    if (replace) list.removeWhere((m) => m['pending'] != true && m['failed'] != true);
+    if (replace)
+      list.removeWhere((m) => m['pending'] != true && m['failed'] != true);
     final ids = list.map((m) => m['_id']).toSet();
     list.addAll(msgs.where((m) => !ids.contains(m['_id'])));
     list.sort((a, b) => (a['_id'] as String).compareTo(b['_id'] as String));
@@ -816,8 +903,16 @@ class ClientStore extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      if (e is ApiException && e.status == 429 && e.body is Map && (e.body as Map)['retry_after'] is num) {
-        slowmodeUntil[channel] = DateTime.now().add(Duration(milliseconds: ((e.body as Map)['retry_after'] as num).toInt() * 1000));
+      if (e is ApiException &&
+          e.status == 429 &&
+          e.body is Map &&
+          (e.body as Map)['retry_after'] is num) {
+        slowmodeUntil[channel] = DateTime.now().add(
+          Duration(
+            milliseconds:
+                ((e.body as Map)['retry_after'] as num).toInt() * 1000,
+          ),
+        );
       }
       pending['failed'] = true;
       pending.remove('pending');
@@ -842,7 +937,8 @@ class ClientStore extends ChangeNotifier {
     await sendMessage(
       channel,
       failed['content'] as String? ?? '',
-      attachments: (failed['_attachments'] as List?)?.cast<String>() ?? const [],
+      attachments:
+          (failed['_attachments'] as List?)?.cast<String>() ?? const [],
       replies: (failed['_replies'] as List?)?.cast<Json>() ?? const [],
     );
   }
@@ -850,10 +946,16 @@ class ClientStore extends ChangeNotifier {
   Future<void> deleteMessage(String channel, String id) =>
       api.delete('/channels/$channel/messages/$id');
 
-  Future<void> pinMessage(String channel, String id) => api.post('/channels/$channel/messages/$id/pin');
+  Future<void> pinMessage(String channel, String id) =>
+      api.post('/channels/$channel/messages/$id/pin');
 
   /// Searches a channel (query text or pinned) and merges returned users/members.
-  Future<List<Json>> searchMessages(String channel, {String? query, bool pinned = false, String sort = 'Latest'}) async {
+  Future<List<Json>> searchMessages(
+    String channel, {
+    String? query,
+    bool pinned = false,
+    String sort = 'Latest',
+  }) async {
     final res = await api.post('/channels/$channel/search', {
       'query': ?query,
       if (pinned) 'pinned': true,
@@ -862,23 +964,37 @@ class ClientStore extends ChangeNotifier {
       'include_users': true,
     }) as Map;
     for (final u in (res['users'] as List? ?? [])) {
-      users[u['_id']] = {...?users[u['_id']], ...(u as Map).cast<String, dynamic>()};
+      users[u['_id']] = {
+        ...?users[u['_id']],
+        ...(u as Map).cast<String, dynamic>(),
+      };
     }
     for (final m in (res['members'] as List? ?? [])) {
       final id = m['_id'] as Map;
-      (members[id['server']] ??= {})[id['user']] = (m as Map).cast<String, dynamic>();
+      (members[id['server']] ??= {})[id['user']] = (m as Map)
+          .cast<String, dynamic>();
     }
     notifyListeners();
-    return [for (final m in (res['messages'] as List)) (m as Map).cast<String, dynamic>()];
+    return [
+      for (final m in (res['messages'] as List))
+        (m as Map).cast<String, dynamic>(),
+    ];
   }
-  Future<void> unpinMessage(String channel, String id) => api.delete('/channels/$channel/messages/$id/pin');
+
+  Future<void> unpinMessage(String channel, String id) =>
+      api.delete('/channels/$channel/messages/$id/pin');
 
   Future<void> clearReactions(String channel, String id) =>
       api.delete('/channels/$channel/messages/$id/reactions');
 
   /// Removes one emoji for every user (needs ManageMessages).
-  Future<void> removeReactionForAll(String channel, String id, String emoji) =>
-      api.delete('/channels/$channel/messages/$id/reactions/${Uri.encodeComponent(emoji)}?remove_all=true');
+  Future<void> removeReactionForAll(
+    String channel,
+    String id,
+    String emoji,
+  ) => api.delete(
+    '/channels/$channel/messages/$id/reactions/${Uri.encodeComponent(emoji)}?remove_all=true',
+  );
 
   /// Marks a message and everything after it as unread.
   Future<void> markUnreadFrom(String channel, String id) async {
@@ -963,7 +1079,11 @@ class ClientStore extends ChangeNotifier {
     await api.delete('/users/$id/block');
   }
 
-  Future<void> setStatus(String presence, {String? text, bool clearText = false}) async {
+  Future<void> setStatus(
+    String presence, {
+    String? text,
+    bool clearText = false,
+  }) async {
     await api.patch('/users/@me', {
       'status': {'presence': presence, 'text': ?text},
       if (clearText) 'remove': ['StatusText'],
@@ -1016,9 +1136,8 @@ class ClientStore extends ChangeNotifier {
     String channel, {
     String? node,
   }) async {
-    final res = await api.post('/channels/$channel/join_call', {
-      'node': ?node,
-    }) as Map;
+    final res =
+        await api.post('/channels/$channel/join_call', {'node': ?node}) as Map;
     return (url: res['url'] as String, token: res['token'] as String);
   }
 

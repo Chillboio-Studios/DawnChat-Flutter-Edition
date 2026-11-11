@@ -73,31 +73,31 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
           return ValueListenableBuilder<int>(
             valueListenable: I18n.revision,
             builder: (context, rev, _) => MaterialApp.router(
-            key: ValueKey(rev),
-            title: 'DawnChat',
-            debugShowCheckedModeBanner: false,
-            theme: theme,
-            routerConfig: _router,
-            builder: (context, child) => Directionality(
-              textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
-              child: Shortcuts(
-                shortcuts: const {
-                  SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
-                },
-                child: Actions(
-                  actions: {
-                    DismissIntent: CallbackAction<DismissIntent>(
-                      onInvoke: (_) {
-                        final nav = Navigator.maybeOf(context);
-                        nav?.maybePop();
-                        return null;
-                      },
-                    ),
+              key: ValueKey(rev),
+              title: 'DawnChat',
+              debugShowCheckedModeBanner: false,
+              theme: theme,
+              routerConfig: _router,
+              builder: (context, child) => Directionality(
+                textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+                child: Shortcuts(
+                  shortcuts: const {
+                    SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
                   },
-                  child: Titlebar(child: child ?? const SizedBox.shrink()),
+                  child: Actions(
+                    actions: {
+                      DismissIntent: CallbackAction<DismissIntent>(
+                        onInvoke: (_) {
+                          final nav = Navigator.maybeOf(context);
+                          nav?.maybePop();
+                          return null;
+                        },
+                      ),
+                    },
+                    child: Titlebar(child: child ?? const SizedBox.shrink()),
+                  ),
                 ),
               ),
-            ),
             ),
           );
         },

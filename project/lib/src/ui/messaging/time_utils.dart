@@ -1,7 +1,28 @@
 import '../../state/settings_store.dart';
 
-const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const _months = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const _weekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 
 /// ULID timestamp decoding (Crockford base32, first 10 chars).
 DateTime ulidTime(String id) {
@@ -37,7 +58,20 @@ String formatDate(SettingsStore s, DateTime t) {
 /// Profile "Joined" dates: `L` with the month spelled out as `MMM`.
 String formatJoined(SettingsStore s, DateTime t) {
   t = t.toLocal();
-  const short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const short = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   final m = short[t.month - 1];
   return switch (s.dateFormat) {
     'MM/DD/YYYY' => '$m ${_p2(t.day)} ${t.year}',
@@ -52,7 +86,8 @@ String formatLongDate(DateTime t) {
   return '${_months[t.month - 1]} ${t.day}, ${t.year}';
 }
 
-String formatDateTime(SettingsStore s, DateTime t) => '${formatDate(s, t)} ${formatTime(s, t)}';
+String formatDateTime(SettingsStore s, DateTime t) =>
+    '${formatDate(s, t)} ${formatTime(s, t)}';
 
 String formatFull(SettingsStore s, DateTime t) {
   t = t.toLocal();
@@ -76,7 +111,11 @@ String formatCalendar(SettingsStore s, DateTime t, [DateTime? now]) {
 }
 
 /// dayjs `relativeTime` thresholds.
-String formatRelative(DateTime t, {DateTime? reference, bool hideSuffix = false}) {
+String formatRelative(
+  DateTime t, {
+  DateTime? reference,
+  bool hideSuffix = false,
+}) {
   final ref = reference ?? DateTime.now();
   final ms = t.difference(ref).inMilliseconds;
   final future = ms > 0;

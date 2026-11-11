@@ -30,12 +30,17 @@ void main() {
     expect(store.me, isNotNull);
 
     await tester.runAsync(() async {
-      final text = store.channels.values.where((c) => c['channel_type'] == 'TextChannel').firstOrNull ??
+      final text =
+          store.channels.values
+              .where((c) => c['channel_type'] == 'TextChannel')
+              .firstOrNull ??
           store.channels.values.firstOrNull;
       if (text != null) {
         final got = await store.loadMessages(text['_id'] as String);
         // ignore: avoid_print
-        print('LIVE loaded ${got.length} messages from ${text['channel_type']}');
+        print(
+          'LIVE loaded ${got.length} messages from ${text['channel_type']}',
+        );
         final sid = text['server'] as String?;
         if (sid != null) {
           await store.loadMembers(sid);
@@ -45,7 +50,9 @@ void main() {
       }
       final sessions = await store.sessions();
       // ignore: avoid_print
-      print('LIVE sessions: ${sessions.length}, servers: ${store.servers.length}, channels: ${store.channels.length}, friends: ${store.friends.length}');
+      print(
+        'LIVE sessions: ${sessions.length}, servers: ${store.servers.length}, channels: ${store.channels.length}, friends: ${store.friends.length}',
+      );
       final bots = await store.myBots();
       // ignore: avoid_print
       print('LIVE bots: ${bots.length}');

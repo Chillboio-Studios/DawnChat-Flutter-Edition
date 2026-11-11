@@ -8,7 +8,11 @@ import '../widgets.dart';
 import 'app_dialog.dart';
 import '../../core/i18n.dart';
 
-Future<void> deleteMessageFlow(BuildContext context, Json message, {bool quick = false}) {
+Future<void> deleteMessageFlow(
+  BuildContext context,
+  Json message, {
+  bool quick = false,
+}) {
   final store = context.read<ClientStore>();
   final ch = message['channel'] as String, id = message['_id'] as String;
   if (quick) return store.deleteMessage(ch, id);
@@ -22,36 +26,57 @@ Future<void> deleteMessageFlow(BuildContext context, Json message, {bool quick =
         Text(tr('Are you sure you want to delete this?')),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.md),
-          child: IgnorePointer(child: MessageTile(message: message, serverId: store.channels[ch]?['server'] as String?, isLink: MessageLink.hide)),
+          child: IgnorePointer(
+            child: MessageTile(
+              message: message,
+              serverId: store.channels[ch]?['server'] as String?,
+              isLink: MessageLink.hide,
+            ),
+          ),
         ),
       ],
     ),
     actions: [
       DlgAction(tr('Cancel')),
-      DlgAction(tr('Delete'), onPressed: () async {
-        await store.deleteMessage(ch, id);
-        return null;
-      }),
+      DlgAction(
+        tr('Delete'),
+        onPressed: () async {
+          await store.deleteMessage(ch, id);
+          return null;
+        },
+      ),
     ],
   );
 }
 
-Future<void> pinMessageFlow(BuildContext context, Json message, {bool quick = false}) {
+Future<void> pinMessageFlow(
+  BuildContext context,
+  Json message, {
+  bool quick = false,
+}) {
   final store = context.read<ClientStore>();
   final ch = message['channel'] as String, id = message['_id'] as String;
   final pinned = message['pinned'] == true;
-  Future<void> toggle() => pinned ? store.unpinMessage(ch, id) : store.pinMessage(ch, id);
+  Future<void> toggle() =>
+      pinned ? store.unpinMessage(ch, id) : store.pinMessage(ch, id);
   if (quick) return toggle();
   return showAppDialog<void>(
     context,
     title: pinned ? 'Unpin message' : 'Pin message',
-    content: Text(pinned ? 'Are you sure you want to unpin this message?' : 'Are you sure you want to pin this message?'),
+    content: Text(
+      pinned
+          ? 'Are you sure you want to unpin this message?'
+          : 'Are you sure you want to pin this message?',
+    ),
     actions: [
       DlgAction(tr('Cancel')),
-      DlgAction(pinned ? 'Unpin' : 'Pin', onPressed: () async {
-        await toggle();
-        return null;
-      }),
+      DlgAction(
+        pinned ? 'Unpin' : 'Pin',
+        onPressed: () async {
+          await toggle();
+          return null;
+        },
+      ),
     ],
   );
 }
@@ -84,7 +109,13 @@ const _userReasons = {
 };
 
 /// [type] is Message, User or Server.
-Future<void> showReportDialog(BuildContext context, {required String type, required String id, Json? message, String? contextMessageId}) {
+Future<void> showReportDialog(
+  BuildContext context, {
+  required String type,
+  required String id,
+  Json? message,
+  String? contextMessageId,
+}) {
   final store = context.read<ClientStore>();
   final reasons = type == 'User' ? _userReasons : _contentReasons;
   var category = '';
@@ -93,19 +124,38 @@ Future<void> showReportDialog(BuildContext context, {required String type, requi
   Widget preview() {
     switch (type) {
       case 'User':
-        return Column(children: [UserAvatar(userId: id, size: 64), Text(store.displayName(id))]);
+        return Column(
+          children: [
+            UserAvatar(userId: id, size: 64),
+            Text(store.displayName(id)),
+          ],
+        );
       case 'Server':
         final s = store.servers[id];
         return Column(
           children: [
-            IconAvatar(url: store.api.fileUrl('icons', s?['icon'] as Map?, width: 128), name: s?['name'] as String? ?? '?', size: 64, square: false),
+            IconAvatar(
+              url: store.api.fileUrl('icons', s?['icon'] as Map?, width: 128),
+              name: s?['name'] as String? ?? '?',
+              size: 64,
+              square: false,
+            ),
             Text(s?['name'] as String? ?? ''),
           ],
         );
       default:
         return ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 240),
-          child: ClipRect(child: IgnorePointer(child: MessageTile(message: message!, serverId: store.channels[message['channel']]?['server'] as String?, isLink: MessageLink.hide))),
+          child: ClipRect(
+            child: IgnorePointer(
+              child: MessageTile(
+                message: message!,
+                serverId:
+                    store.channels[message['channel']]?['server'] as String?,
+                isLink: MessageLink.hide,
+              ),
+            ),
+          ),
         );
     }
   }
@@ -129,31 +179,47 @@ Future<void> showReportDialog(BuildContext context, {required String type, requi
             isExpanded: true,
             decoration: InputDecoration(labelText: tr('Reason for report')),
             hint: Text(tr('Please select a reason')),
-            items: [for (final e in reasons.entries) DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))],
+            items: [
+              for (final e in reasons.entries)
+                DropdownMenuItem(
+                  value: e.key,
+                  child: Text(e.value, overflow: TextOverflow.ellipsis),
+                ),
+            ],
             onChanged: (v) => set(() => category = v ?? ''),
           ),
           const SizedBox(height: 12),
-          TextField(controller: detail, decoration: InputDecoration(labelText: tr('Give us some detail')), minLines: 1, maxLines: 5),
+          TextField(
+            controller: detail,
+            decoration: InputDecoration(labelText: tr('Give us some detail')),
+            minLines: 1,
+            maxLines: 5,
+          ),
         ],
       ),
     ),
     actions: [
       DlgAction(tr('Cancel')),
-      DlgAction(tr('Report'), onPressed: () async {
-        if (category.isEmpty || (category == 'NoneSpecified' && detail.text.trim().isEmpty)) {
-          throw 'NoReasonProvided';
-        }
-        await store.api.post('/safety/report', {
-          'content': {
-            'type': type,
-            'id': id,
-            'report_reason': category,
-            if (type == 'User' && contextMessageId != null) 'message_id': contextMessageId,
-          },
-          'additional_context': detail.text,
-        });
-        return null;
-      }),
+      DlgAction(
+        tr('Report'),
+        onPressed: () async {
+          if (category.isEmpty ||
+              (category == 'NoneSpecified' && detail.text.trim().isEmpty)) {
+            throw 'NoReasonProvided';
+          }
+          await store.api.post('/safety/report', {
+            'content': {
+              'type': type,
+              'id': id,
+              'report_reason': category,
+              if (type == 'User' && contextMessageId != null)
+                'message_id': contextMessageId,
+            },
+            'additional_context': detail.text,
+          });
+          return null;
+        },
+      ),
     ],
   );
 }

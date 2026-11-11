@@ -1,6 +1,5 @@
 import '../core/json.dart';
 
-
 /// Permission bits (BigInt so bitwise ops are correct on web as well).
 class Perm {
   static BigInt _b(int n) => BigInt.one << n;
@@ -40,7 +39,8 @@ class Perm {
   static final all = (BigInt.one << 52) - BigInt.one;
 
   /// Default permissions of a user in a DM/group.
-  static final dmDefault = viewChannel |
+  static final dmDefault =
+      viewChannel |
       readMessageHistory |
       sendMessage |
       sendEmbeds |
@@ -77,7 +77,9 @@ BigInt channelPermissions({
       if (channel['owner'] == userId) return Perm.all;
       final recipients = (channel['recipients'] as List?) ?? const [];
       if (!recipients.contains(userId)) return BigInt.zero;
-      return channel['permissions'] != null ? _big(channel['permissions']) : Perm.dmDefault;
+      return channel['permissions'] != null
+          ? _big(channel['permissions'])
+          : Perm.dmDefault;
   }
   if (server == null) return BigInt.zero;
   if (server['owner'] == userId) return Perm.all;
@@ -86,7 +88,11 @@ BigInt channelPermissions({
   final roles = ((server['roles'] as Map?) ?? const {}).cast<String, dynamic>();
   final memberRoles = ((member?['roles'] as List?) ?? const []).cast<String>();
   final ordered = memberRoles.where(roles.containsKey).toList()
-    ..sort((a, b) => ((roles[b]['rank'] as num?) ?? 0).compareTo((roles[a]['rank'] as num?) ?? 0));
+    ..sort(
+      (a, b) => ((roles[b]['rank'] as num?) ?? 0).compareTo(
+        (roles[a]['rank'] as num?) ?? 0,
+      ),
+    );
 
   for (final id in ordered) {
     final r = _ad(roles[id]['permissions']);
@@ -96,7 +102,8 @@ BigInt channelPermissions({
   final def = _ad(channel['default_permissions']);
   p = (p | def.a) & ~def.d;
 
-  final overrides = ((channel['role_permissions'] as Map?) ?? const {}).cast<String, dynamic>();
+  final overrides = ((channel['role_permissions'] as Map?) ?? const {})
+      .cast<String, dynamic>();
   for (final id in ordered) {
     if (!overrides.containsKey(id)) continue;
     final r = _ad(overrides[id]);
@@ -104,7 +111,8 @@ BigInt channelPermissions({
   }
 
   final timeout = member?['timeout'];
-  if (timeout is String && DateTime.tryParse(timeout)?.isAfter(DateTime.now()) == true) {
+  if (timeout is String &&
+      DateTime.tryParse(timeout)?.isAfter(DateTime.now()) == true) {
     p &= Perm.viewChannel | Perm.readMessageHistory;
   }
   return p;
@@ -116,7 +124,11 @@ BigInt serverPermissions({required Json server, required Json? member}) {
   final roles = ((server['roles'] as Map?) ?? const {}).cast<String, dynamic>();
   final mine = ((member?['roles'] as List?) ?? const []).cast<String>();
   final ordered = mine.where(roles.containsKey).toList()
-    ..sort((a, b) => ((roles[b]['rank'] as num?) ?? 0).compareTo((roles[a]['rank'] as num?) ?? 0));
+    ..sort(
+      (a, b) => ((roles[b]['rank'] as num?) ?? 0).compareTo(
+        (roles[a]['rank'] as num?) ?? 0,
+      ),
+    );
   for (final id in ordered) {
     final r = _ad(roles[id]['permissions']);
     p = (p | r.a) & ~r.d;

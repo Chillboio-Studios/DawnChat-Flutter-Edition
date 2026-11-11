@@ -38,7 +38,9 @@ class I18n {
 String tr(String msgid, [Map<Object, Object?>? args]) {
   final s = I18n.lookup(msgid) ?? msgid;
   if (args == null && !s.contains('{')) return s;
-  return _format(s, {for (final e in (args ?? const {}).entries) '${e.key}': e.value});
+  return _format(s, {
+    for (final e in (args ?? const {}).entries) '${e.key}': e.value,
+  });
 }
 
 String _format(String s, Map<String, Object?> a) {

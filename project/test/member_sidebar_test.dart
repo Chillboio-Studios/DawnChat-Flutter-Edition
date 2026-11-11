@@ -23,9 +23,13 @@ class _MemberStore extends ClientStore {
       'offline': {'_id': 'offline', 'username': 'Charlie', 'online': false},
     });
     members[serverId] = {
-      'admin': {'roles': ['lower', 'higher']},
+      'admin': {
+        'roles': ['lower', 'higher'],
+      },
       'member': {'roles': <String>[]},
-      'offline': {'roles': ['higher']},
+      'offline': {
+        'roles': ['higher'],
+      },
     };
     notifyListeners();
   }
@@ -51,8 +55,14 @@ void main() {
         },
       };
     }
-    store.members['server'] = {'member': {'roles': <String>[]}};
-    store.users['member'] = {'_id': 'member', 'username': 'Bob', 'online': true};
+    store.members['server'] = {
+      'member': {'roles': <String>[]},
+    };
+    store.users['member'] = {
+      '_id': 'member',
+      'username': 'Bob',
+      'online': true,
+    };
   });
 
   tearDown(() {
@@ -68,11 +78,13 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: MemberSidebar(channel: {
-              '_id': 'channel',
-              'channel_type': 'TextChannel',
-              'server': serverId,
-            }),
+            body: MemberSidebar(
+              channel: {
+                '_id': 'channel',
+                'channel_type': 'TextChannel',
+                'server': serverId,
+              },
+            ),
           ),
         ),
       ),
@@ -80,7 +92,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('loads all members despite a partial cache and groups by role', (tester) async {
+  testWidgets('loads all members despite a partial cache and groups by role', (
+    tester,
+  ) async {
     await mount(tester, 'server');
 
     expect(store.requests, ['server']);
@@ -90,10 +104,14 @@ void main() {
     expect(find.text('Higher'), findsOneWidget);
     expect(find.text('Lower'), findsNothing);
     expect(find.text('2 members online'), findsOneWidget);
-    expect(tester.getTopLeft(find.text('Alice')).dy,
-        lessThan(tester.getTopLeft(find.text('Bob')).dy));
-    expect(tester.getTopLeft(find.text('Bob')).dy,
-        lessThan(tester.getTopLeft(find.text('Charlie')).dy));
+    expect(
+      tester.getTopLeft(find.text('Alice')).dy,
+      lessThan(tester.getTopLeft(find.text('Bob')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Bob')).dy,
+      lessThan(tester.getTopLeft(find.text('Charlie')).dy),
+    );
 
     await mount(tester, 'server');
     expect(store.requests, ['server']);

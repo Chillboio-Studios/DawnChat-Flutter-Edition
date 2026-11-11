@@ -24,7 +24,10 @@ Widget? buildPlainIframe(String src) {
 }
 
 /// Embeds Discover in an iframe and bridges its postMessage protocol.
-Widget? buildWebEmbed(String src, void Function(Map<String, dynamic> message) onMessage) {
+Widget? buildWebEmbed(
+  String src,
+  void Function(Map<String, dynamic> message) onMessage,
+) {
   final viewType = 'discover-${src.hashCode}';
   if (_registered.add(viewType)) {
     ui_web.platformViewRegistry.registerViewFactory(viewType, (int id) {
@@ -40,11 +43,13 @@ Widget? buildWebEmbed(String src, void Function(Map<String, dynamic> message) on
           try {
             final data = e.data;
             if (data == null || !data.isA<JSString>()) return;
-            final msg = jsonDecode((data as JSString).toDart) as Map<String, dynamic>;
+            final msg =
+                jsonDecode((data as JSString).toDart) as Map<String, dynamic>;
             if (msg['source'] != 'discover') return;
             if (msg['type'] == 'init') {
               iframe.contentWindow?.postMessage(
-                jsonEncode({'source': 'revolt', 'type': 'theme', 'theme': {}}).toJS,
+                jsonEncode({'source': 'revolt', 'type': 'theme', 'theme': {}})
+                    .toJS,
                 '*'.toJS,
               );
             }

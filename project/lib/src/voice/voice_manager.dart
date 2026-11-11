@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:flutter_background/flutter_background.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:media_kit/media_kit.dart' as mk;
 
@@ -58,7 +59,9 @@ class VoiceTile {
   bool get isScreenshare => source == TrackSource.screenShareVideo;
   String get id => '${source.name}_${participant.sid}';
   bool get hasVideo =>
-      publication != null && !publication!.muted && publication!.track is VideoTrack;
+      publication != null &&
+      !publication!.muted &&
+      publication!.track is VideoTrack;
 }
 
 /// LiveKit voice/video session; behaviour follows the web client's `rtc/state.tsx`.
@@ -88,17 +91,23 @@ class VoiceManager extends ChangeNotifier {
   bool get microphone => settings.micOn && !settings.deafen;
   bool get deafened => settings.deafen;
   bool get video => room?.localParticipant?.isCameraEnabled() ?? false;
-  bool get screenshare => room?.localParticipant?.isScreenShareEnabled() ?? false;
-  bool get screenShareSupported => true;
+  bool get screenshare =>
+      room?.localParticipant?.isScreenShareEnabled() ?? false;
+  bool get screenShareSupported =>
+      !(kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS));
   String? get error => lastError.value;
 
-  bool get speakingPermission => channelId != null && store.can(channelId!, Perm.speak);
-  bool get listenPermission => channelId != null && store.can(channelId!, Perm.listen);
+  bool get speakingPermission =>
+      channelId != null && store.can(channelId!, Perm.speak);
+  bool get listenPermission =>
+      channelId != null && store.can(channelId!, Perm.listen);
 
   List<Participant> get participants => [
-        if (room?.localParticipant != null) room!.localParticipant!,
-        ...?room?.remoteParticipants.values,
-      ];
+    if (room?.localParticipant != null) room!.localParticipant!,
+    ...?room?.remoteParticipants.values,
+  ];
 
   /// Camera tiles (with placeholders) plus any screenshare tiles, like `useTracks` on web.
   List<VoiceTile> get tiles {
@@ -137,20 +146,32 @@ class VoiceManager extends ChangeNotifier {
   }
 
   Future<String?> _probeNode() async {
-    final nodes = ((store.api.config?.features['livekit'] as Map?)?['nodes'] as List?) ?? const [];
+    final nodes =
+        ((store.api.config?.features['livekit'] as Map?)?['nodes'] as List?) ??
+        const [];
     if (nodes.isEmpty) return null;
     final completer = Completer<String?>();
     var pending = nodes.length;
     for (final n in nodes) {
       final node = n as Map;
-      sendRequest('GET', (node['public_url'] as String).replaceFirst('wss', 'https')).then((_) {
-        if (!completer.isCompleted) completer.complete(node['name'] as String?);
-      }).catchError((_) {
-        if (--pending == 0 && !completer.isCompleted) completer.complete(null);
-        return null;
-      });
+      sendRequest(
+            'GET',
+            (node['public_url'] as String).replaceFirst('wss', 'https'),
+          )
+          .then((_) {
+            if (!completer.isCompleted)
+              completer.complete(node['name'] as String?);
+          })
+          .catchError((_) {
+            if (--pending == 0 && !completer.isCompleted)
+              completer.complete(null);
+            return null;
+          });
     }
-    return completer.future.timeout(const Duration(seconds: 4), onTimeout: () => null);
+    return completer.future.timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => null,
+    );
   }
 
   Future<void> connect(String channel) async {
@@ -176,7 +197,9 @@ class VoiceManager extends ChangeNotifier {
             deviceId: settings.videoInput,
             params: VideoParametersPresets.h720_169,
           ),
-          defaultVideoPublishOptions: const VideoPublishOptions(videoEncoding: VideoEncoding(maxBitrate: 1700000, maxFramerate: 30)),
+          defaultVideoPublishOptions: const VideoPublishOptions(
+            videoEncoding: VideoEncoding(maxBitrate: 1700000, maxFramerate: 30),
+          ),
         ),
       );
       room = r;
@@ -206,7 +229,8 @@ class VoiceManager extends ChangeNotifier {
           _applyVolumes();
         })
         ..on<TrackUnpublishedEvent>((e) {
-          if (_screenShareTracks.remove(e.publication.sid)) sounds.play('streamEnd');
+          if (_screenShareTracks.remove(e.publication.sid))
+            sounds.play('streamEnd');
         })
         ..on<RoomReconnectingEvent>((_) {
           state = VoiceState.reconnecting;
@@ -222,23 +246,33 @@ class VoiceManager extends ChangeNotifier {
             notifyListeners();
           }
         });
-      await r.connect(auth.url, auth.token, connectOptions: const ConnectOptions(autoSubscribe: false));
+      await r.connect(
+        auth.url,
+        auth.token,
+        connectOptions: const ConnectOptions(autoSubscribe: false),
+      );
       state = VoiceState.connected;
       for (final p in r.remoteParticipants.values) {
         for (final pub in p.trackPublications.values) {
           if (pub.kind == TrackType.AUDIO && !settings.deafen) pub.subscribe();
-          if (pub.source == TrackSource.screenShareVideo) _screenShareTracks.add(pub.sid);
+          if (pub.source == TrackSource.screenShareVideo)
+            _screenShareTracks.add(pub.sid);
         }
       }
       if (settings.audioOutput != null) {
         final outs = await Hardware.instance.audioOutputs();
         final match = outs.where((d) => d.deviceId == settings.audioOutput);
-        if (match.isNotEmpty) await Hardware.instance.selectAudioOutput(match.first);
+        if (match.isNotEmpty)
+          await Hardware.instance.selectAudioOutput(match.first);
       }
       if (speakingPermission) {
         try {
-          final pub = await r.localParticipant?.setMicrophoneEnabled(settings.micOn && !settings.deafen);
-          settings.micOn = pub != null || !settings.micOn ? settings.micOn && pub != null : false;
+          final pub = await r.localParticipant?.setMicrophoneEnabled(
+            settings.micOn && !settings.deafen,
+          );
+          settings.micOn = pub != null || !settings.micOn
+              ? settings.micOn && pub != null
+              : false;
         } catch (e) {
           settings.micOn = false;
         }
@@ -290,10 +324,17 @@ class VoiceManager extends ChangeNotifier {
         final track = pub.track;
         if (track is! RemoteAudioTrack) continue;
         final screen = pub.source == TrackSource.screenShareAudio;
-        final muted = screen ? settings.screenShareMuted(p.identity) : settings.userMuted(p.identity);
-        final vol = screen ? settings.screenShareVolume(p.identity) : settings.userVolume(p.identity);
+        final muted = screen
+            ? settings.screenShareMuted(p.identity)
+            : settings.userMuted(p.identity);
+        final vol = screen
+            ? settings.screenShareVolume(p.identity)
+            : settings.userVolume(p.identity);
         try {
-          rtc.Helper.setVolume(muted ? 0 : (vol * settings.outputVolume).clamp(0, 10).toDouble(), track.mediaStreamTrack);
+          rtc.Helper.setVolume(
+            muted ? 0 : (vol * settings.outputVolume).clamp(0, 10).toDouble(),
+            track.mediaStreamTrack,
+          );
         } catch (_) {}
       }
     }
@@ -362,7 +403,9 @@ class VoiceManager extends ChangeNotifier {
   }
 
   Future<void> switchCamera() async {
-    final devices = (await Hardware.instance.videoInputs()).where((d) => d.deviceId != 'default').toList();
+    final devices = (await Hardware.instance.videoInputs())
+        .where((d) => d.deviceId != 'default')
+        .toList();
     if (devices.length < 2) return;
     final cam = room?.localParticipant?.videoTrackPublications
         .where((p) => p.source == TrackSource.camera)
@@ -372,7 +415,12 @@ class VoiceManager extends ChangeNotifier {
     final current = cam?.currentOptions.deviceId;
     final idx = devices.indexWhere((d) => d.deviceId == current);
     final next = devices[(idx + 1) % devices.length];
-    await cam?.restartTrack(CameraCaptureOptions(deviceId: next.deviceId, params: VideoParametersPresets.h720_169));
+    await cam?.restartTrack(
+      CameraCaptureOptions(
+        deviceId: next.deviceId,
+        params: VideoParametersPresets.h720_169,
+      ),
+    );
     notifyListeners();
   }
 
@@ -386,7 +434,11 @@ class VoiceManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startScreenshare({String? sourceId, required String quality, required bool audio}) async {
+  Future<void> startScreenshare({
+    String? sourceId,
+    required String quality,
+    required bool audio,
+  }) async {
     final r = room;
     if (r == null) return;
     final params = switch (quality) {
@@ -395,6 +447,20 @@ class VoiceManager extends ChangeNotifier {
       _ => VideoParametersPresets.h720_169,
     };
     try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        // Android screen capture needs the MediaProjection consent prompt plus a
+        // foreground service so capture survives while the app is backgrounded.
+        if (!await rtc.Helper.requestCapturePermission()) return;
+        const androidConfig = FlutterBackgroundAndroidConfig(
+          notificationTitle: 'DawnChat',
+          notificationText: 'DawnChat is sharing your screen.',
+          notificationImportance: AndroidNotificationImportance.normal,
+        );
+        await FlutterBackground.initialize(androidConfig: androidConfig);
+        if (!FlutterBackground.isBackgroundExecutionEnabled) {
+          await FlutterBackground.enableBackgroundExecution();
+        }
+      }
       await r.localParticipant?.setScreenShareEnabled(
         true,
         captureScreenAudio: audio,

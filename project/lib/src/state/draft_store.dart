@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import '../core/json.dart';
 
+import '../core/json.dart';
 
 /// Per-channel composer state shared between the message list, toolbar and composer.
 class DraftStore extends ChangeNotifier {
@@ -8,7 +8,8 @@ class DraftStore extends ChangeNotifier {
   final Map<String, String> _editing = {};
   final Map<String, String> _text = {};
 
-  List<({String id, bool mention})> repliesFor(String channel) => _replies[channel] ?? const [];
+  List<({String id, bool mention})> repliesFor(String channel) =>
+      _replies[channel] ?? const [];
 
   void addReply(Json message, String myId) {
     final ch = message['channel'] as String;
@@ -105,7 +106,13 @@ class DraftStore extends ChangeNotifier {
 }
 
 class DraftFile {
-  DraftFile({required this.id, required this.name, required this.mime, required this.bytes, this.spoiler = false});
+  DraftFile({
+    required this.id,
+    required this.name,
+    required this.mime,
+    required this.bytes,
+    this.spoiler = false,
+  });
   final String id, name, mime;
   final Uint8List bytes;
   bool spoiler;

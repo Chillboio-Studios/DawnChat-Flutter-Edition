@@ -4,11 +4,22 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/image_cache.dart';
 
-typedef NetImageError = Widget Function(BuildContext context, Object error, StackTrace? stack);
+typedef NetImageError = Widget Function(
+  BuildContext context,
+  Object error,
+  StackTrace? stack,
+);
 
 /// Network image with a persistent disk cache and parallel downloads.
 class NetImage extends StatelessWidget {
-  const NetImage(this.url, {super.key, this.width, this.height, this.fit, this.errorBuilder});
+  const NetImage(
+    this.url, {
+    super.key,
+    this.width,
+    this.height,
+    this.fit,
+    this.errorBuilder,
+  });
   final String url;
   final double? width, height;
   final BoxFit? fit;
@@ -40,16 +51,26 @@ class NetImage extends StatelessWidget {
       memCacheWidth: targetW != null && targetW < 256 ? 256 : targetW,
       fadeInDuration: const Duration(milliseconds: 100),
       fadeOutDuration: Duration.zero,
-      errorWidget: (c, u, e) => errorBuilder?.call(c, e, null) ?? const SizedBox.shrink(),
+      errorWidget: (c, u, e) =>
+          errorBuilder?.call(c, e, null) ?? const SizedBox.shrink(),
     );
   }
 }
 
-ImageProvider netImageProvider(String url) => !useDiskImageCache ? NetworkImage(url) : CachedNetworkImageProvider(url, cacheManager: imageCacheManager);
+ImageProvider netImageProvider(String url) => !useDiskImageCache
+    ? NetworkImage(url)
+    : CachedNetworkImageProvider(url, cacheManager: imageCacheManager);
 
 /// Network SVG backed by the same cache.
 class NetSvg extends StatelessWidget {
-  const NetSvg(this.url, {super.key, this.width, this.height, this.placeholderBuilder, this.errorBuilder});
+  const NetSvg(
+    this.url, {
+    super.key,
+    this.width,
+    this.height,
+    this.placeholderBuilder,
+    this.errorBuilder,
+  });
   final String url;
   final double? width, height;
   final WidgetBuilder? placeholderBuilder;
@@ -58,16 +79,30 @@ class NetSvg extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!useDiskImageCache) {
-      return SvgPicture.network(url, width: width, height: height, placeholderBuilder: placeholderBuilder, errorBuilder: errorBuilder);
+      return SvgPicture.network(
+        url,
+        width: width,
+        height: height,
+        placeholderBuilder: placeholderBuilder,
+        errorBuilder: errorBuilder,
+      );
     }
     return FutureBuilder(
       future: cachedBytes(url),
       builder: (c, snap) {
         if (snap.hasData) {
-          return SvgPicture.memory(snap.data!, width: width, height: height, errorBuilder: errorBuilder);
+          return SvgPicture.memory(
+            snap.data!,
+            width: width,
+            height: height,
+            errorBuilder: errorBuilder,
+          );
         }
-        if (snap.hasError) return errorBuilder?.call(c, snap.error!, snap.stackTrace) ?? const SizedBox.shrink();
-        return placeholderBuilder?.call(c) ?? SizedBox(width: width, height: height);
+        if (snap.hasError)
+          return errorBuilder?.call(c, snap.error!, snap.stackTrace) ??
+              const SizedBox.shrink();
+        return placeholderBuilder?.call(c) ??
+            SizedBox(width: width, height: height);
       },
     );
   }

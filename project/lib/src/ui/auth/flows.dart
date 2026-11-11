@@ -190,11 +190,66 @@ class FlowLogin extends StatefulWidget {
 
 class _FlowLoginState extends State<FlowLogin> {
   Map<String, dynamic>? _mfa;
+  bool _onboarding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  /// The web client checks `/onboard/hello` after login and asks for a
+  /// username when the account has none (`TransitionType.NoUser`).
+  Future<void> _checkOnboarding() async {
+    final store = context.read<ClientStore>();
+    if (store.authState != AuthState.loggedIn) return;
+    try {
+      final r = await store.api.get('/onboard/hello') as Map;
+      if (mounted && r['onboarding'] == true) {
+        setState(() => _onboarding = true);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _selectUsername(String username) async {
+    final store = context.read<ClientStore>();
+    await store.api.post('/onboard/complete', {'username': username});
+    // Re-fetch user data so the sidebar/profile show the new username.
+    final me = await store.api.get('/users/@me') as Map;
+    final id = me['_id'] as String?;
+    if (id != null) {
+      store.users[id] = me.cast<String, dynamic>();
+      store.refresh();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ClientStore>();
     final settings = context.read<SettingsStore>();
+
+    if (_onboarding) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FlowTitle(
+            tr('Choose a username'),
+            subtitle: tr(
+              'Pick a username that you want people to be able to find you by. This can be changed later in your user settings.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _FlowForm(
+            fields: const ['username'],
+            submitLabel: tr('Confirm'),
+            onSubmit: (d) => _selectUsername(d['username']!),
+            footer: [
+              _LinkButton(tr('Cancel'), '/login/auth', icon: Icons.arrow_back),
+            ],
+          ),
+        ],
+      );
+    }
 
     if (store.authState == AuthState.loggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -376,7 +431,9 @@ class FlowCreate extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          tr("We only use it to verify your account and help you get back in if you're ever locked out. We'll never sell it or send you spam."),
+                          tr(
+                            "We only use it to verify your account and help you get back in if you're ever locked out. We'll never sell it or send you spam.",
+                          ),
                           style: TextStyle(
                             color: cs.onSurfaceVariant,
                             fontSize: 13,

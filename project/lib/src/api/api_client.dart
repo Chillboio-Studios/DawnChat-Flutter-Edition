@@ -40,13 +40,20 @@ class InstanceConfig {
     return (g?['video'] as bool?) ?? true;
   }
 
-  Map<String, dynamic> get _userLimits => ((limits['new_user'] ?? limits['global']) as Map?)?.cast<String, dynamic>() ?? {};
-  int get messageLength => (_userLimits['message_length'] as num?)?.toInt() ?? 2000;
-  int get messageAttachments => (_userLimits['message_attachments'] as num?)?.toInt() ?? 5;
+  Map<String, dynamic> get _userLimits =>
+      ((limits['new_user'] ?? limits['global']) as Map?)
+          ?.cast<String, dynamic>() ??
+      {};
+  int get messageLength =>
+      (_userLimits['message_length'] as num?)?.toInt() ?? 2000;
+  int get messageAttachments =>
+      (_userLimits['message_attachments'] as num?)?.toInt() ?? 5;
 
   /// Upload size limit in bytes for a given autumn tag (attachments, avatars, icons, banners, backgrounds, emojis).
   int fileLimit(String tag) =>
-      (((_userLimits['file_upload_size_limits'] as Map?)?[tag]) as num?)?.toInt() ?? 20000000;
+      (((_userLimits['file_upload_size_limits'] as Map?)?[tag]) as num?)
+          ?.toInt() ??
+      20000000;
 }
 
 class ApiClient {
@@ -142,7 +149,10 @@ class ApiClient {
     final id = file?['_id'] as String?;
     final base = config?.autumnUrl;
     if (id == null || base == null || base.isEmpty) return null;
-    final minSide = (tag == 'icons' || tag == 'avatars') && width != null && width < 256 ? 256 : width;
+    final minSide =
+        (tag == 'icons' || tag == 'avatars') && width != null && width < 256
+        ? 256
+        : width;
     final q = minSide != null ? '?max_side=$minSide' : '';
     return '$base/$tag/$id$q';
   }

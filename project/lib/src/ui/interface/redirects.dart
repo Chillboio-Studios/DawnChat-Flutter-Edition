@@ -223,9 +223,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final uri = Uri.parse(widget.path);
     final query = Map<String, String>.from(uri.queryParameters)
       ..['embedded'] = 'true';
-    _src = Uri.parse(
-      '$discoverUrl${relPath(uri.path)}',
-    ).replace(queryParameters: query).toString();
+    _src = Uri.parse('$discoverUrl${relPath(uri.path)}')
+        .replace(queryParameters: query)
+        .toString();
     if (_nativeWebView) {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -234,7 +234,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
             onNavigationRequest: (req) {
               final u = Uri.parse(req.url);
               final seg = u.pathSegments;
-              if (u.origin == discoverUrl && seg.length == 2 && (seg[0] == 'invite' || seg[0] == 'bot')) {
+              if (u.origin == discoverUrl &&
+                  seg.length == 2 &&
+                  (seg[0] == 'invite' || seg[0] == 'bot')) {
                 _open(seg[0], seg[1]);
                 return NavigationDecision.prevent;
               }
@@ -266,7 +268,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
       case 'navigate':
         final u = Uri.tryParse(m['url'] as String? ?? '');
         final seg = u?.pathSegments ?? const [];
-        if (seg.length >= 2 && (seg[seg.length - 2] == 'invite' || seg[seg.length - 2] == 'bot')) {
+        if (seg.length >= 2 &&
+            (seg[seg.length - 2] == 'invite' || seg[seg.length - 2] == 'bot')) {
           _open(seg[seg.length - 2], seg.last);
         }
     }
@@ -280,7 +283,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
       children: [
         PageHeader(icon: Icon(Icons.explore), title: Text(tr('Discover'))),
         Expanded(
-          child: embed ??
+          child:
+              embed ??
               (_controller != null
                   ? WebViewWidget(controller: _controller!)
                   : Center(
@@ -290,13 +294,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
                           const Wordmark(width: 240),
                           const SizedBox(height: 16),
                           Text(
-                            tr('Find a community based on your hobbies or interests.'),
+                            tr(
+                              'Find a community based on your hobbies or interests.',
+                            ),
                             style: TextStyle(color: cs.onSurfaceVariant),
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             icon: const Icon(Icons.open_in_new),
-                            onPressed: () => openUrl(_src.replaceFirst('embedded=true', 'embedded=false')),
+                            onPressed: () => openUrl(
+                              _src.replaceFirst(
+                                'embedded=true',
+                                'embedded=false',
+                              ),
+                            ),
                             label: const Text('Open Discover'),
                           ),
                         ],

@@ -1,8 +1,21 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKeystore = keystorePropertiesFile.exists() || System.getenv("ANDROID_KEYSTORE_PATH") != null
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+fun signingValue(key: String, env: String): String? =
+    keystoreProperties.getProperty(key) ?: System.getenv(env)
 
 android {
     namespace = "com.chillboiostudios.dawnchat"
@@ -31,11 +44,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = signingValue("keyAlias", "ANDROID_KEY_ALIAS")
+            keyPassword = signingValue("keyPassword", "ANDROID_KEY_PASSWORD")
+            storeFile = signingValue("storeFile", "ANDROID_KEYSTORE_PATH")?.let { file(it) }
+            storePassword = signingValue("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the upload keystore when key.properties / ANDROID_KEYSTORE_PATH
+            // is present; falls back to debug keys for local `flutter run --release`.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

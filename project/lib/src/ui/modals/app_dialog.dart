@@ -5,7 +5,12 @@ import '../widgets.dart';
 import '../../core/i18n.dart';
 
 class DlgAction {
-  const DlgAction(this.text, {this.onPressed, this.destructive = false, this.enabled = true});
+  const DlgAction(
+    this.text, {
+    this.onPressed,
+    this.destructive = false,
+    this.enabled = true,
+  });
 
   /// Return false to keep the dialog open. Thrown errors are shown and keep it open.
   final Future<bool?> Function()? onPressed;
@@ -36,8 +41,36 @@ Future<T?> showAppDialog<T>(
   );
 }
 
+/// Error dialog matching the web client's `Error2Modal`.
+Future<void> showErrorDialog(BuildContext context, Object error) {
+  return showAppDialog<void>(
+    context,
+    title: tr('An error occurred.'),
+    content: SelectableText(
+      errorText(error),
+      style: const TextStyle(fontFamily: 'monospace'),
+    ),
+    actions: [DlgAction(tr('OK'))],
+  );
+}
+
+/// "You've been signed out" notice matching the web client's `SignedOutModal`.
+Future<void> showSignedOutDialog(BuildContext context) {
+  return showAppDialog<void>(
+    context,
+    title: tr("You've been signed out of DawnChat!"),
+    actions: [DlgAction(tr('OK'))],
+  );
+}
+
 class _AppDialog extends StatefulWidget {
-  const _AppDialog({required this.title, required this.content, required this.actions, required this.maxWidth, required this.scrollable});
+  const _AppDialog({
+    required this.title,
+    required this.content,
+    required this.actions,
+    required this.maxWidth,
+    required this.scrollable,
+  });
   final String title;
   final Widget? content;
   final List<DlgAction> actions;
@@ -76,17 +109,27 @@ class _AppDialogState extends State<_AppDialog> {
     final cs = Theme.of(context).colorScheme;
     final body = widget.content == null
         ? null
-        : (widget.scrollable ? SingleChildScrollView(child: widget.content) : widget.content);
+        : (widget.scrollable
+              ? SingleChildScrollView(child: widget.content)
+              : widget.content);
     return AlertDialog(
       backgroundColor: cs.surfaceContainerHigh,
       shape: RoundedRectangleBorder(borderRadius: br(Radius_.xl)),
       title: Text(tr(widget.title)),
-      titleTextStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(color: cs.onSurface),
-      content: body == null ? null : ConstrainedBox(constraints: BoxConstraints(maxWidth: widget.maxWidth), child: body),
+      titleTextStyle: Theme.of(context).textTheme.headlineSmall
+          ?.copyWith(color: cs.onSurface),
+      content: body == null
+          ? null
+          : ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: widget.maxWidth),
+              child: body,
+            ),
       actions: [
         for (final a in widget.actions)
           TextButton(
-            style: a.destructive ? TextButton.styleFrom(foregroundColor: cs.error) : null,
+            style: a.destructive
+                ? TextButton.styleFrom(foregroundColor: cs.error)
+                : null,
             onPressed: busy || !a.enabled ? null : () => _run(a),
             child: Text(tr(a.text)),
           ),

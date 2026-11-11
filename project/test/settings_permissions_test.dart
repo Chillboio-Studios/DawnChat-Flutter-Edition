@@ -16,12 +16,22 @@ class _Api extends ApiClient {
   final calls = <(String, String, Object?)>[];
   @override
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
-    final user = <String, dynamic>{'_id': 'bot', 'username': 'Helper', 'display_name': 'Helper', 'bot': {'owner': 'owner'}};
-    if (path == '/bots/bot') return {'bot': {'token': 'test-token', 'public': true}, 'user': user};
+    final user = <String, dynamic>{
+      '_id': 'bot',
+      'username': 'Helper',
+      'display_name': 'Helper',
+      'bot': {'owner': 'owner'},
+    };
+    if (path == '/bots/bot')
+      return {
+        'bot': {'token': 'test-token', 'public': true},
+        'user': user,
+      };
     if (path == '/users/bot/profile') return {'content': 'Existing bot bio'};
     if (path == '/users/bot') return user;
     throw StateError('Unexpected GET $path');
   }
+
   @override
   String defaultAvatar(String userId) => '';
   @override
@@ -29,6 +39,7 @@ class _Api extends ApiClient {
     calls.add(('PATCH', path, body));
     return <String, dynamic>{};
   }
+
   @override
   Future<dynamic> put(String path, [Object? body]) async {
     calls.add(('PUT', path, body));
@@ -51,68 +62,112 @@ void main() {
     expect(PermissionValue.from(deny.cached).payload, deny.payload);
   });
 
-  testWidgets('server roles open a full editor and save tri-state permissions', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final settings = await SettingsStore.load();
-    final api = _Api();
-    final store = ClientStore(settings)..api = api..userId = 'owner';
-    store.servers['server'] = {
-      '_id': 'server', 'name': 'Test server', 'owner': 'owner',
-      'roles': {'role': <String, dynamic>{'name': 'Moderator', 'hoist': true,
-        'permissions': {'a': 1 << 39, 'd': 1 << 35}}},
-    };
-    tester.view.physicalSize = const Size(1280, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(ChangeNotifierProvider.value(value: store,
-      child: const MaterialApp(home: ServerSettingsPage(serverId: 'server'))));
-    await tester.tap(find.text('Roles'));
-    await tester.pump();
-    await tester.tap(find.text('Moderator'));
-    await tester.pump();
-    expect(find.byType(RoleEditor), findsOneWidget);
-    expect(find.text('Hoist Role'), findsOneWidget);
-    final editor = tester.widget<PermissionEditor>(find.byType(PermissionEditor));
-    editor.onChanged(editor.value.change(32, PermissionChoice.deny));
-    await tester.pump();
-    final save = find.widgetWithText(FilledButton, 'Save');
-    await tester.ensureVisible(save);
-    await tester.pumpAndSettle();
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-    expect(api.calls, isNotEmpty);
-    final request = api.calls.where((call) => call.$1 == 'PUT').single;
-    expect(request.$2, '/servers/server/permissions/role');
-    expect(request.$3, {'permissions': {'allow': 1 << 39, 'deny': (1 << 35) | (1 << 32)}});
-    expect((store.servers['server']!['roles'] as Map)['role']['permissions'],
-        {'a': 1 << 39, 'd': (1 << 35) | (1 << 32)});
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-    settings.dispose();
-  });
+  testWidgets(
+    'server roles open a full editor and save tri-state permissions',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final settings = await SettingsStore.load();
+      final api = _Api();
+      final store = ClientStore(settings)
+        ..api = api
+        ..userId = 'owner';
+      store.servers['server'] = {
+        '_id': 'server',
+        'name': 'Test server',
+        'owner': 'owner',
+        'roles': {
+          'role': <String, dynamic>{
+            'name': 'Moderator',
+            'hoist': true,
+            'permissions': {'a': 1 << 39, 'd': 1 << 35},
+          },
+        },
+      };
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: store,
+          child: const MaterialApp(
+            home: ServerSettingsPage(serverId: 'server'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Roles'));
+      await tester.pump();
+      await tester.tap(find.text('Moderator'));
+      await tester.pump();
+      expect(find.byType(RoleEditor), findsOneWidget);
+      expect(find.text('Hoist Role'), findsOneWidget);
+      final editor = tester.widget<PermissionEditor>(
+        find.byType(PermissionEditor),
+      );
+      editor.onChanged(editor.value.change(32, PermissionChoice.deny));
+      await tester.pump();
+      final save = find.widgetWithText(FilledButton, 'Save');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(api.calls, isNotEmpty);
+      final request = api.calls.where((call) => call.$1 == 'PUT').single;
+      expect(request.$2, '/servers/server/permissions/role');
+      expect(request.$3, {
+        'permissions': {'allow': 1 << 39, 'deny': (1 << 35) | (1 << 32)},
+      });
+      expect(
+        (store.servers['server']!['roles'] as Map)['role']['permissions'],
+        {'a': 1 << 39, 'd': (1 << 35) | (1 << 32)},
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      settings.dispose();
+    },
+  );
 
-  testWidgets('channel role overrides preserve deny and high permission bits', (tester) async {
+  testWidgets('channel role overrides preserve deny and high permission bits', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final settings = await SettingsStore.load();
     final api = _Api();
-    final store = ClientStore(settings)..api = api..userId = 'owner';
-    store.servers['server'] = {'roles': {'role': {'name': 'Moderator'}}};
+    final store = ClientStore(settings)
+      ..api = api
+      ..userId = 'owner';
+    store.servers['server'] = {
+      'owner': 'owner',
+      'roles': {
+        'role': {'name': 'Moderator'},
+      },
+    };
     store.channels['channel'] = {
-      '_id': 'channel', 'channel_type': 'TextChannel', 'name': 'general', 'server': 'server',
-      'role_permissions': {'role': {'a': 1 << 39, 'd': 1 << 35}},
+      '_id': 'channel',
+      'channel_type': 'TextChannel',
+      'name': 'general',
+      'server': 'server',
+      'role_permissions': {
+        'role': {'a': 1 << 39, 'd': 1 << 35},
+      },
     };
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(ChangeNotifierProvider.value(value: store,
-      child: const MaterialApp(home: ChannelSettingsPage(channelId: 'channel'))));
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: const MaterialApp(
+          home: ChannelSettingsPage(channelId: 'channel'),
+        ),
+      ),
+    );
     await tester.tap(find.text('Permissions'));
     await tester.pump();
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.text('Moderator'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Moderator').last);
-    await tester.pumpAndSettle();
-    final editor = tester.widget<PermissionEditor>(find.byType(PermissionEditor));
+    final editor = tester.widget<PermissionEditor>(
+      find.byType(PermissionEditor),
+    );
     editor.onChanged(editor.value.change(32, PermissionChoice.deny));
     await tester.pump();
     final save = find.widgetWithText(FilledButton, 'Save permissions');
@@ -122,37 +177,50 @@ void main() {
     await tester.pumpAndSettle();
     final request = api.calls.where((call) => call.$1 == 'PUT').single;
     expect(request.$2, '/channels/channel/permissions/role');
-    expect(request.$3, {'permissions': {'allow': 1 << 39, 'deny': (1 << 35) | (1 << 32)}});
+    expect(request.$3, {
+      'permissions': {'allow': 1 << 39, 'deny': (1 << 35) | (1 << 32)},
+    });
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     settings.dispose();
   });
 
-  testWidgets('bot settings edit the bot profile rather than the owner', (tester) async {
+  testWidgets('bot settings edit the bot profile rather than the owner', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final settings = await SettingsStore.load();
     final api = _Api();
-    final store = ClientStore(settings)..api = api..userId = 'owner';
+    final store = ClientStore(settings)
+      ..api = api
+      ..userId = 'owner';
     store.users['owner'] = {'_id': 'owner', 'username': 'Owner'};
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: store),
-        ChangeNotifierProvider.value(value: settings),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: BotView(id: 'bot', onBack: () {})),
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: store),
+          ChangeNotifierProvider.value(value: settings),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: BotView(id: 'bot', onBack: () {}),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.text('Existing bot bio'), findsOneWidget);
     expect(find.text('Reset Token'), findsOneWidget);
     expect(find.text('Invite Bot'), findsOneWidget);
-    final name = find.byWidgetPredicate((widget) => widget is TextField && widget.decoration?.labelText == 'Display Name');
+    final name = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField && widget.decoration?.labelText == 'Display Name',
+    );
     await tester.enterText(name, 'Updated Helper');
     final save = find.widgetWithText(FilledButton, 'Save');
     await tester.ensureVisible(save);

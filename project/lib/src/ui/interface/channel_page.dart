@@ -50,7 +50,11 @@ class ChannelPage extends StatelessWidget {
       enabled: channel['nsfw'] == true,
       contentId: channelId,
       contentName: '#${channel['name']}',
-      child: TextChannelView(key: ValueKey('chan-$channelId'), channel: channel, messageId: messageId),
+      child: TextChannelView(
+        key: ValueKey('chan-$channelId'),
+        channel: channel,
+        messageId: messageId,
+      ),
     );
   }
 }
@@ -94,9 +98,14 @@ class _TextChannelViewState extends State<TextChannelView> {
     final cs = context.cs;
     final sc = screenClassOf(MediaQuery.sizeOf(context));
     final c = widget.channel;
-    final canCall = store.isVoice(c) && store.can(id, Perm.connect) && type != 'SavedMessages';
-    final showCard = canCall && (type == 'TextChannel' ? c['voice'] != null : true);
-    final memberVisible = hasSidebar && settings.sectionState(_memberSidebarKey, true);
+    final canCall =
+        store.isVoice(c) &&
+        store.can(id, Perm.connect) &&
+        type != 'SavedMessages';
+    final showCard =
+        canCall && (type == 'TextChannel' ? c['voice'] != null : true);
+    final memberVisible =
+        hasSidebar && settings.sectionState(_memberSidebarKey, true);
     final side = mode != _SidebarMode.members;
 
     final main = Column(
@@ -125,7 +134,16 @@ class _TextChannelViewState extends State<TextChannelView> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(Gap.md),
-                child: Text(mode == _SidebarMode.search ? 'Search Results' : 'Pinned Messages', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: cs.onSurface)),
+                child: Text(
+                  mode == _SidebarMode.search
+                      ? 'Search Results'
+                      : 'Pinned Messages',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: cs.onSurface,
+                  ),
+                ),
               ),
               Expanded(
                 child: mode == _SidebarMode.search
@@ -136,7 +154,10 @@ class _TextChannelViewState extends State<TextChannelView> {
           ),
         ),
       );
-    } else if (memberVisible && sc != ScreenClass.phone && (sc == ScreenClass.desktop || MediaQuery.sizeOf(context).width > 1000)) {
+    } else if (memberVisible &&
+        sc != ScreenClass.phone &&
+        (sc == ScreenClass.desktop ||
+            MediaQuery.sizeOf(context).width > 1000)) {
       sidebar = MemberSidebar(channel: c);
     }
 
@@ -144,12 +165,17 @@ class _TextChannelViewState extends State<TextChannelView> {
         ? sidebar!
         : Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [Expanded(child: main), ?sidebar],
+            children: [
+              Expanded(child: main),
+              ?sidebar,
+            ],
           );
 
     return CallbackShortcuts(
       bindings: {
-        if (side) const SingleActivator(LogicalKeyboardKey.escape): () => setState(() => mode = _SidebarMode.members),
+        if (side)
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              setState(() => mode = _SidebarMode.members),
       },
       child: Focus(
         autofocus: false,
@@ -173,7 +199,12 @@ class _TextChannelViewState extends State<TextChannelView> {
 }
 
 class _ChannelHeader extends StatelessWidget {
-  const _ChannelHeader({required this.channel, required this.mode, required this.query, required this.onMode});
+  const _ChannelHeader({
+    required this.channel,
+    required this.mode,
+    required this.query,
+    required this.onMode,
+  });
   final Json channel;
   final _SidebarMode mode;
   final String query;
@@ -199,33 +230,65 @@ class _ChannelHeader extends StatelessWidget {
       case 'TextChannel':
       case 'Group':
         icon = const Icon(Icons.grid_3x3);
-        title = InkWell(onTap: () => showChannelInfo(context, channel), child: Text(channel['name'] as String? ?? ''));
+        title = InkWell(
+          onTap: () => showChannelInfo(context, channel),
+          child: Text(channel['name'] as String? ?? ''),
+        );
         if (sc != ScreenClass.phone && desc != null && desc.isNotEmpty) {
           subtitle = Row(
             children: [
-              Container(height: 20, width: 1, margin: const EdgeInsets.symmetric(horizontal: 5), color: cs.outlineVariant),
+              Container(
+                height: 20,
+                width: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                color: cs.outlineVariant,
+              ),
               Expanded(
                 child: Tooltip(
                   message: tr('Click to show full description'),
-                  child: InkWell(onTap: () => showChannelInfo(context, channel), child: Text(desc.split('\n').first, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  child: InkWell(
+                    onTap: () => showChannelInfo(context, channel),
+                    child: Text(
+                      desc.split('\n').first,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
               ),
             ],
           );
         }
       case 'DirectMessage':
-        final other = ((channel['recipients'] as List?) ?? const []).cast<String>().firstWhere((r) => r != store.userId, orElse: () => store.userId ?? '');
+        final other = ((channel['recipients'] as List?) ?? const [])
+            .cast<String>()
+            .firstWhere(
+              (r) => r != store.userId,
+              orElse: () => store.userId ?? '',
+            );
         icon = const Icon(Icons.alternate_email);
         title = Row(
           mainAxisSize: MainAxisSize.min,
           spacing: 8,
           children: [
-            Flexible(child: Text(store.user(other)?['username'] as String? ?? store.displayName(other), overflow: TextOverflow.ellipsis)),
+            Flexible(
+              child: Text(
+                store.user(other)?['username'] as String? ??
+                    store.displayName(other),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             Container(
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: StatusColors.of(store.user(other)?['online'] == true ? ((store.user(other)?['status'] as Map?)?['presence'] as String? ?? 'Online') : null),
+                color: StatusColors.of(
+                  store.user(other)?['online'] == true
+                      ? ((store.user(other)?['status'] as Map?)?['presence']
+                                as String? ??
+                            'Online')
+                      : null,
+                ),
                 shape: BoxShape.circle,
               ),
             ),
@@ -236,7 +299,9 @@ class _ChannelHeader extends StatelessWidget {
         title = Text(tr('Saved Notes'));
     }
 
-    final canSettings = (type == 'Group' || sid != null) && store.canAny(id, [Perm.manageChannel, Perm.managePermissions]);
+    final canSettings =
+        (type == 'Group' || sid != null) &&
+        store.canAny(id, [Perm.manageChannel, Perm.managePermissions]);
     final inCall = voice.showCard(channel);
     final searchOpen = mode == _SidebarMode.search;
 
@@ -246,14 +311,35 @@ class _ChannelHeader extends StatelessWidget {
       subtitle: subtitle,
       actions: [
         if (store.isVoice(channel) && !inCall && store.can(id, Perm.connect))
-          IconButton(tooltip: tr('Join the voice channel'), icon: const Icon(Icons.call_outlined), onPressed: () => voice.connect(id)),
-        if (canSettings) IconButton(tooltip: tr('Channel Settings'), icon: const Icon(Icons.settings_outlined), onPressed: () => showChannelSettings(context, id)),
-        if (type == 'Group') IconButton(tooltip: tr('Add friends to group'), icon: const Icon(Icons.person_add_outlined), onPressed: () => showAddMembersToGroup(context, channel)),
+          IconButton(
+            tooltip: tr('Join the voice channel'),
+            icon: const Icon(Icons.call_outlined),
+            onPressed: () => voice.connect(id),
+          ),
+        if (canSettings)
+          IconButton(
+            tooltip: tr('Channel Settings'),
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => showChannelSettings(context, id),
+          ),
+        if (type == 'Group')
+          IconButton(
+            tooltip: tr('Add friends to group'),
+            icon: const Icon(Icons.person_add_outlined),
+            onPressed: () => showAddMembersToGroup(context, channel),
+          ),
         if (hasSidebar || type == 'DirectMessage' || type == 'SavedMessages')
           IconButton(
             tooltip: tr('View pinned messages'),
-            icon: Icon(Icons.push_pin_outlined, color: mode == _SidebarMode.pins ? cs.primary : null),
-            onPressed: () => onMode(mode == _SidebarMode.pins ? _SidebarMode.members : _SidebarMode.pins),
+            icon: Icon(
+              Icons.push_pin_outlined,
+              color: mode == _SidebarMode.pins ? cs.primary : null,
+            ),
+            onPressed: () => onMode(
+              mode == _SidebarMode.pins
+                  ? _SidebarMode.members
+                  : _SidebarMode.pins,
+            ),
           ),
         if (hasSidebar)
           IconButton(
@@ -269,11 +355,30 @@ class _ChannelHeader extends StatelessWidget {
             },
           ),
         if (sc == ScreenClass.desktop || mode != _SidebarMode.members)
-          _SearchBox(query: searchOpen ? query : '', onChanged: (v) => v.isEmpty ? onMode(_SidebarMode.members) : onMode(_SidebarMode.search, q: v))
+          _SearchBox(
+            query: searchOpen ? query : '',
+            onChanged: (v) => v.isEmpty
+                ? onMode(_SidebarMode.members)
+                : onMode(_SidebarMode.search, q: v),
+          )
         else
-          IconButton(tooltip: tr('Search'), icon: const Icon(Icons.search), onPressed: () => onMode(_SidebarMode.search)),
-        if (settings.copyId) IconButton(icon: const Icon(Icons.tag_outlined), tooltip: tr('Copy ID'), onPressed: () => copyText(context, id)),
-        if (settings.adminPanel) IconButton(icon: const Icon(Icons.admin_panel_settings_outlined), tooltip: tr('Admin Panel'), onPressed: () => openUrl(adminInspectUrl('channel', id))),
+          IconButton(
+            tooltip: tr('Search'),
+            icon: const Icon(Icons.search),
+            onPressed: () => onMode(_SidebarMode.search),
+          ),
+        if (settings.copyId)
+          IconButton(
+            icon: const Icon(Icons.tag_outlined),
+            tooltip: tr('Copy ID'),
+            onPressed: () => copyText(context, id),
+          ),
+        if (settings.adminPanel)
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+            tooltip: tr('Admin Panel'),
+            onPressed: () => openUrl(adminInspectUrl('channel', id)),
+          ),
       ],
     );
   }
@@ -317,8 +422,14 @@ class _SearchBoxState extends State<_SearchBox> {
         filled: true,
         fillColor: context.cs.surfaceContainerHigh,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(40), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(40), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(40),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(40),
+          borderSide: BorderSide.none,
+        ),
       ),
     ),
   );
@@ -326,7 +437,12 @@ class _SearchBoxState extends State<_SearchBox> {
 
 /// Mature channel confirmation + geo-restriction (`AgeGate`).
 class _AgeGate extends StatefulWidget {
-  const _AgeGate({required this.enabled, required this.contentId, required this.contentName, required this.child});
+  const _AgeGate({
+    required this.enabled,
+    required this.contentId,
+    required this.contentName,
+    required this.child,
+  });
   final bool enabled;
   final String contentId, contentName;
   final Widget child;
@@ -359,7 +475,10 @@ class _AgeGateState extends State<_AgeGate> {
     return FutureBuilder<Map<String, dynamic>>(
       future: _geo,
       builder: (c, snap) {
-        final restricted = snap.connectionState != ConnectionState.done || snap.hasError || snap.data?['isAgeRestrictedGeo'] == true;
+        final restricted =
+            snap.connectionState != ConnectionState.done ||
+            snap.hasError ||
+            snap.data?['isAgeRestrictedGeo'] == true;
         Widget gate(List<Widget> children) => Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(Gap.lg),
@@ -367,18 +486,35 @@ class _AgeGateState extends State<_AgeGate> {
               mainAxisSize: MainAxisSize.min,
               spacing: Gap.md,
               children: [
-                const Icon(Icons.warning_rounded, size: 128, color: Colors.orange),
-                Text(widget.contentName, style: TextStyle(fontSize: 32, color: cs.onSurface)),
+                const Icon(
+                  Icons.warning_rounded,
+                  size: 128,
+                  color: Colors.orange,
+                ),
+                Text(
+                  widget.contentName,
+                  style: TextStyle(fontSize: 32, color: cs.onSurface),
+                ),
                 ...children,
               ],
             ),
           ),
         );
-        if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+        if (snap.connectionState != ConnectionState.done)
+          return const Center(child: CircularProgressIndicator());
         if (restricted) {
           return gate([
-            Text(snap.data?['countryCode'] == 'GB' ? 'This channel is not available in your region while we review options on legal compliance.' : 'This content is not available in your region.', textAlign: TextAlign.center),
-            TextButton(onPressed: () => context.canPop() ? context.pop() : context.goPath('/'), child: Text(tr('Back'))),
+            Text(
+              snap.data?['countryCode'] == 'GB'
+                  ? 'This channel is not available in your region while we review options on legal compliance.'
+                  : 'This content is not available in your region.',
+              textAlign: TextAlign.center,
+            ),
+            TextButton(
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.goPath('/'),
+              child: Text(tr('Back')),
+            ),
           ]);
         }
         if (confirmed && allowed) return widget.child;
@@ -389,7 +525,11 @@ class _AgeGateState extends State<_AgeGate> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Checkbox(value: confirmed, onChanged: (_) => settings.toggleSectionState(_matureKey, false)),
+                Checkbox(
+                  value: confirmed,
+                  onChanged: (_) =>
+                      settings.toggleSectionState(_matureKey, false),
+                ),
                 Text(tr('I confirm that I am at least 18 years old.')),
               ],
             ),
@@ -398,8 +538,20 @@ class _AgeGateState extends State<_AgeGate> {
             mainAxisSize: MainAxisSize.min,
             spacing: Gap.lg,
             children: [
-              TextButton(onPressed: () => context.canPop() ? context.pop() : context.goPath('/'), child: Text(tr('Back'))),
-              FilledButton(onPressed: confirmed ? () => settings.setSectionState('${widget.contentId}-nsfw', true) : null, child: Text(tr('Enter Channel'))),
+              TextButton(
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.goPath('/'),
+                child: Text(tr('Back')),
+              ),
+              FilledButton(
+                onPressed: confirmed
+                    ? () => settings.setSectionState(
+                        '${widget.contentId}-nsfw',
+                        true,
+                      )
+                    : null,
+                child: Text(tr('Enter Channel')),
+              ),
             ],
           ),
         ]);

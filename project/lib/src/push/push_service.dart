@@ -139,7 +139,9 @@ class PushService extends ChangeNotifier {
         if (context.mounted) {
           showSnack(
             context,
-            tr('Failed to enable notifications. DawnChat does not have notification permission.'),
+            tr(
+              'Failed to enable notifications. DawnChat does not have notification permission.',
+            ),
           );
         }
       }

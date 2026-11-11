@@ -39,7 +39,13 @@ class _Blocked extends _Entry {
 
 /// Messages in a channel with history paging, jumping and unread markers (`Messages` of the web client).
 class MessageList extends StatefulWidget {
-  const MessageList({super.key, required this.channel, this.highlightId, this.controller, this.onAtEndChanged});
+  const MessageList({
+    super.key,
+    required this.channel,
+    this.highlightId,
+    this.controller,
+    this.onAtEndChanged,
+  });
   final Json channel;
   final String? highlightId;
   final MessageListController? controller;
@@ -54,7 +60,11 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
 
   final _scroll = ItemScrollController();
   final _positions = ItemPositionsListener.create();
-  bool loading = true, failed = false, atStart = false, fetchingUp = false, fetchingDown = false;
+  bool loading = true,
+      failed = false,
+      atStart = false,
+      fetchingUp = false,
+      fetchingDown = false;
   String? _lastReadId;
   bool _focused = true;
   String? _jumpedTo;
@@ -83,7 +93,8 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
       _jumpedTo = null;
       _captureUnread();
       _initialLoad(widget.highlightId);
-    } else if (widget.highlightId != null && widget.highlightId != old.highlightId) {
+    } else if (widget.highlightId != null &&
+        widget.highlightId != old.highlightId) {
       _jumpToMessage(widget.highlightId!);
     }
   }
@@ -120,7 +131,12 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
       if (nearby == null && existing != null && existing.isNotEmpty) {
         atStart = existing.length < _initialLimit;
       } else if (nearby != null) {
-        await store.loadMessages(id, nearby: nearby, limit: _fetchLimit, replace: true);
+        await store.loadMessages(
+          id,
+          nearby: nearby,
+          limit: _fetchLimit,
+          replace: true,
+        );
         atStart = false;
       } else {
         final got = await store.loadMessages(id, limit: _initialLimit);
@@ -134,7 +150,9 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
     widget.onAtEndChanged?.call(_atEnd);
     _maybeAck();
     if (nearby != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToMessage(nearby));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollToMessage(nearby),
+      );
     }
   }
 
@@ -159,16 +177,26 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
     final store = context.read<ClientStore>();
     final list = store.messages[id];
     if (list == null || list.isEmpty) return;
-    final oldest = list.firstWhere((m) => m['pending'] != true && m['failed'] != true, orElse: () => list.first);
+    final oldest = list.firstWhere(
+      (m) => m['pending'] != true && m['failed'] != true,
+      orElse: () => list.first,
+    );
     fetchingUp = true;
     setState(() {});
     try {
-      final got = await store.loadMessages(id, before: oldest['_id'] as String, limit: _fetchLimit);
+      final got = await store.loadMessages(
+        id,
+        before: oldest['_id'] as String,
+        limit: _fetchLimit,
+      );
       if (got.length < _fetchLimit) atStart = true;
       final over = (store.messages[id]?.length ?? 0) - _displayLimit;
       if (over > 0) {
         // Trim from the newest end; we are no longer attached to the present.
-        store.messages[id]!.removeRange(store.messages[id]!.length - over, store.messages[id]!.length);
+        store.messages[id]!.removeRange(
+          store.messages[id]!.length - over,
+          store.messages[id]!.length,
+        );
         store.detached.add(id);
         widget.onAtEndChanged?.call(false);
       }
@@ -184,7 +212,11 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
     if (list == null || list.isEmpty) return;
     fetchingDown = true;
     try {
-      final got = await store.loadMessages(id, after: list.last['_id'] as String, limit: _fetchLimit);
+      final got = await store.loadMessages(
+        id,
+        after: list.last['_id'] as String,
+        limit: _fetchLimit,
+      );
       if (got.length < _fetchLimit) {
         store.detached.remove(id);
         widget.onAtEndChanged?.call(true);
@@ -203,12 +235,17 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
   Future<void> _jumpToBottom() async {
     final store = context.read<ClientStore>();
     if (_atEnd) {
-      if (_scroll.isAttached) _scroll.scrollTo(index: 0, duration: const Duration(milliseconds: 250));
+      if (_scroll.isAttached)
+        _scroll.scrollTo(index: 0, duration: const Duration(milliseconds: 250));
       return;
     }
     setState(() => loading = true);
     try {
-      final got = await store.loadMessages(id, limit: _fetchLimit, replace: true);
+      final got = await store.loadMessages(
+        id,
+        limit: _fetchLimit,
+        replace: true,
+      );
       atStart = got.length < _fetchLimit;
       store.detached.remove(id);
     } catch (_) {}
@@ -229,20 +266,33 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
     }
     setState(() => loading = true);
     try {
-      await store.loadMessages(id, nearby: messageId, limit: _fetchLimit, replace: true);
+      await store.loadMessages(
+        id,
+        nearby: messageId,
+        limit: _fetchLimit,
+        replace: true,
+      );
       atStart = false;
     } catch (_) {}
     if (!mounted) return;
     setState(() => loading = false);
     widget.onAtEndChanged?.call(_atEnd);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToMessage(messageId));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToMessage(messageId),
+    );
   }
 
   void _scrollToMessage(String messageId) {
-    final idx = _entries.indexWhere((e) => e is _Msg && e.message['_id'] == messageId);
+    final idx = _entries.indexWhere(
+      (e) => e is _Msg && e.message['_id'] == messageId,
+    );
     if (idx < 0 || !_scroll.isAttached) return;
     setState(() => _jumpedTo = messageId);
-    _scroll.scrollTo(index: idx, alignment: .4, duration: const Duration(milliseconds: 300));
+    _scroll.scrollTo(
+      index: idx,
+      alignment: .4,
+      duration: const Duration(milliseconds: 300),
+    );
   }
 
   List<_Entry> _build(ClientStore store, List<Json> list) {
@@ -275,12 +325,14 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
           tail = false;
         }
         if (m['author'] != prev['author'] ||
-            (a.millisecondsSinceEpoch - b.millisecondsSinceEpoch).abs() >= 420000 ||
+            (a.millisecondsSinceEpoch - b.millisecondsSinceEpoch).abs() >=
+                420000 ||
             jsonEncode(m['masquerade']) != jsonEncode(prev['masquerade']) ||
             m['system'] != null ||
             prev['system'] != null ||
             (m['replies'] as List?)?.isNotEmpty == true ||
-            ((prev['_id'] as String).compareTo(lastRead) < 0 && i >= firstReadIndex)) {
+            ((prev['_id'] as String).compareTo(lastRead) < 0 &&
+                i >= firstReadIndex)) {
           tail = false;
         }
       }
@@ -327,7 +379,10 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
           children: [
             const Text('Failed to load messages'),
             const SizedBox(height: 8),
-            FilledButton(onPressed: () => _initialLoad(widget.highlightId), child: const Text('Retry')),
+            FilledButton(
+              onPressed: () => _initialLoad(widget.highlightId),
+              child: const Text('Retry'),
+            ),
           ],
         ),
       );
@@ -345,7 +400,16 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
       itemBuilder: (c, i) {
         if (i == _entries.length) {
           if (atStart) return ConversationStart(channel: widget.channel);
-          return const Padding(padding: EdgeInsets.all(16), child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))));
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
         }
         final e = _entries[i];
         switch (e) {
@@ -378,11 +442,17 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
               child: _Indicator(
                 onTap: () {
                   final sid = serverId;
-                  context.goPath('${sid != null ? '/server/$sid' : ''}/channel/$id/$_lastReadId');
+                  context.goPath(
+                    '${sid != null ? '/server/$sid' : ''}/channel/$id/$_lastReadId',
+                  );
                 },
-                label: 'New messages since ${formatRelative(_ulid(_lastReadId!), hideSuffix: false)}',
+                label:
+                    'New messages since ${formatRelative(_ulid(_lastReadId!), hideSuffix: false)}',
                 action: tr('Jump to the beginning'),
-                trailing: GestureDetector(onTap: () => setState(() => _lastReadId = null), child: const Icon(Icons.close, size: 16)),
+                trailing: GestureDetector(
+                  onTap: () => setState(() => _lastReadId = null),
+                  child: const Icon(Icons.close, size: 16),
+                ),
               ),
             ),
           ),
@@ -393,10 +463,21 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
             right: 0,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-              child: _Indicator(onTap: _jumpToBottom, label: tr('Viewing older messages'), action: tr('Jump to present'), trailing: const Icon(Icons.arrow_forward, size: 16)),
+              child: _Indicator(
+                onTap: _jumpToBottom,
+                label: tr('Viewing older messages'),
+                action: tr('Jump to present'),
+                trailing: const Icon(Icons.arrow_forward, size: 16),
+              ),
             ),
           ),
-        if (loading) Positioned.fill(child: ColoredBox(color: cs.surface.withValues(alpha: .4), child: const Center(child: CircularProgressIndicator()))),
+        if (loading)
+          Positioned.fill(
+            child: ColoredBox(
+              color: cs.surface.withValues(alpha: .4),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+          ),
       ],
     );
   }
@@ -411,7 +492,12 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
 }
 
 class _Indicator extends StatelessWidget {
-  const _Indicator({required this.onTap, required this.label, required this.action, required this.trailing});
+  const _Indicator({
+    required this.onTap,
+    required this.label,
+    required this.action,
+    required this.trailing,
+  });
   final VoidCallback onTap;
   final String label, action;
   final Widget trailing;
@@ -419,7 +505,10 @@ class _Indicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Material(
-      color: Color.alphaBlend(cs.primary.withValues(alpha: .55), Colors.transparent).withValues(alpha: .55),
+      color: Color.alphaBlend(
+        cs.primary.withValues(alpha: .55),
+        Colors.transparent,
+      ).withValues(alpha: .55),
       borderRadius: br(Radius_.lg),
       child: InkWell(
         borderRadius: br(Radius_.lg),
@@ -432,7 +521,11 @@ class _Indicator extends StatelessWidget {
               data: IconThemeData(color: cs.onPrimary),
               child: Row(
                 spacing: Gap.md,
-                children: [Expanded(child: Text(tr(label))), Text(tr(action)), trailing],
+                children: [
+                  Expanded(child: Text(tr(label))),
+                  Text(tr(action)),
+                  trailing,
+                ],
               ),
             ),
           ),
@@ -458,15 +551,33 @@ class _Skeleton extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(width: 36, height: 36, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                  ),
                   const SizedBox(width: 14),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(width: 80.0 + (i * 23 % 60), height: 12, decoration: BoxDecoration(color: c, borderRadius: br(4))),
+                      Container(
+                        width: 80.0 + (i * 23 % 60),
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: c,
+                          borderRadius: br(4),
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       for (var j = 0; j < 1 + i % 3; j++) ...[
-                        Container(width: 160.0 + ((i + j) * 41 % 200), height: 12, decoration: BoxDecoration(color: c, borderRadius: br(4))),
+                        Container(
+                          width: 160.0 + ((i + j) * 41 % 200),
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: c,
+                            borderRadius: br(4),
+                          ),
+                        ),
                         const SizedBox(height: 6),
                       ],
                     ],

@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../image_cropper.dart';
 import '../widgets.dart';
+import '../modals/channel_modals.dart';
 import '../modals/member_modals.dart';
 import '../modals/server_modals.dart';
 import '../profile/profile.dart' show showUserRoles;
@@ -42,25 +43,43 @@ class ServerSettingsPage extends StatefulWidget {
 class _ServerSettingsPageState extends State<ServerSettingsPage> {
   String _page = 'overview';
 
-  static final _entries = [
-    (
-      'Server',
-      [
-        ('overview', 'Overview', Icons.info_outline),
-        ('channels', 'Channels', Icons.account_tree_outlined),
-      ],
-    ),
-    ('Customisation', [('emojis', 'Emojis', Icons.emoji_emotions_outlined)]),
-    (
-      tr('User Management'),
-      [
-        ('members', 'Members', Icons.group_outlined),
-        ('roles', 'Roles', Icons.badge_outlined),
-        ('invites', 'Invites', Icons.link),
-        ('bans', 'Bans', Icons.gavel),
-      ],
-    ),
-  ];
+  // Mirrors the web client's `ServerSettings.list()`: the first category is
+  // titled with the server name, "Members" is intentionally hidden, and whole
+  // categories are hidden when the user lacks every permission they gate on.
+  List<(String, List<(String, String, IconData)>)> _entriesFor(
+    Map<String, dynamic> server,
+  ) {
+    final store = context.read<ClientStore>();
+    final sid = widget.serverId;
+    bool has(BigInt p) => store.canInServer(sid, p);
+    return [
+      (
+        server['name'] as String? ?? '',
+        [
+          ('overview', 'Overview', Icons.info_outline),
+          if (server['owner'] == store.userId)
+            ('discover', 'Discover', Icons.public),
+          if (has(Perm.manageChannel) || has(Perm.manageServer))
+            ('channels', 'Channels', Icons.account_tree_outlined),
+        ],
+      ),
+      if (has(Perm.manageCustomisation))
+        (
+          'Customisation',
+          [('emojis', 'Emojis', Icons.emoji_emotions_outlined)],
+        ),
+      if (has(Perm.manageServer) || has(Perm.banMembers))
+        (
+          tr('User Management'),
+          [
+            if (has(Perm.manageRole) || has(Perm.managePermissions))
+              ('roles', 'Roles', Icons.flag_outlined),
+            if (has(Perm.manageServer)) ('invites', 'Invites', Icons.link),
+            if (has(Perm.banMembers)) ('bans', 'Bans', Icons.gavel),
+          ],
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,35 +92,8 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
     final phone =
         screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
     final entries = [
-      for (final section in _entries)
-        (
-          section.$1,
-          [
-            for (final entry in section.$2)
-              if (switch (entry.$1) {
-                'roles' =>
-                  store.canInServer(widget.serverId, Perm.manageRole) ||
-                      store.canInServer(
-                        widget.serverId,
-                        Perm.managePermissions,
-                      ),
-                'channels' =>
-                  store.canInServer(widget.serverId, Perm.manageChannel) ||
-                      store.canInServer(widget.serverId, Perm.manageServer),
-                'emojis' => store.canInServer(
-                  widget.serverId,
-                  Perm.manageCustomisation,
-                ),
-                'invites' => store.canInServer(
-                  widget.serverId,
-                  Perm.manageServer,
-                ),
-                'bans' => store.canInServer(widget.serverId, Perm.banMembers),
-                _ => true,
-              })
-                entry,
-          ],
-        ),
+      for (final section in _entriesFor(server))
+        if (section.$2.isNotEmpty) section,
     ];
 
     final nav = ListView(
@@ -112,13 +104,6 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
           child: IconButton.filledTonal(
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(
-            server['name'] as String? ?? '',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
         ),
         for (final cat in entries) ...[
@@ -152,8 +137,8 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
             onTap: () async {
               if (await confirm(
                 context,
-                'Delete server?',
-                'This cannot be undone.',
+                'Delete ${server['name']}?',
+                "Once it's deleted, there's no going back.",
                 action: tr('Delete'),
               )) {
                 await store.leaveServer(widget.serverId);
@@ -206,6 +191,7 @@ class _ServerSettingsPageState extends State<ServerSettingsPage> {
                   )
                 : switch (_page) {
                     'overview' => _Overview(serverId: widget.serverId),
+                    'discover' => _Discoverable(serverId: widget.serverId),
                     'channels' => _ChannelOrder(serverId: widget.serverId),
                     'emojis' => _Emojis(serverId: widget.serverId),
                     'members' => _Members(serverId: widget.serverId),
@@ -567,7 +553,9 @@ class _EmojisState extends State<_Emojis> {
     ) as List;
     if (mounted) {
       setState(
-        () => _list = r.map((e) => (e as Map).cast<String, dynamic>()).toList(),
+        () => _list = r.map((e) => (e as Map).cast<String, dynamic>()).toList()
+          // Web sorts by id descending (newest first).
+          ..sort((a, b) => (b['_id'] as String).compareTo(a['_id'] as String)),
       );
     }
   }
@@ -577,19 +565,29 @@ class _EmojisState extends State<_Emojis> {
     final store = context.read<ClientStore>();
     final list = _list;
     if (list == null) return const Center(child: CircularProgressIndicator());
+    final cfg = store.api.config;
+    final limit =
+        (((cfg?.limits['global'] ?? cfg?.limits['new_user'])
+                    as Map?)?['server_emoji']
+                as num?)
+            ?.toInt() ??
+        100;
+    final remaining = (limit - list.length).clamp(0, limit);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          tr('$remaining emoji slots remaining'),
+          style: TextStyle(fontSize: 12, color: context.cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
         FilledButton.icon(
           icon: const Icon(Icons.add),
-          label: const Text('Upload emoji'),
+          label: Text(tr('Upload emoji')),
           onPressed: () async {
-            final res = await FilePicker.pickFiles(
-              type: FileType.image,
-              withData: true,
-            );
-            final f = res?.files.firstOrNull;
-            if (f?.bytes == null || !context.mounted) return;
+            final f = await FilePicker.pickFile(type: FileType.image);
+            final fBytes = f == null ? null : await f.readAsBytes();
+            if (fBytes == null || !context.mounted) return;
             final name = await promptText(
               context,
               'Emoji name',
@@ -606,7 +604,7 @@ class _EmojisState extends State<_Emojis> {
                 'emojis',
                 f.name,
                 'image/${(f.extension ?? 'png').toLowerCase()}',
-                f.bytes!,
+                fBytes,
               );
               await store.api.put('/custom/emoji/$id', {
                 'name': name,
@@ -645,13 +643,34 @@ class _EmojisState extends State<_Emojis> {
                   height: 28,
                 ),
                 title: Text(':${e['name']}:'),
-                action: IconButton(
-                  tooltip: tr('Delete Emoji'),
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _guard(context, () async {
-                    await store.api.delete('/custom/emoji/${e['_id']}');
-                    _load();
-                  }),
+                description: e['creator_id'] != null
+                    ? Text(
+                        store.displayName(e['creator_id'] as String?),
+                        style: const TextStyle(fontSize: 12),
+                      )
+                    : null,
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: tr('Preview'),
+                      icon: const Icon(Icons.zoom_in, size: 20),
+                      onPressed: () => showEmojiPreview(
+                        context,
+                        name: '${e['name']}',
+                        url:
+                            '${store.api.config?.autumnUrl}/emojis/${e['_id']}',
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: tr('Delete Emoji'),
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _guard(context, () async {
+                        await store.api.delete('/custom/emoji/${e['_id']}');
+                        _load();
+                      }),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -757,7 +776,7 @@ class _Roles extends StatelessWidget {
         screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
 
     Future<void> applyOrder(List<String> next) => _guard(context, () async {
-      await store.api.patch('/servers/$serverId/roles', {'roles': next});
+      await store.api.patch('/servers/$serverId/roles/ranks', {'ranks': next});
       for (var index = 0; index < next.length; index++) {
         (roles[next[index]] as Map)['rank'] = index;
       }
@@ -1309,5 +1328,175 @@ class _ChannelOrderState extends State<_ChannelOrder> {
         ],
       ],
     );
+  }
+}
+
+/// Server "Discover" settings page — port of the web client's
+/// `settings/shared/Discoverable.tsx`.
+class _Discoverable extends StatefulWidget {
+  const _Discoverable({required this.serverId});
+  final String serverId;
+  @override
+  State<_Discoverable> createState() => _DiscoverableState();
+}
+
+class _DiscoverableState extends State<_Discoverable> {
+  Map<String, dynamic>? _status;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _status = null;
+      _error = null;
+    });
+    try {
+      final r = await context.read<ClientStore>().api.get(
+        '/servers/${widget.serverId}/discover',
+      );
+      if (mounted) {
+        setState(
+          () => _status = r is Map ? Map<String, dynamic>.from(r) : null,
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e));
+    }
+  }
+
+  Future<void> _act(String method) => _guard(context, () async {
+    setState(() => _busy = true);
+    try {
+      final api = context.read<ClientStore>().api;
+      switch (method) {
+        case 'request':
+          await api.post('/servers/${widget.serverId}/discover', {});
+        case 'cancel':
+          await api.delete('/servers/${widget.serverId}/discover');
+      }
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.cs;
+    final store = context.watch<ClientStore>();
+    final server = store.servers[widget.serverId];
+    if (server == null) return const SizedBox.shrink();
+
+    Widget preview(String title, String body) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Gap.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 4,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurface,
+            ),
+          ),
+          Text(
+            body,
+            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+
+    Widget submitButton() => CategoryGroup(
+      children: [
+        CategoryButton(
+          icon: const Icon(Icons.public),
+          title: Text(tr('Submit to Discover')),
+          description: Text(
+            tr('Allow others to join your server from Discover'),
+          ),
+          onTap: _busy ? null : () => _act('request'),
+        ),
+      ],
+    );
+
+    // Already discoverable.
+    if (server['discoverable'] == true) {
+      return preview(
+        tr('This server is discoverable'),
+        tr('Contact support to remove this server from discover'),
+      );
+    }
+
+    if (_status == null && _error != null) {
+      return preview(
+        tr("Can't get discover request status right now"),
+        _error!,
+      );
+    }
+    if (_status == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final status = _status!['status'];
+    // NotFound → can request.
+    if (_error != null || status == null) return submitButton();
+    if (status == 'Pending' || status == 'UnderReview') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          preview(
+            tr('Your server is under review'),
+            tr('Check back often to see if your server has been approved!'),
+          ),
+          CategoryGroup(
+            children: [
+              CategoryButton(
+                icon: const Icon(Icons.cancel_outlined),
+                title: Text(tr('Cancel discover request')),
+                description: Text(
+                  tr(
+                    'Cancel your discover request and remove it from the review queue',
+                  ),
+                ),
+                onTap: _busy ? null : () => _act('cancel'),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    if (status is Map && status.containsKey('Denied')) {
+      final reason = status['Denied'];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          preview(
+            tr('Your discover request has been denied'),
+            '${reason != null ? '${tr('Reason:')} $reason\n' : ''}${tr('You can request again below')}',
+          ),
+          submitButton(),
+        ],
+      );
+    }
+    if (status is Map && status.containsKey('Removed')) {
+      final reason = status['Removed'];
+      return preview(
+        tr('Your discover request has been removed'),
+        reason != null
+            ? '${tr('Reason:')} $reason ${tr('Contact support for more information.')}'
+            : '',
+      );
+    }
+    return submitButton();
   }
 }
