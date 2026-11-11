@@ -314,7 +314,9 @@ jobs:
           cp "$PROFILE_FILE" ~/Library/MobileDevice/Provisioning\ Profiles/
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "APP_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -i "Apple Distribution" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
-          echo "INSTALLER_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -i "installer" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
+          # Installer certs don't satisfy the codesigning policy, so look them
+          # up without -p codesigning.
+          echo "INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" | grep -i "installer" | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_ENV"
       - name: App Store Connect API key
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
         env:
