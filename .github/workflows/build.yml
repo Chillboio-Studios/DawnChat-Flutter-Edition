@@ -36,6 +36,12 @@ jobs:
           channel: stable
           cache: true
       - uses: dtolnay/rust-toolchain@stable
+      # cnativeapi (tray_manager) builds a native-assets hook that needs
+      # GTK3/X11/Xi pkg-config packages even for pub get/test on Linux.
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
@@ -73,6 +79,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: project/rust
+      # cnativeapi (tray_manager) native-assets hook needs GTK3/X11/Xi.
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev
       - name: Prepare release signing key
         env:
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
@@ -321,7 +332,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev mpv
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev liblzma-dev libstdc++-12-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev mpv
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -381,6 +392,11 @@ jobs:
           channel: stable
           cache: true
       - uses: dtolnay/rust-toolchain@stable
+      # cnativeapi (tray_manager) native-assets hook needs GTK3/X11/Xi.
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev
       - name: Set unique build number
         run: echo "BUILD_NUMBER=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - run: flutter pub get
