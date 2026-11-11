@@ -1,7 +1,27 @@
 # ============================================
 # Stage 1: Build the Flutter web client
 # ============================================
-FROM ghcr.io/cirruslabs/flutter:stable AS builder
+FROM debian:bookworm-slim AS builder
+
+# Flutter toolchain + the GTK/X11 stack the cnativeapi (tray_manager)
+# native-assets hook needs even for `flutter pub get` on Linux — same
+# package set the GitHub workflow installs on ubuntu-latest.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash curl ca-certificates git unzip zip xz-utils file \
+    clang cmake ninja-build pkg-config \
+    libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev \
+    libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev \
+    libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev \
+    libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pinned to match CI (FLUTTER_VERSION in .github/workflows/build.yml) —
+# pubspec requires Dart ^3.13.7.
+ARG FLUTTER_VERSION=3.47.9
+RUN curl -fsSL \
+    "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+    | tar -xJ -C /opt
+ENV PATH="/opt/flutter/bin:${PATH}" FLUTTER_ROOT=/opt/flutter
 
 WORKDIR /app
 

@@ -19,12 +19,8 @@ env:
 jobs:
   build:
     name: Build Docker Image
-    strategy:
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm]
-        exclude:
-          - os: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04-arm' || '' }}
-    runs-on: ${{ matrix.os }}
+    # amd64 only — the web container doesn't need an arm64 build.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
