@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileOutputStream
@@ -15,7 +16,7 @@ import java.util.UUID
 /// ClipData.Item.uri on the first item, which misses intents, text
 /// URIs and multi-item clips that many apps produce.
 object ClipboardReader {
-    fun handle(context: Context, call: MethodChannel.MethodCall, result: MethodChannel.Result) {
+    fun handle(context: Context, call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "readImage" -> result.success(readImage(context))
             "readFiles" -> result.success(readFiles(context))
