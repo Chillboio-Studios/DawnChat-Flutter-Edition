@@ -806,8 +806,11 @@ class ClientStore extends ChangeNotifier {
   }
 
   String? avatarUrl(String? id, {double size = 64}) {
+    if (id == null) return null;
     final u = users[id];
-    if (u == null || id == null) return null;
+    // The default avatar only needs the user id — don't require the user
+    // object to be synced, or unsynced users render as letter fallbacks.
+    if (u == null) return api.defaultAvatar(id);
     return api.fileUrl(
           'avatars',
           u['avatar'] as Map?,
