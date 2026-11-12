@@ -5,7 +5,7 @@ name: Bleeding Edge
 # Never uploads to the App Store or Google Play.
 on:
   push:
-    branches: [development, production]
+    branches: [developement, production]
 
 jobs:
   build:

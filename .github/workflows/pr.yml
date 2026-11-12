@@ -4,7 +4,7 @@ name: Pull Request
 # pr-<number> — without touching the stores or creating a GitHub release.
 on:
   pull_request:
-    branches: [development, production]
+    branches: [developement, production]
 
 jobs:
   build:
