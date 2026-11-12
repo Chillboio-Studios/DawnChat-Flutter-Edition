@@ -11,9 +11,15 @@ const usesBrowserPasteEvents = false;
 /// plugin misses: intents, text URIs and multi-item clips.
 const _channel = MethodChannel('dawnchat/clipboard');
 
+/// The native channel has no test mock — under `flutter test` it would hang
+/// forever, so fall through to the pasteboard plugin instead.
+bool get _nativeClipboardEnabled =>
+    defaultTargetPlatform == TargetPlatform.android &&
+    !Platform.environment.containsKey('FLUTTER_TEST');
+
 Future<({Uint8List bytes, String mime, String name})?>
 readClipboardImage() async {
-  if (defaultTargetPlatform == TargetPlatform.android) {
+  if (_nativeClipboardEnabled) {
     try {
       final res = await _channel.invokeMethod<Map>('readImage');
       if (res != null) {
@@ -48,7 +54,7 @@ readClipboardImage() async {
 /// platforms fall back to the file picker).
 Future<List<({String name, Uint8List bytes, String? mime})>>
 readClipboardFiles() async {
-  if (defaultTargetPlatform != TargetPlatform.android) return const [];
+  if (!_nativeClipboardEnabled) return const [];
   try {
     final res = await _channel.invokeMethod<List>('readFiles');
     if (res == null) return const [];
