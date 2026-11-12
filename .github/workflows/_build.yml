@@ -25,6 +25,10 @@ env:
     --dart-define=FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}
     --dart-define=FIREBASE_SENDER_ID=${{ secrets.FIREBASE_SENDER_ID }}
     --dart-define=FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+  # Shown in Settings → About on non-release builds:
+  # edge builds display BE-<commit sha>, PR builds display pr-<number>.
+  # Empty on releases, which show the real pubspec version.
+  VERSION_DEFINE: --dart-define=APP_VERSION_LABEL=${{ inputs.edge && format('BE-{0}', github.sha) || (github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || '') }}
 
 defaults:
   run:
@@ -121,8 +125,8 @@ jobs:
         run: |
           awk -v v="${{ inputs.version }}+1" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
-      - run: flutter build apk --release --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }}
-      - run: flutter build appbundle --release --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build apk --release --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }} ${{ env.VERSION_DEFINE }}
+      - run: flutter build appbundle --release --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }} ${{ env.VERSION_DEFINE }}
       - uses: actions/upload-artifact@v4
         with:
           name: dawnchat-android
@@ -176,7 +180,7 @@ jobs:
         run: |
           awk -v v="${{ inputs.version }}+1" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
-      - run: flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }} ${{ env.VERSION_DEFINE }}
       - name: Package unsigned IPA
         run: |
           mkdir -p Payload
@@ -282,7 +286,7 @@ jobs:
           awk -v v="${{ inputs.version }}+1" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-macos-desktop
       - run: flutter pub get
-      - run: flutter build macos --release --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }}
+      - run: flutter build macos --release --build-number=$BUILD_NUMBER ${{ env.FIREBASE_DEFINES }} ${{ env.VERSION_DEFINE }}
       - name: Package app
         run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/DawnChat.app dawnchat-macos.zip
       - uses: actions/upload-artifact@v4
@@ -433,7 +437,7 @@ jobs:
           awk -v v="${{ inputs.version }}+1" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
-      - run: flutter build windows --release --build-number=$BUILD_NUMBER
+      - run: flutter build windows --release --build-number=$BUILD_NUMBER ${{ env.VERSION_DEFINE }}
         shell: bash
       - name: Package
         shell: pwsh
@@ -474,7 +478,7 @@ jobs:
           awk -v v="${{ inputs.version }}+1" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
-      - run: flutter build linux --release --build-number=$BUILD_NUMBER
+      - run: flutter build linux --release --build-number=$BUILD_NUMBER ${{ env.VERSION_DEFINE }}
       - name: Package
         run: tar -C build/linux/x64/release/bundle -czf dawnchat-linux.tar.gz .
       - name: Package AppImage
@@ -537,7 +541,7 @@ jobs:
           awk -v v="${{ inputs.version }}+1" '{ if ($1 == "version:") print "version: " v; else print }' pubspec.yaml > pubspec.yaml.tmp && mv pubspec.yaml.tmp pubspec.yaml
       - run: flutter pub get
       # Our own service worker (web/push_sw.js) handles push, so Flutter's caching worker is disabled.
-      - run: flutter build web --release --build-number=$BUILD_NUMBER --pwa-strategy=none --no-wasm-dry-run
+      - run: flutter build web --release --build-number=$BUILD_NUMBER --pwa-strategy=none --no-wasm-dry-run ${{ env.VERSION_DEFINE }}
       - name: Add SPA fallback for deep links
         run: cp build/web/index.html build/web/404.html
       - uses: actions/upload-artifact@v4

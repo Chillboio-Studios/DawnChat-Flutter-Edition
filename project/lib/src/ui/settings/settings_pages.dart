@@ -1735,7 +1735,9 @@ class _NativePageState extends State<NativePage> {
               CategoryButton(
                 icon: const Icon(Icons.desktop_windows_outlined),
                 title: Text(tr('DawnChat for Desktop')),
-                description: Text('Version: ${snap.data?.version ?? ''}'),
+                description: Text(
+                  'Version: ${appVersionLabel.isNotEmpty ? appVersionLabel : (snap.data?.version ?? '')}',
+                ),
               ),
             ],
           ),

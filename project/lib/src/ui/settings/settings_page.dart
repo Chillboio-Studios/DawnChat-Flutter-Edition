@@ -330,7 +330,11 @@ class _Sidebar extends StatelessWidget {
                     text: 'Version: ',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  TextSpan(text: s.data?.version ?? ''),
+                  TextSpan(
+                    text: appVersionLabel.isNotEmpty
+                        ? appVersionLabel
+                        : (s.data?.version ?? ''),
+                  ),
                 ],
               ),
               style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),

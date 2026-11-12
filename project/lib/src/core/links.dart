@@ -55,6 +55,11 @@ const unicodeEmojiBaseUrl = 'https://static.stoat.chat/emoji';
 const customEmojiBaseUrl = 'https://autumn.dawn-chat.com/emojis';
 
 
+/// CI-injected label for non-release builds (`BE-<sha>` on bleeding edge,
+/// `pr-<id>` on pull requests). Empty on release builds — show the real
+/// package version then.
+const appVersionLabel = String.fromEnvironment('APP_VERSION_LABEL');
+
 String normalizeHost(String host) =>
     dawnchatOfficialHosts.contains(host) ? dawnchatHost : host;
 
