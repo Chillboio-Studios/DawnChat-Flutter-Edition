@@ -643,10 +643,10 @@ jobs:
             --generate-notes \
             release-assets/*
 
-  update-in-prod:
-    name: Update in-prod branch
-    # Only on successful stable releases: fast-forwards in-prod to the
-    # released commit so hotfixes can branch off the shipped state.
+  update-release-branch:
+    name: Update release branch
+    # Only on successful stable releases: points release/<version> at the
+    # released commit so hotfixes can branch off any shipped release line.
     if: inputs.version != ''
     needs: release
     runs-on: ubuntu-latest
@@ -654,8 +654,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Point in-prod at the released commit
-        run: git push origin "HEAD:refs/heads/in-prod" --force
+      - name: Point release/<version> at the released commit
+        run: git push origin "HEAD:refs/heads/release/${{ inputs.version }}" --force
 
   edge-release:
     name: Edge Prerelease
