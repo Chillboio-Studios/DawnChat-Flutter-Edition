@@ -447,7 +447,7 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
 
     return Stack(
       children: [
-        Positioned.fill(child: listView),
+        Positioned.fill(child: SelectionArea(child: listView)),
         if (_lastReadId != null)
           Positioned(
             top: 0,

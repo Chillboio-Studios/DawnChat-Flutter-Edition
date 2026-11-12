@@ -338,30 +338,28 @@ class RichContent extends StatefulWidget {
 }
 
 class _RichContentState extends State<RichContent> {
-  final List<GestureRecognizer> _recognizers = [];
-
-  void _clear() {
-    for (final r in _recognizers) {
-      r.dispose();
-    }
-    _recognizers.clear();
-  }
+  // Recognizers are cached per link and only disposed with the state.
+  // Recreating them on every build broke taps: ClientStore notifies on
+  // every gateway event, so a rebuild could dispose the recognizer
+  // mid-gesture.
+  final Map<String, TapGestureRecognizer> _recognizers = {};
 
   @override
   void dispose() {
-    _clear();
+    for (final r in _recognizers.values) {
+      r.dispose();
+    }
     super.dispose();
   }
 
-  TapGestureRecognizer _tap(VoidCallback fn) {
-    final r = TapGestureRecognizer()..onTap = fn;
-    _recognizers.add(r);
-    return r;
-  }
+  TapGestureRecognizer _tap(String key, VoidCallback fn) =>
+      _recognizers.putIfAbsent(key, () {
+        final r = TapGestureRecognizer()..onTap = fn;
+        return r;
+      });
 
   @override
   Widget build(BuildContext context) {
-    _clear();
     final store = context.watch<ClientStore>();
     final settings = context.watch<SettingsStore>();
     final cs = context.cs;
@@ -431,7 +429,7 @@ class _Ctx {
   final SettingsStore settings;
   final ColorScheme cs;
   final double emojiSize;
-  final TapGestureRecognizer Function(VoidCallback) tap;
+  final TapGestureRecognizer Function(String, VoidCallback) tap;
   final String? serverId;
 }
 
@@ -922,7 +920,7 @@ List<InlineSpan> _anchor(
     TextSpan(
       children: _inline(children, c, base),
       style: TextStyle(color: cs.primary),
-      recognizer: c.tap(() => handleLink(c.context, href, display: text)),
+      recognizer: c.tap('$href|$text', () => handleLink(c.context, href, display: text)),
     ),
   ];
 }
