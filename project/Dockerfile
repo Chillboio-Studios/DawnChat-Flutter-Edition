@@ -45,10 +45,12 @@ ARG FIREBASE_APP_ID=""
 ARG FIREBASE_APP_ID_WEB=""
 ARG FIREBASE_SENDER_ID=""
 ARG FIREBASE_PROJECT_ID=""
+ARG APP_VERSION_LABEL=""
 
 RUN flutter build web --release \
     --pwa-strategy=none \
     --no-wasm-dry-run \
+    --dart-define=APP_VERSION_LABEL=${APP_VERSION_LABEL} \
     --dart-define=KLIPY_API_KEY=${KLIPY_API_KEY} \
     --dart-define=FIREBASE_API_KEY=${FIREBASE_API_KEY} \
     --dart-define=FIREBASE_API_KEY_WEB=${FIREBASE_API_KEY_WEB} \
