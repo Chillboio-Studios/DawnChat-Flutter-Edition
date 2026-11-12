@@ -23,6 +23,7 @@ const dawnchatOfficialHosts = <String>[
   dawnchatApiHost,
   'chat.dawn-chat.com',
   'app.dawn-chat.com',
+  'beta.dawn-chat.com',
 ];
 
 const statusUrl = 'https://status.dawn-chat.com';

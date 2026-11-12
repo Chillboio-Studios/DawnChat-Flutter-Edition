@@ -155,6 +155,7 @@ _InApp? parseInApp(String href, String instanceOrigin) {
   }
   const inApp = [
     dawnchatChatUrl,
+    'https://beta.dawn-chat.com',
     'https://dawn-chat.com',
     'https://csinvite.net',
     dawnchatAppUrl,
