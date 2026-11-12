@@ -2,12 +2,36 @@ name: Pull Request
 
 # Builds everything — all platforms plus the web Docker image pushed as
 # pr-<number> — without touching the stores or creating a GitHub release.
-# Covers PRs into bleeding only — unsigned builds, docker as pr-<number>.
+# Covers PRs into bleeding only — unsigned builds.
+#
+# Admin guard: PRs may NOT modify anything under lib/src/ui/admin/. Admin
+# tooling is maintained internally; outside changes risk breaking day-to-day
+# moderation operations even though they can't grant permissions API-side.
 on:
   pull_request:
     branches: [bleeding]
 
 jobs:
+  admin-guard:
+    name: Admin files guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject changes to admin files
+        run: |
+          git fetch origin "+refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+          violations=$(echo "$changed" | grep -E '(^|/)lib/src/ui/admin/' || true)
+          if [ -n "$violations" ]; then
+            echo "::error::This PR modifies admin panel files, which are maintained internally and cannot be changed via PR:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "No admin file changes."
+
   build:
+    needs: admin-guard
     uses: ./.github/workflows/_build.yml
     secrets: inherit

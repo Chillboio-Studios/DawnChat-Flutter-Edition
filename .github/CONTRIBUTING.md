@@ -37,6 +37,10 @@ PR builds are unsigned release builds — if it compiles in CI, it compiles for 
 - Every push to `bleeding` produces an edge prerelease; manual releases are cut
   from `release.yml` with a version input.
 - Keep PRs focused; small PRs get reviewed faster.
+- **Do not modify anything under `project/lib/src/ui/admin/`** — the admin
+  panel is maintained internally and PRs touching it are rejected automatically
+  by the `admin-guard` CI job. If your change needs admin UI work, open an
+  issue describing the requirement.
 
 ## Code style
 
