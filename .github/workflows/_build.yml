@@ -579,7 +579,7 @@ jobs:
               echo "${{ env.IMAGE_NAME }}:latest"
             fi
             if [ "${{ inputs.edge }}" = "true" ]; then
-              echo "${{ env.IMAGE_NAME }}:edge-${{ github.run_number }}"
+              echo "${{ env.IMAGE_NAME }}:bleeding-edge"
             fi
             if [ "${{ github.event_name }}" = "pull_request" ]; then
               echo "${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}"
