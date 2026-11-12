@@ -69,6 +69,13 @@ PRs may not modify `project/lib/src/ui/admin/` — enforced by CI.
 - **Contributing** — [CONTRIBUTING.md](.github/CONTRIBUTING.md)
 - **Security** — [SECURITY.md](.github/SECURITY.md)
 
+## Compatibility note
+
+This client is built against the DawnChat API, which includes endpoints and
+behaviors that are **not compatible with StoatChat/Revolt** and includes
+breaking API changes. Pointing this client at Stoat or another Stoat-based
+instance — including self-hosted ones — **may not work**.
+
 ## License
 
 See [LICENSE](LICENSE).
