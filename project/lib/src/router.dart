@@ -109,6 +109,13 @@ GoRouter buildRouter(ClientStore store, SettingsStore settings) {
             path: p('invite/:code'),
             builder: (c, s) => InviteRedirect(code: s.pathParameters['code']!),
           ),
+          // csinvite.net/dc/<code> shortlinks land here from Android deep links.
+          GoRoute(
+            path: p('dc/:code'),
+            redirect: (c, s) =>
+                '${s.pathParameters['host'] != null ? '/i/${s.pathParameters['host']}' : ''}'
+                '/invite/${s.pathParameters['code']}',
+          ),
           GoRoute(
             path: p('bot/:code'),
             builder: (c, s) => BotRedirect(code: s.pathParameters['code']!),

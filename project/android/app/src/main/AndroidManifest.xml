@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL"/>
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
     <application
@@ -41,6 +44,45 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- DawnChat web links: auth flows, channels, servers (mirrors the
+                 Android app's MainActivity intent filter). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="chat.dawn-chat.com" />
+                <data android:host="app.dawn-chat.com" />
+                <data android:pathPrefix="/login/reset/" />
+                <data android:pathPrefix="/login/verify/" />
+                <data android:pathPrefix="/verify/" />
+                <data android:pathPrefix="/delete/" />
+                <data android:pathPrefix="/invite/" />
+                <data android:pathPrefix="/bot/" />
+                <data android:pathPattern="/channel/.........................." />
+                <data android:pathPattern="/channel/........................../.........................." />
+                <data android:pathPattern="/server/.........................." />
+                <data android:pathPattern="/server/........................../channel/.........................." />
+                <data android:pathPattern="/server/........................../channel/........................../.........................." />
+            </intent-filter>
+            <!-- Invite shortlinks: csinvite.net/dc/<code> -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="csinvite.net" />
+                <data android:pathPrefix="/dc/" />
+            </intent-filter>
+            <!-- dawn-chat.com invite links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="dawn-chat.com" />
+                <data android:pathPrefix="/invite/" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -52,6 +94,10 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaProjection|microphone|camera" />
+        <service
+            android:name=".CallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

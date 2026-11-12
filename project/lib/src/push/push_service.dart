@@ -116,6 +116,11 @@ class PushService extends ChangeNotifier {
   String? activeChannel;
   int _nid = 1;
 
+  /// Pending incoming DM/group call (`VoiceCallUpdate` gateway event),
+  /// shown as an accept/decline overlay. Null when no call is ringing.
+  final ValueNotifier<Json?> incomingCall = ValueNotifier(null);
+  Timer? _incomingCallTimeout;
+
   bool get desktopSupported => true;
 
   Future<void> init() async {
@@ -397,19 +402,44 @@ class PushService extends ChangeNotifier {
     }
   }
 
+  void clearIncomingCall({bool playStop = true}) {
+    _incomingCallTimeout?.cancel();
+    _incomingCallTimeout = null;
+    if (incomingCall.value != null) {
+      incomingCall.value = null;
+      if (playStop) sounds?.stop();
+    }
+  }
+
   void _onGatewayEvent(Json e) {
     if (e['type'] == 'VoiceCallUpdate') {
-      if (e['ended'] == true || e['initiator_id'] == store.userId) return;
-      final channel = store.channels[e['channel_id'] as String? ?? ''];
+      final callChannel = e['channel_id'] as String? ?? '';
+      if (e['ended'] == true) {
+        if (incomingCall.value?['channel_id'] == callChannel) {
+          clearIncomingCall();
+        }
+        return;
+      }
+      if (e['initiator_id'] == store.userId) return;
+      final channel = store.channels[callChannel];
       if (channel == null) return;
       final type = channel['channel_type'] as String?;
       if (type != 'DirectMessage' && type != 'Group') return;
-      if (store.isMuted(e['channel_id'] as String? ?? '')) return;
+      if (store.isMuted(callChannel)) return;
       final recipients =
           (channel['recipients'] as List?)?.cast<String>() ?? const [];
       if (!recipients.contains(store.userId)) return;
+
+      // In-app incoming call UI (port of the Android incoming-call flow).
+      incomingCall.value = e;
+      _incomingCallTimeout?.cancel();
+      _incomingCallTimeout = Timer(const Duration(seconds: 45), () {
+        clearIncomingCall();
+      });
+      sounds?.play('ringtoneIncoming', force: true, loop: true);
+
       if (settings.desktopNotifications != 'allowed') return;
-      if (appInForeground && activeChannel == e['channel_id']) return;
+      if (appInForeground && activeChannel == callChannel) return;
       final caller = store.displayName(
         e['initiator_id'] as String?,
         server: channel['server'] as String?,
@@ -478,6 +508,7 @@ class PushService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _incomingCallTimeout?.cancel();
     _events?.cancel();
     _rustSub?.cancel();
     _tokenSub?.cancel();

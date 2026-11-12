@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +17,7 @@ import 'state/settings_store.dart';
 import 'state/draft_store.dart';
 import 'theme/app_theme.dart';
 import 'theme/tokens.dart';
+import 'ui/incoming_call_overlay.dart';
 import 'ui/widgets.dart';
 import 'voice/voice_manager.dart';
 
@@ -31,6 +36,7 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
   late final _voice = VoiceManager(widget.store, widget.settings, _sounds);
   late final _push = PushService(widget.store, widget.settings);
   final _drafts = DraftStore();
+  StreamSubscription<Uri>? _linkSub;
 
   /// True when running inside the legacy Electron desktop wrapper — those
   /// users get the "outdated" screen instead of the app.
@@ -44,6 +50,20 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
     widget.store.init();
     _push.sounds = _sounds;
     _push.init();
+    _listenForLinks();
+  }
+
+  /// Warm-start deep links (Android intent filters, desktop URL schemes).
+  /// Cold-start links are delivered by the engine as the initial route.
+  void _listenForLinks() {
+    if (kIsWeb) return;
+    _linkSub = AppLinks().uriLinkStream.listen((uri) {
+      var path = uri.path;
+      if (path.isEmpty) path = '/';
+      final target = '$path${uri.hasQuery ? '?${uri.query}' : ''}';
+      // Only in-app paths; external URLs are ignored.
+      if (target.startsWith('/')) _router.go(target);
+    });
   }
 
   @override
@@ -53,6 +73,7 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _linkSub?.cancel();
     widget.settings.removeListener(_syncLanguage);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -110,7 +131,14 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
                         },
                       ),
                     },
-                    child: Titlebar(child: child ?? const SizedBox.shrink()),
+                    child: Titlebar(
+                      child: Stack(
+                        children: [
+                          child ?? const SizedBox.shrink(),
+                          IncomingCallOverlay(router: _router),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

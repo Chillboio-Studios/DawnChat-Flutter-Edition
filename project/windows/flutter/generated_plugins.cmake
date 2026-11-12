@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
   connectivity_plus
   desktop_drop
   firebase_core
@@ -11,6 +12,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   media_kit_libs_windows_video
   media_kit_video
   pasteboard
+  record_windows
   screen_retriever_windows
   sentry_flutter
   url_launcher_windows

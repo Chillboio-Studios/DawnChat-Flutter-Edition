@@ -9,6 +9,7 @@ import 'package:media_kit/media_kit.dart' as mk;
 import '../api/client_store.dart';
 import '../api/permissions.dart';
 import '../api/transport.dart';
+import '../call/call_service.dart';
 import '../state/settings_store.dart';
 
 /// Plays the client sounds from assets/sounds.
@@ -78,6 +79,27 @@ class VoiceTile {
 class VoiceManager extends ChangeNotifier {
   VoiceManager(this.store, this.settings, this.sounds) {
     settings.addListener(_applySettings);
+    CallService.listen(_onCallServiceEvent);
+  }
+
+  /// Hang-up / mute actions from the Android ongoing-call notification.
+  void _onCallServiceEvent(String event) {
+    switch (event) {
+      case 'hangup':
+        disconnect();
+      case 'toggleMute':
+        toggleMute();
+    }
+  }
+
+  void _syncCallService() {
+    final c = channelId == null ? null : store.channels[channelId!];
+    if (c == null) {
+      CallService.stop();
+    } else {
+      CallService.start(channelId!, store.channelName(c));
+      CallService.setMicMuted(!microphone);
+    }
   }
 
   final ClientStore store;
@@ -262,6 +284,7 @@ class VoiceManager extends ChangeNotifier {
         connectOptions: const ConnectOptions(autoSubscribe: false),
       );
       state = VoiceState.connected;
+      _syncCallService();
       for (final p in r.remoteParticipants.values) {
         for (final pub in p.trackPublications.values) {
           if (pub.kind == TrackType.AUDIO && !settings.deafen) pub.subscribe();
@@ -285,6 +308,10 @@ class VoiceManager extends ChangeNotifier {
               : false;
         } catch (e) {
           settings.micOn = false;
+          // Permission denied etc. — tell the user instead of joining
+          // silently muted (matches the web client's mic error toast).
+          lastError.value =
+              'Microphone unavailable — check the app\'s microphone permission.';
         }
       }
       sounds.play('userJoinVoice');
@@ -314,12 +341,24 @@ class VoiceManager extends ChangeNotifier {
       await r?.dispose();
     } catch (_) {}
     if (was && playSound) sounds.play('userLeaveVoice');
+    CallService.stop();
     notifyListeners();
   }
 
   void _onRoomChanged() {
     // A focused tile that no longer exists is cleared, as on web.
     if (focusId != null && focusTile == null) focusId = null;
+    // Speaker updates can lag or be dropped on some SFU versions — derive
+    // the speaking set from participant state as well.
+    final active = participants
+        .where((p) => p.isSpeaking)
+        .map((p) => p.identity)
+        .toSet();
+    if (!setEquals(speaking, active)) {
+      speaking
+        ..clear()
+        ..addAll(active);
+    }
     _applyVolumes();
     notifyListeners();
   }
@@ -383,6 +422,7 @@ class VoiceManager extends ChangeNotifier {
     } catch (e) {
       _report(e);
     }
+    CallService.setMicMuted(!microphone);
     notifyListeners();
   }
 
@@ -398,6 +438,7 @@ class VoiceManager extends ChangeNotifier {
     } catch (e) {
       _report(e);
     }
+    CallService.setMicMuted(!microphone);
     notifyListeners();
   }
 

@@ -532,9 +532,12 @@ class VoiceCallPreviewCard extends StatelessWidget {
     final cs = context.cs;
     final id = channel['_id'] as String;
     final ids = (store.voiceStates[id]?.keys ?? const <String>[]).toList();
-    final names = [for (final u in ids) store.user(u)?['username'] as String?]
-        .whereType<String>()
-        .toList();
+    final names = [
+      for (final u in ids)
+        store.isDeletedUser(store.user(u))
+            ? 'Deleted User'
+            : store.user(u)?['username'] as String?,
+    ].whereType<String>().toList();
     final sub = names.length > 3
         ? 'with ${names.length} others'
         : names.isNotEmpty

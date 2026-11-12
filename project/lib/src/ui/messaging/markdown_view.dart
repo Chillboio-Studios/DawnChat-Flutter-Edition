@@ -620,6 +620,62 @@ Widget _table(md.Element t, _Ctx c, TextStyle base) {
 }
 
 Widget _para(List<md.Node> nodes, _Ctx c, TextStyle base) {
+  // Paragraphs containing images render them as real images (tappable,
+  // aspect-preserved) instead of falling back to alt text.
+  if (nodes.any((n) => n is md.Element && n.tag == 'img')) {
+    final widgets = <Widget>[];
+    final inline = <md.Node>[];
+    void flush() {
+      if (inline.isEmpty) return;
+      final spans = _inline(inline, c, base);
+      inline.clear();
+      if (spans.isNotEmpty) {
+        widgets.add(Text.rich(TextSpan(children: spans, style: base)));
+      }
+    }
+
+    for (final n in nodes) {
+      if (n is md.Element && n.tag == 'img') {
+        flush();
+        final src = n.attributes['src'] ?? '';
+        final alt = n.attributes['alt'] ?? '';
+        if (src.isEmpty) continue;
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: GestureDetector(
+              onTap: () => handleLink(c.context, src),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 480,
+                    maxHeight: 420,
+                  ),
+                  child: NetImage(
+                    src,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) =>
+                        alt.isEmpty ? const SizedBox.shrink() : Text(alt),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        inline.add(n);
+      }
+    }
+    flush();
+    if (widgets.isEmpty) return const SizedBox.shrink();
+    if (widgets.length == 1) return widgets.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: widgets,
+    );
+  }
   final spans = _inline(nodes, c, base);
   if (spans.isEmpty) return const SizedBox.shrink();
   return Text.rich(TextSpan(children: spans, style: base));

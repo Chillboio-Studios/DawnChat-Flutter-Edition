@@ -19,6 +19,7 @@ import '../../api/permissions.dart';
 import '../../core/css_colour.dart';
 import '../../core/emoji_data.dart';
 import '../../core/links.dart';
+import '../../media/voice_recorder.dart';
 import '../../state/draft_store.dart';
 import '../../state/settings_store.dart';
 import '../../theme/app_theme.dart';
@@ -249,6 +250,10 @@ class _MessageComposerState extends State<MessageComposer> {
   int selected = 0;
   int tokenStart = -1;
   Timer? _tick;
+  final _voice = VoiceRecorder();
+  bool _recording = false;
+  int _recElapsedMs = 0;
+  Timer? _recTimer;
 
   String get id => widget.channel['_id'] as String;
   String? get serverId => widget.channel['server'] as String?;
@@ -280,6 +285,7 @@ class _MessageComposerState extends State<MessageComposer> {
   void didUpdateWidget(covariant MessageComposer old) {
     super.didUpdateWidget(old);
     if (old.channel['_id'] != id) {
+      _cancelRecording(notify: false);
       context.read<DraftStore>().setText(
         old.channel['_id'] as String,
         _ctl.text,
@@ -298,7 +304,132 @@ class _MessageComposerState extends State<MessageComposer> {
     _tick?.cancel();
     _ctl.dispose();
     _focus.dispose();
+    _recTimer?.cancel();
+    _voice.dispose();
     super.dispose();
+  }
+
+  // ----- voice messages -----
+
+  Future<void> _startRecording() async {
+    if (_recording || sending) return;
+    if (!await _voice.hasPermission()) {
+      if (mounted) {
+        showSnack(
+          context,
+          tr('Microphone permission is needed to record voice messages.'),
+        );
+      }
+      return;
+    }
+    if (!await _voice.start() || !mounted) return;
+    _focus.unfocus();
+    setState(() {
+      _recording = true;
+      _recElapsedMs = 0;
+    });
+    _recTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!mounted) return;
+      setState(() => _recElapsedMs += 250);
+      if (_recElapsedMs >= VoiceRecorder.maxDurationMs) {
+        _stopAndSendVoice();
+      }
+    });
+  }
+
+  void _cancelRecording({bool notify = true}) {
+    _recTimer?.cancel();
+    _recTimer = null;
+    _voice.cancel();
+    _recording = false;
+    _recElapsedMs = 0;
+    if (notify && mounted) setState(() {});
+  }
+
+  Future<void> _stopAndSendVoice() async {
+    if (!_recording) return;
+    _recTimer?.cancel();
+    _recTimer = null;
+    final rec = await _voice.stop();
+    if (!mounted) return;
+    setState(() {
+      _recording = false;
+      _recElapsedMs = 0;
+    });
+    if (rec == null) {
+      showSnack(context, tr('Voice messages must be at least 1 second long.'));
+      return;
+    }
+    final store = context.read<ClientStore>();
+    final drafts = context.read<DraftStore>();
+    final replies = [
+      for (final r in drafts.repliesFor(id)) {'id': r.id, 'mention': r.mention},
+    ];
+    drafts.clearReplies(id);
+    widget.onSent();
+    setState(() => sending = true);
+    try {
+      final aid = await store.api.uploadFile(
+        'attachments',
+        rec.fileName,
+        rec.mimeType,
+        rec.bytes,
+      );
+      await store.sendMessage(
+        id,
+        rec.messageContent,
+        attachments: [aid],
+        replies: replies,
+      );
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e));
+    } finally {
+      if (mounted) {
+        setState(() => sending = false);
+        _focus.requestFocus();
+      }
+    }
+  }
+
+  Widget _voiceBar(ColorScheme cs) {
+    final secs = _recElapsedMs ~/ 1000;
+    final t =
+        '${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}';
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Gap.md,
+        vertical: Gap.sm,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(Radius_.xl),
+          bottomLeft: Radius.circular(Radius_.xl),
+          bottomRight: Radius.circular(Radius_.md),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.fiber_manual_record, size: 12, color: cs.error),
+          const SizedBox(width: Gap.sm),
+          Text(
+            t,
+            style: TextStyle(fontSize: 14, color: cs.onSurface),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: tr('Cancel'),
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _cancelRecording,
+          ),
+          IconButton.filled(
+            tooltip: tr('Send'),
+            icon: const Icon(Icons.send),
+            onPressed: _stopAndSendVoice,
+          ),
+        ],
+      ),
+    );
   }
 
   bool get _phone =>
@@ -426,9 +557,7 @@ class _MessageComposerState extends State<MessageComposer> {
               _Suggestion(
                 label: '@$name',
                 apply: '<@$uid> ',
-                detail: name != uname
-                    ? '$uname#${store.user(uid)?['discriminator'] ?? ''}'
-                    : null,
+                detail: name != uname ? store.userTag(store.user(uid)) : null,
                 url: store.avatarUrl(uid, size: 48),
               ),
             );
@@ -749,6 +878,10 @@ class _MessageComposerState extends State<MessageComposer> {
                         (name: name, bytes: bytes, mime: mime),
                       ]);
                     },
+                    onFiles: (files) {
+                      if (_timedOut(store)) return;
+                      addDraftFiles(context, id, files);
+                    },
                     onError: (error) => showSnack(context, errorText(error)),
                     builder: (context, menuBuilder) => TextField(
                       contextMenuBuilder: menuBuilder,
@@ -775,7 +908,7 @@ class _MessageComposerState extends State<MessageComposer> {
                     ),
                   ),
           ),
-          if (sendingAllowed)
+          if (sendingAllowed && !_recording)
             Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -791,6 +924,16 @@ class _MessageComposerState extends State<MessageComposer> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (canUpload)
+                      SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: IconButton(
+                          tooltip: tr('Voice message'),
+                          icon: const Icon(Icons.mic_none),
+                          onPressed: _startRecording,
+                        ),
+                      ),
                     if (!canSend)
                       SizedBox(
                         width: 42,
@@ -874,8 +1017,8 @@ class _MessageComposerState extends State<MessageComposer> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(child: box),
-              sendButton,
+              Expanded(child: _recording ? _voiceBar(cs) : box),
+              _recording ? const SizedBox.shrink() : sendButton,
             ],
           ),
         ),

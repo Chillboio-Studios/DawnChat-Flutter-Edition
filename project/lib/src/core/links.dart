@@ -2,11 +2,13 @@ const playStoreUrl = '#';
 const desktopDownloadUrl =
     'https://github.com/Chillboio-Studios/DawnChat-Flutter-Edition/releases/latest';
 const roadmapUrl = '#';
-const feedbackUrl = '#';
-const bugTrackerUrl = '#';
+const feedbackUrl =
+    'https://github.com/Chillboio-Studios/DawnChat-Flutter-Edition/issues';
+const bugTrackerUrl =
+    'https://github.com/Chillboio-Studios/DawnChat-Flutter-Edition/issues';
 const githubUrl = 'https://github.com/Chillboio-Studios';
 const donationUrl = 'https://www.chillboiostudios.com/donate';
-const sourceCodeUrl = 'https://github.com/stoatchat';
+const sourceCodeUrl = 'https://github.com/Chillboio-Studios';
 
 const loungeServerId = '01M3615E99PYEQZ26AQ9RV6WJG';
 
@@ -23,7 +25,6 @@ const dawnchatOfficialHosts = <String>[
   'app.dawn-chat.com',
 ];
 
-const adminPanelUrl = 'https://admin.dawn-chat.com';
 const statusUrl = 'https://status.dawn-chat.com';
 const supportUrl = 'https://support.chillboiostudios.com';
 const termsUrl = 'https://www.chillboiostudios.com/terms';
@@ -50,10 +51,8 @@ const inviteShortenerUrl = 'https://csinvite.net/dc/';
 const discoverUrl = 'https://csinvite.net';
 
 const unicodeEmojiBaseUrl = 'https://static.stoat.chat/emoji';
-const customEmojiBaseUrl = 'https://cdn.revoltusercontent.com/emojis';
+const customEmojiBaseUrl = 'https://autumn.dawn-chat.com/emojis';
 
-String adminInspectUrl(String type, String id) =>
-    '$adminPanelUrl/panel/inspect/$type/$id';
 
 String normalizeHost(String host) =>
     dawnchatOfficialHosts.contains(host) ? dawnchatHost : host;

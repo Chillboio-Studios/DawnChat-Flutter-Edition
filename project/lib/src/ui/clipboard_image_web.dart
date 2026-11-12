@@ -59,3 +59,8 @@ VoidCallback listenClipboardImages({
   web.document.addEventListener('paste', listener, true.toJS);
   return () => web.document.removeEventListener('paste', listener, true.toJS);
 }
+
+/// Web file paste is handled by the browser's own paste events; nothing
+/// extra to do here.
+Future<List<({String name, Uint8List bytes, String? mime})>>
+readClipboardFiles() async => const [];

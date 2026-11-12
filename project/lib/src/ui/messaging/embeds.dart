@@ -78,7 +78,7 @@ class ApiClientUrls {
   String proxied(String url) =>
       '$januaryBase/proxy?url=${Uri.encodeQueryComponent(url)}';
   String originalUrl(Map f) =>
-      '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}/original/${Uri.encodeComponent(f['filename'] as String? ?? '')}';
+      '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}/original';
   String previewUrl(Map f) =>
       '$autumn/${f['tag'] ?? 'attachments'}/${f['_id']}';
 }

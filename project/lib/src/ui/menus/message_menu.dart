@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
-import '../../core/links.dart';
 import '../../router.dart';
 import '../../state/draft_store.dart';
 import '../../state/settings_store.dart';
@@ -193,7 +192,7 @@ List<MenuItem> messageMenu(
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.shield_outlined,
-        onTap: () => openUrl(adminInspectUrl('message', id)),
+        onTap: () => context.goPath('/admin?s=lookup&id=$id'),
       ),
     MenuItem.button(
       tr('Copy message link'),

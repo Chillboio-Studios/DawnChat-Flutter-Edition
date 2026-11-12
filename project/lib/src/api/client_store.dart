@@ -27,6 +27,13 @@ String _nonce() {
   return List.generate(26, (_) => chars[r.nextInt(chars.length)]).join();
 }
 
+/// Gateway frames above this size decode on a worker isolate so large
+/// events (Ready, history sync) don't freeze the UI thread.
+const _eventDecodeThreshold = 48 * 1024;
+
+Map<String, dynamic> _decodeEvent(String text) =>
+    (jsonDecode(text) as Map).cast<String, dynamic>();
+
 /// Holds all synced client state; the Dart equivalent of stoat.js `Client`.
 class ClientStore extends ChangeNotifier {
   ClientStore(this.settings, {String? host}) {
@@ -101,6 +108,7 @@ class ClientStore extends ChangeNotifier {
   String? host;
   final GatewayConnection _gateway = GatewayConnection();
   StreamSubscription<GatewayMessage>? _gwSub;
+  Future<void> _eventDecodeQueue = Future.value();
 
   AuthState authState = AuthState.unknown;
   LinkState connection = LinkState.disconnected;
@@ -170,6 +178,12 @@ class ClientStore extends ChangeNotifier {
       'friendly_name': 'DawnChat Flutter',
       'captcha': ?captcha,
     }) as Map;
+    // Errors can arrive with a 2xx status — same guard as the Android
+    // `parseLoginResponse` fix.
+    final errType = res['type'] as String?;
+    if (res['result'] == null && errType != null) {
+      throw ApiException(403, errType, res);
+    }
     switch (res['result']) {
       case 'Success':
         await _completeLogin(res.cast<String, dynamic>());
@@ -306,14 +320,22 @@ class ClientStore extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    Json event;
-    try {
-      event = (jsonDecode(m.text!) as Map).cast<String, dynamic>();
-    } catch (_) {
-      return;
-    }
-    _handle(event);
-    _eventController.add(event);
+    final text = m.text;
+    if (text == null) return;
+    // Decode off the UI isolate for large frames, serialised so events
+    // are still handled in arrival order.
+    _eventDecodeQueue = _eventDecodeQueue.then((_) async {
+      Json event;
+      try {
+        event = text.length > _eventDecodeThreshold
+            ? await compute(_decodeEvent, text)
+            : _decodeEvent(text);
+      } catch (_) {
+        return;
+      }
+      _handle(event);
+      _eventController.add(event);
+    });
   }
 
   void beginTyping(String channel) =>
@@ -760,9 +782,22 @@ class ClientStore extends ChangeNotifier {
 
   Json? user(String? id) => id == null ? null : users[id];
 
+  /// Whether this user account has been deleted (flag bit 2, or the
+  /// backend's "Deleted User {id}" placeholder username).
+  bool isDeletedUser(Json? u) =>
+      u != null &&
+      (((u['flags'] as num?)?.toInt() ?? 0) & 2 != 0 ||
+          '${u['username'] ?? ''}'.startsWith('Deleted User'));
+
+  /// `username#discriminator` tag, or `Deleted User` for deleted accounts.
+  String userTag(Json? u) => isDeletedUser(u)
+      ? 'Deleted User'
+      : '${u?['username'] ?? 'Unknown'}#${u?['discriminator'] ?? ''}';
+
   String displayName(String? id, {String? server}) {
     final u = users[id];
     if (u == null) return 'Unknown User';
+    if (isDeletedUser(u)) return 'Deleted User';
     final m = server == null ? null : members[server]?[id];
     final nick = m?['nickname'] as String?;
     return nick ??

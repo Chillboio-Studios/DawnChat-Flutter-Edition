@@ -12,6 +12,7 @@ class ImagePasteRegion extends StatefulWidget {
     required this.focusNode,
     required this.enabled,
     required this.onImage,
+    this.onFiles,
     required this.onError,
     required this.builder,
   });
@@ -19,6 +20,12 @@ class ImagePasteRegion extends StatefulWidget {
   final FocusNode focusNode;
   final bool enabled;
   final void Function(Uint8List bytes, String mime, String name) onImage;
+
+  /// Called with non-image clipboard files when [onImage] finds none.
+  final void Function(
+    List<({String name, Uint8List bytes, String? mime})> files,
+  )?
+  onFiles;
   final void Function(Object error) onError;
   final Widget Function(
     BuildContext context,
@@ -64,10 +71,16 @@ class _ImagePasteRegionState extends State<ImagePasteRegion> {
     try {
       final image = await clipboard.readClipboardImage();
       if (!mounted || !widget.enabled || !widget.focusNode.hasFocus) return;
-      if (image == null) {
-        pasteText();
-      } else {
+      if (image != null) {
         onImage(image.bytes, image.mime, image.name);
+        return;
+      }
+      final files = await clipboard.readClipboardFiles();
+      if (!mounted || !widget.enabled || !widget.focusNode.hasFocus) return;
+      if (files.isNotEmpty && widget.onFiles != null) {
+        widget.onFiles!(files);
+      } else {
+        pasteText();
       }
     } catch (error) {
       if (mounted) widget.onError(error);

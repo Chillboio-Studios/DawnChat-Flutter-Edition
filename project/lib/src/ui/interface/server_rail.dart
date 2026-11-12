@@ -358,7 +358,16 @@ class _ServerRailState extends State<ServerRail> {
                 ),
             ],
           ),
-          onTap: () => context.goPath(lastServerPath(settings, serverId)),
+          onTap: () {
+            // On phones a server opens its channel-list screen (like the
+            // Android app); wider layouts resume the last channel.
+            if (screenClassOf(MediaQuery.sizeOf(context)) ==
+                ScreenClass.phone) {
+              context.goPath('/server/$serverId');
+            } else {
+              context.goPath(lastServerPath(settings, serverId));
+            }
+          },
           onSecondary: (d) => showContextMenu(
             context,
             d.globalPosition,

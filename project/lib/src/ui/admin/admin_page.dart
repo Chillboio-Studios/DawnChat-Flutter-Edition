@@ -1,20 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../core/i18n.dart';
-import '../../router.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
-import '../modals/app_dialog.dart';
-import '../net_image.dart';
+import '../../router.dart';
 import '../settings/settings_page.dart';
-import '../widgets.dart';
-import 'admin_sections.dart';
 import 'changelog_admin.dart';
+import 'pages/announce_page.dart';
+import 'pages/legal_page.dart';
+import 'pages/policy_page.dart';
+import 'pages/audit_page.dart';
+import 'pages/ban_records_page.dart';
+import 'pages/bans_page.dart';
+import 'pages/bots_page.dart';
+import 'pages/content_page.dart';
+import 'pages/deleted_page.dart';
+import 'pages/diagnostics_page.dart';
+import 'pages/disabled_page.dart';
+import 'pages/history_page.dart';
+import 'pages/lookup_page.dart';
+import 'pages/overview_page.dart';
+import 'pages/reports_page.dart';
+import 'pages/servers_page.dart';
+import 'pages/staff_page.dart';
+import 'pages/strikes_page.dart';
+import 'pages/tickets_page.dart';
+import 'pages/users_page.dart';
 
-/// Platform admin panel — ported from DawnAdmin. Sections are gated by the
-/// caller's admin permission bitfield (or `privileged` for full access).
+/// Platform admin panel — settings-style shell with grouped sections.
+/// Sections are gated by the caller's admin permission bitfield
+/// (or `privileged` for full access).
+///
+/// Deep links: `/admin?s=<section>&uid=<user>&rid=<report>&tid=<ticket>&id=<lookup>`
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
@@ -22,8 +42,208 @@ class AdminPage extends StatefulWidget {
   State<AdminPage> createState() => _AdminPageState();
 }
 
+/// Nav group: (id, title, icon, permission-gated, builder)
+typedef _Section = ({
+  String id,
+  String title,
+  IconData icon,
+  bool Function(ClientStore) visible,
+  Widget Function(Map<String, String> qp) build,
+});
+
+
+final List<({String? group, List<_Section> sections})> _navGroups = [
+  (
+    group: null,
+    sections: [
+      (
+        id: 'overview',
+        title: 'Overview',
+        icon: Icons.dashboard_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewAudit),
+        build: (_) => const OverviewView(),
+      ),
+    ],
+  ),
+  (
+    group: 'Moderation',
+    sections: [
+      (
+        id: 'reports',
+        title: 'Reports',
+        icon: Icons.flag_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewReports),
+        build: (qp) => ReportsView(focusReportId: qp['rid']),
+      ),
+      (
+        id: 'tickets',
+        title: 'Tickets',
+        icon: Icons.support_agent_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewReports),
+        build: (qp) => TicketsView(focusTicketId: qp['tid']),
+      ),
+      (
+        id: 'strikes',
+        title: 'Strikes',
+        icon: Icons.gavel_outlined,
+        visible: (s) =>
+            s.canAdmin(ClientStore.adminViewReports) ||
+            s.canAdmin(ClientStore.adminManageReports),
+        build: (_) => const StrikesView(),
+      ),
+      (
+        id: 'bans',
+        title: 'Bans',
+        icon: Icons.block_outlined,
+        visible: (s) =>
+            s.canAdmin(ClientStore.adminViewUsers) &&
+            s.canAdmin(ClientStore.adminBanUsers),
+        build: (_) => const BansView(),
+      ),
+      (
+        id: 'ban_records',
+        title: 'Ban Records',
+        icon: Icons.list_alt_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminBanUsers),
+        build: (_) => const BanRecordsView(),
+      ),
+      (
+        id: 'content',
+        title: 'Content',
+        icon: Icons.forum_outlined,
+        visible: (s) =>
+            s.canAdmin(ClientStore.adminViewReports) ||
+            s.canAdmin(ClientStore.adminManageReports),
+        build: (_) => const ContentModView(),
+      ),
+    ],
+  ),
+  (
+    group: 'People',
+    sections: [
+      (
+        id: 'users',
+        title: 'Users',
+        icon: Icons.people_outline,
+        visible: (s) => s.canAdmin(ClientStore.adminViewUsers),
+        build: (qp) => UsersView(focusUserId: qp['uid']),
+      ),
+      (
+        id: 'staff',
+        title: 'Staff',
+        icon: Icons.badge_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminEditUsers),
+        build: (qp) => StaffView(focusUserId: qp['uid']),
+      ),
+      (
+        id: 'disabled',
+        title: 'Disabled',
+        icon: Icons.pause_circle_outline,
+        visible: (s) => s.canAdmin(ClientStore.adminViewUsers),
+        build: (qp) => DisabledView(focusUserId: qp['uid']),
+      ),
+      (
+        id: 'deleted',
+        title: 'Deleted',
+        icon: Icons.person_off_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewUsers),
+        build: (qp) => DeletedView(focusUserId: qp['uid']),
+      ),
+      (
+        id: 'lookup',
+        title: 'Lookup',
+        icon: Icons.search_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewUsers),
+        build: (qp) => LookupView(initialId: qp['id']),
+      ),
+    ],
+  ),
+  (
+    group: 'Platform',
+    sections: [
+      (
+        id: 'servers',
+        title: 'Servers',
+        icon: Icons.dns_outlined,
+        visible: (s) =>
+            s.canAdmin(ClientStore.adminViewServers) ||
+            s.canAdmin(ClientStore.adminEditServers),
+        build: (_) => const ServersView(),
+      ),
+      (
+        id: 'bots',
+        title: 'Bots',
+        icon: Icons.smart_toy_outlined,
+        visible: (s) =>
+            s.canAdmin(ClientStore.adminViewUsers) ||
+            s.canAdmin(ClientStore.adminEditUsers),
+        build: (_) => const BotsView(),
+      ),
+    ],
+  ),
+  (
+    group: 'System',
+    sections: [
+      (
+        id: 'audit',
+        title: 'Audit Log',
+        icon: Icons.history,
+        visible: (s) => s.canAdmin(ClientStore.adminViewAudit),
+        build: (_) => const AuditView(),
+      ),
+      (
+        id: 'history',
+        title: 'History',
+        icon: Icons.manage_history_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewAudit),
+        build: (_) => const HistoryView(),
+      ),
+      (
+        id: 'legal',
+        title: 'Legal',
+        icon: Icons.gavel,
+        visible: (s) => s.canAdmin(ClientStore.adminViewAudit),
+        build: (_) => const LegalView(),
+      ),
+      (
+        id: 'diagnostics',
+        title: 'Diagnostics',
+        icon: Icons.monitor_heart_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminViewAudit),
+        build: (_) => const DiagnosticsView(),
+      ),
+    ],
+  ),
+  (
+    group: 'Broadcast',
+    sections: [
+      (
+        id: 'announce',
+        title: 'Announce',
+        icon: Icons.campaign,
+        visible: (s) => s.canAdmin(ClientStore.adminBroadcast),
+        build: (_) => const AnnounceView(),
+      ),
+      (
+        id: 'changelogs',
+        title: 'Changelogs',
+        icon: Icons.campaign_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminBroadcast),
+        build: (_) => const ChangelogsView(),
+      ),
+      (
+        id: 'policy',
+        title: 'Policy',
+        icon: Icons.gavel_outlined,
+        visible: (s) => s.canAdmin(ClientStore.adminBroadcast),
+        build: (_) => const PolicyView(),
+      ),
+    ],
+  ),
+];
+
 class _AdminPageState extends State<AdminPage> {
-  String _section = 'users';
+  String? _sectionOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -31,105 +251,18 @@ class _AdminPageState extends State<AdminPage> {
     final cs = context.cs;
     final phone =
         screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone;
+    final qp = GoRouterState.of(context).uri.queryParameters;
 
-    final sections = <(String, String, IconData, bool)>[
-      (
-        'overview',
-        tr('Overview'),
-        Icons.dashboard_outlined,
-        store.canAdmin(ClientStore.adminViewAudit),
-      ),
-      (
-        'users',
-        tr('Users'),
-        Icons.people_outline,
-        store.canAdmin(ClientStore.adminViewUsers),
-      ),
-      (
-        'reports',
-        tr('Reports'),
-        Icons.flag_outlined,
-        store.canAdmin(ClientStore.adminViewReports),
-      ),
-      (
-        'bans',
-        tr('Bans'),
-        Icons.gavel_outlined,
-        store.canAdmin(ClientStore.adminViewUsers) &&
-            store.canAdmin(ClientStore.adminBanUsers),
-      ),
-      (
-        'ban_records',
-        tr('Ban Records'),
-        Icons.list_alt_outlined,
-        store.canAdmin(ClientStore.adminBanUsers),
-      ),
-      (
-        'lookup',
-        tr('Lookup'),
-        Icons.search_outlined,
-        store.canAdmin(ClientStore.adminViewUsers),
-      ),
-      (
-        'content',
-        tr('Content'),
-        Icons.forum_outlined,
-        store.canAdmin(ClientStore.adminViewReports) ||
-            store.canAdmin(ClientStore.adminManageReports),
-      ),
-      (
-        'diagnostics',
-        tr('Diagnostics'),
-        Icons.monitor_heart_outlined,
-        store.canAdmin(ClientStore.adminViewAudit),
-      ),
-      (
-        'history',
-        tr('History'),
-        Icons.manage_history_outlined,
-        store.canAdmin(ClientStore.adminViewAudit),
-      ),
-      (
-        'changelogs',
-        tr('Changelogs'),
-        Icons.campaign_outlined,
-        store.canAdmin(ClientStore.adminBroadcast),
-      ),
-      (
-        'audit',
-        tr('Audit Log'),
-        Icons.history,
-        store.canAdmin(ClientStore.adminViewAudit),
-      ),
-      (
-        'strikes',
-        tr('Strikes'),
-        Icons.gavel_outlined,
-        store.canAdmin(ClientStore.adminViewReports) ||
-            store.canAdmin(ClientStore.adminManageReports),
-      ),
-      (
-        'servers',
-        tr('Servers'),
-        Icons.dns_outlined,
-        store.canAdmin(ClientStore.adminViewServers) ||
-            store.canAdmin(ClientStore.adminEditServers),
-      ),
-      (
-        'bots',
-        tr('Bots'),
-        Icons.smart_toy_outlined,
-        store.canAdmin(ClientStore.adminViewUsers) ||
-            store.canAdmin(ClientStore.adminEditUsers),
-      ),
-      (
-        'announce',
-        tr('Announce'),
-        Icons.campaign,
-        store.canAdmin(ClientStore.adminBroadcast),
-      ),
-    ];
-    final visible = sections.where((s) => s.$4).toList();
+    // Build visible sections grouped for the sidebar.
+    final groups = <(String?, List<_Section>)>[
+      for (final g in _navGroups)
+        (
+          g.group,
+          [for (final s in g.sections) if (s.visible(store)) s],
+        ),
+    ].where((g) => g.$2.isNotEmpty).toList();
+    final visible = [for (final g in groups) ...g.$2];
+
     if (visible.isEmpty) {
       return Scaffold(
         body: Center(
@@ -139,56 +272,61 @@ class _AdminPageState extends State<AdminPage> {
         ),
       );
     }
-    if (!visible.any((s) => s.$1 == _section)) {
-      _section = visible.first.$1;
-    }
+
+    final requested = qp['s'] ?? _sectionOverride;
+    final section = visible.any((s) => s.id == requested)
+        ? requested!
+        : visible.first.id;
+    final current = visible.firstWhere((s) => s.id == section);
+
+    Widget navRow(_Section s) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: SettingsNavRow(
+        icon: s.icon,
+        title: tr(s.title),
+        selected: section == s.id,
+        onTap: () => setState(() => _sectionOverride = s.id),
+      ),
+    );
 
     final nav = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final s in visible)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 1),
-            child: SettingsNavRow(
-              icon: s.$3,
-              title: tr(s.$2),
-              selected: _section == s.$1,
-              onTap: () => setState(() => _section = s.$1),
+        for (final g in groups) ...[
+          if (g.$1 != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+              child: Text(
+                tr(g.$1!).toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: cs.outline,
+                ),
+              ),
             ),
-          ),
+          for (final s in g.$2) navRow(s),
+        ],
       ],
     );
 
-    final body = switch (_section) {
-      'overview' => const OverviewView(),
-      'reports' => const _ReportsView(),
-      'bans' => const _BansView(),
-      'ban_records' => const BanRecordsView(),
-      'lookup' => const LookupView(),
-      'content' => const ContentModView(),
-      'diagnostics' => const DiagnosticsView(),
-      'history' => const HistoryView(),
-      'changelogs' => const ChangelogsView(),
-      'audit' => const AuditView(),
-      'strikes' => const StrikesView(),
-      'servers' => const ServersView(),
-      'bots' => const BotsView(),
-      'announce' => const AnnounceView(),
-      _ => const _UsersView(),
-    };
+    final body = current.build(qp);
 
     if (phone) {
       return Scaffold(
         appBar: AppBar(
           title: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _section,
+              value: section,
               isDense: true,
               items: [
-                for (final s in visible)
-                  DropdownMenuItem(value: s.$1, child: Text(tr(s.$2))),
+                for (final g in groups)
+                  for (final s in g.$2)
+                    DropdownMenuItem(value: s.id, child: Text(tr(s.title))),
               ],
-              onChanged: (v) => setState(() => _section = v ?? _section),
+              onChanged: (v) =>
+                  setState(() => _sectionOverride = v ?? section),
             ),
           ),
           leading: IconButton(
@@ -235,633 +373,11 @@ class _AdminPageState extends State<AdminPage> {
           Expanded(
             child: Container(
               color: cs.surface,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(Gap.xl),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
-                  child: body,
-                ),
-              ),
+              child: body,
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _UsersView extends StatefulWidget {
-  const _UsersView();
-
-  @override
-  State<_UsersView> createState() => _UsersViewState();
-}
-
-class _UsersViewState extends State<_UsersView> {
-  final _search = TextEditingController();
-  bool _bannedOnly = false;
-  List<Map<String, dynamic>>? _users;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final r = await context.read<ClientStore>().api.get(
-        '/admin/users',
-        query: {
-          if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
-          if (_bannedOnly) 'banned': 'true',
-          'limit': '100',
-        },
-      ) as List;
-      if (mounted) {
-        setState(() {
-          _users = r.map((e) => (e as Map).cast<String, dynamic>()).toList();
-          _error = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
-    }
-  }
-
-  bool _flag(Map<String, dynamic> u, int bit) =>
-      ((u['flags'] as num?)?.toInt() ?? 0) & bit != 0;
-  bool _isBanned(Map<String, dynamic> u) => _flag(u, 4);
-  bool _isDisabled(Map<String, dynamic> u) => _flag(u, 1) || _flag(u, 2);
-
-  Future<void> _openUser(Map<String, dynamic> u) async {
-    final store = context.read<ClientStore>();
-    final canEdit = store.canAdmin(ClientStore.adminEditUsers);
-    final canBan = store.canAdmin(ClientStore.adminBanUsers);
-    final name = TextEditingController(
-      text: u['display_name'] as String? ?? '',
-    );
-    final badges = TextEditingController(
-      text: '${(u['badges'] as num?)?.toInt() ?? 0}',
-    );
-    var privileged = u['privileged'] == true;
-    final perms = (u['admin_permissions'] as num?)?.toInt() ?? 0;
-    final permsCtl = TextEditingController(text: '$perms');
-    final banned = _isBanned(u);
-
-    await showAppDialog<void>(
-      context,
-      title: '${u['username']}#${u['discriminator']}',
-      content: StatefulBuilder(
-        builder: (context, setDlg) => SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ID: ${u['_id']}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  color: context.cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (canEdit) ...[
-                TextField(
-                  controller: name,
-                  maxLength: 200,
-                  decoration: InputDecoration(labelText: tr('Display Name')),
-                ),
-                TextField(
-                  controller: badges,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: tr('Badges (bitfield)'),
-                  ),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Privileged'),
-                  value: privileged,
-                  onChanged: (v) => setDlg(() => privileged = v ?? false),
-                ),
-                TextField(
-                  controller: permsCtl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: tr('Admin permissions (bitfield)'),
-                    helperText: tr(
-                      'ViewUsers=1 EditUsers=2 BanUsers=4 ViewReports=8 '
-                      'ManageReports=16 ViewAudit=32 ViewServers=64 '
-                      'EditServers=128 Broadcast=256',
-                    ),
-                  ),
-                  onChanged: (v) {},
-                ),
-              ] else ...[
-                Text('${u['display_name'] ?? ''}'),
-              ],
-              if (_isDisabled(u) || banned || u['disabled'] == true)
-                Text(
-                  banned
-                      ? tr('BANNED')
-                      : u['disabled'] == true
-                      ? tr('Account disabled')
-                      : tr('Account suspended'),
-                  style: TextStyle(color: context.cs.error),
-                ),
-              const SizedBox(height: 12),
-              _UserStanding(userId: '${u['_id']}'),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        DlgAction(tr('Close')),
-        if (canBan)
-          DlgAction(
-            banned ? tr('Unban') : tr('Ban'),
-            onPressed: () async {
-              try {
-                if (banned) {
-                  await store.api.delete('/admin/users/${u['_id']}/ban');
-                } else {
-                  final reason = await promptText(
-                    context,
-                    tr('Ban user'),
-                    label: tr('Reason'),
-                    action: tr('Ban'),
-                  );
-                  if (reason == null) return false;
-                  await store.api.post('/admin/users/${u['_id']}/ban', {
-                    'reason': reason,
-                  });
-                }
-                await _load();
-                return null;
-              } catch (e) {
-                if (context.mounted) showSnack(context, errorText(e));
-                return false;
-              }
-            },
-          ),
-        if (canEdit)
-          DlgAction(
-            tr('Save'),
-            onPressed: () async {
-              try {
-                await store.api.patch('/admin/users/${u['_id']}', {
-                  'display_name': name.text,
-                  'badges': int.tryParse(badges.text) ?? 0,
-                  'privileged': privileged,
-                  'admin_permissions': int.tryParse(permsCtl.text) ?? perms,
-                });
-                await _load();
-                return null;
-              } catch (e) {
-                if (context.mounted) showSnack(context, errorText(e));
-                return false;
-              }
-            },
-          ),
-      ],
-    );
-    name.dispose();
-    badges.dispose();
-    permsCtl.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final store = context.watch<ClientStore>();
-    final users = _users;
-    final canEdit = store.canAdmin(ClientStore.adminEditUsers);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tr('User Directory'),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            SizedBox(
-              width: 280,
-              child: TextField(
-                controller: _search,
-                decoration: InputDecoration(
-                  hintText: tr('Search username, display name or ID'),
-                  prefixIcon: const Icon(Icons.search),
-                  isDense: true,
-                ),
-                onSubmitted: (_) => _load(),
-              ),
-            ),
-            FilterChip(
-              label: Text(tr('Banned only')),
-              selected: _bannedOnly,
-              onSelected: (v) {
-                setState(() => _bannedOnly = v);
-                _load();
-              },
-            ),
-            FilledButton.tonal(onPressed: _load, child: Text(tr('Search'))),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (_error != null)
-          Text(_error!, style: TextStyle(color: context.cs.error))
-        else if (users == null)
-          const Center(child: CircularProgressIndicator())
-        else if (users.isEmpty)
-          Text(
-            tr('No users found.'),
-            style: TextStyle(color: context.cs.onSurfaceVariant),
-          )
-        else
-          CategoryGroup(
-            children: [
-              for (final u in users)
-                CategoryButton(
-                  icon: NetImage(
-                    store.api.fileUrl(
-                          'avatars',
-                          u['avatar'] as Map?,
-                          width: 96,
-                        ) ??
-                        '',
-                    width: 24,
-                    height: 24,
-                  ),
-                  title: Text('${u['username']}#${u['discriminator']}'),
-                  description: Text(
-                    '${u['display_name'] ?? ''}'
-                    '${_isBanned(u) ? ' • ${tr('BANNED')}' : ''}'
-                    '${_isDisabled(u) ? ' • ${tr('Suspended')}' : ''}',
-                  ),
-                  action: canEdit || store.canAdmin(ClientStore.adminBanUsers)
-                      ? const Icon(Icons.chevron_right)
-                      : null,
-                  onTap: () => _openUser(u),
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _ReportsView extends StatefulWidget {
-  const _ReportsView();
-
-  @override
-  State<_ReportsView> createState() => _ReportsViewState();
-}
-
-class _ReportsViewState extends State<_ReportsView> {
-  List<Map<String, dynamic>>? _reports;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final r = await context.read<ClientStore>().api.get(
-        '/admin/reports',
-        query: {'limit': '200'},
-      ) as List;
-      if (mounted) {
-        setState(() {
-          _reports = r.map((e) => (e as Map).cast<String, dynamic>()).toList();
-          _error = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
-    }
-  }
-
-  Future<void> _act(Map<String, dynamic> r, String action) async {
-    final store = context.read<ClientStore>();
-    String? reason;
-    if (action == 'reject') {
-      reason = await promptText(
-        context,
-        tr('Reject report'),
-        label: tr('Rejection reason'),
-        action: tr('Reject'),
-      );
-      if (reason == null || !mounted) return;
-    }
-    try {
-      await store.api.patch('/admin/reports/${r['id']}', {
-        'action': action,
-        if (reason != null) 'rejection_reason': reason,
-      });
-      await _load();
-    } catch (e) {
-      if (mounted) showSnack(context, errorText(e));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final store = context.watch<ClientStore>();
-    final canManage = store.canAdmin(ClientStore.adminManageReports);
-    final reports = _reports;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tr('Safety Reports'),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 16),
-        if (_error != null)
-          Text(_error!, style: TextStyle(color: context.cs.error))
-        else if (reports == null)
-          const Center(child: CircularProgressIndicator())
-        else if (reports.isEmpty)
-          Text(
-            tr('No reports.'),
-            style: TextStyle(color: context.cs.onSurfaceVariant),
-          )
-        else
-          CategoryGroup(
-            children: [
-              for (final r in reports)
-                CategoryButton(
-                  icon: Icon(
-                    r['status'] == 'Created' ? Icons.flag : Icons.flag_outlined,
-                  ),
-                  title: Text('${r['status']} — ${r['author_id']}'),
-                  description: Text(
-                    '${r['additional_context'] ?? ''}'
-                    '${r['content'] != null ? ' • ${r['content']}' : ''}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  action: canManage && r['status'] == 'Created'
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: tr('Resolve'),
-                              icon: const Icon(Icons.check),
-                              onPressed: () => _act(r, 'resolve'),
-                            ),
-                            IconButton(
-                              tooltip: tr('Reject'),
-                              icon: const Icon(Icons.close),
-                              onPressed: () => _act(r, 'reject'),
-                            ),
-                          ],
-                        )
-                      : null,
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _BansView extends StatefulWidget {
-  const _BansView();
-
-  @override
-  State<_BansView> createState() => _BansViewState();
-}
-
-class _BansViewState extends State<_BansView> {
-  List<Map<String, dynamic>>? _users;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final r = await context.read<ClientStore>().api.get(
-        '/admin/users',
-        query: {'banned': 'true', 'limit': '200'},
-      ) as List;
-      if (mounted) {
-        setState(() {
-          _users = r.map((e) => (e as Map).cast<String, dynamic>()).toList();
-          _error = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final store = context.watch<ClientStore>();
-    final users = _users;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tr('Platform Bans'),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 16),
-        if (_error != null)
-          Text(_error!, style: TextStyle(color: context.cs.error))
-        else if (users == null)
-          const Center(child: CircularProgressIndicator())
-        else if (users.isEmpty)
-          Text(
-            tr('No banned users.'),
-            style: TextStyle(color: context.cs.onSurfaceVariant),
-          )
-        else
-          CategoryGroup(
-            children: [
-              for (final u in users)
-                CategoryButton(
-                  icon: const Icon(Icons.gavel_outlined),
-                  title: Text('${u['username']}#${u['discriminator']}'),
-                  description: Text(u['display_name'] as String? ?? ''),
-                  action: IconButton(
-                    tooltip: tr('Unban'),
-                    icon: const Icon(Icons.lock_open_outlined),
-                    onPressed: () async {
-                      try {
-                        await store.api.delete('/admin/users/${u['_id']}/ban');
-                        await _load();
-                      } catch (e) {
-                        if (context.mounted) {
-                          showSnack(context, errorText(e));
-                        }
-                      }
-                    },
-                  ),
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-/// Moderation standing panel inside the user detail dialog — shows ban
-/// records (reason + expiry), suspension state and strike count, with
-/// suspend/unsuspend actions.
-class _UserStanding extends StatefulWidget {
-  const _UserStanding({required this.userId});
-  final String userId;
-
-  @override
-  State<_UserStanding> createState() => _UserStandingState();
-}
-
-class _UserStandingState extends State<_UserStanding> {
-  Map<String, dynamic>? _standing;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final r = await context.read<ClientStore>().api.get(
-        '/admin/users/${widget.userId}/standing',
-      ) as Map;
-      if (mounted) {
-        setState(() {
-          _standing = r.cast<String, dynamic>();
-          _error = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
-    }
-  }
-
-  Future<void> _restrict(String action) async {
-    int? durationSecs;
-    String reason = '';
-    if (action == 'suspend') {
-      final dur = await promptText(
-        context,
-        tr('Suspend account'),
-        label: tr('Duration in hours (empty = indefinite)'),
-      );
-      if (dur == null || !mounted) return;
-      final h = int.tryParse(dur.trim());
-      if (dur.trim().isNotEmpty && (h == null || h <= 0)) {
-        showSnack(context, tr('Invalid duration.'));
-        return;
-      }
-      durationSecs = h == null ? null : h * 3600;
-      final r = await promptText(context, tr('Reason'), label: tr('Reason'));
-      if (r == null) return;
-      reason = r.trim();
-    }
-    try {
-      await context.read<ClientStore>().api.post(
-        '/admin/users/${widget.userId}/restrict',
-        {
-          'action': action,
-          'duration_secs': ?durationSecs,
-          'reason': reason,
-        },
-      );
-      _load();
-    } catch (e) {
-      if (mounted) showSnack(context, errorText(e));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    final s = _standing;
-    if (_error != null) {
-      return Text(_error!, style: TextStyle(color: cs.error, fontSize: 12));
-    }
-    if (s == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: LinearProgressIndicator(),
-      );
-    }
-    final bans = (s['bans'] as List?) ?? const [];
-    final banned = s['banned'] == true;
-    final disabled = s['disabled'] == true;
-    final suspendedUntil = s['suspended_until'] as String?;
-    final strikes = (s['strike_count'] as num?)?.toInt() ?? 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(height: 16),
-        Text(
-          tr('Moderation standing'),
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Strikes: $strikes'
-          '${disabled ? ' · ${tr('Disabled')}' : ''}'
-          '${suspendedUntil != null ? ' · ${tr('Suspended until')} ${suspendedUntil.split('T').first}' : ''}',
-          style: const TextStyle(fontSize: 12),
-        ),
-        if (bans.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          for (final b in bans.take(5))
-            Text(
-              '• ${b['active'] == true ? tr('Active ban') : tr('Ban lifted')} — ${b['reason'] ?? ''}'
-              '${b['expires_at'] != null ? ' · ${tr('expires')} ${(b['expires_at'] as String).split('T').first}' : ' · ${tr('permanent')}'}',
-              style: const TextStyle(fontSize: 12),
-            ),
-        ],
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            if (!banned)
-              OutlinedButton.icon(
-                icon: const Icon(Icons.pause_circle_outline, size: 16),
-                label: Text(tr('Suspend')),
-                onPressed: () => _restrict('suspend'),
-              ),
-            if (disabled && !banned)
-              OutlinedButton.icon(
-                icon: const Icon(Icons.play_circle_outline, size: 16),
-                label: Text(tr('Unsuspend')),
-                onPressed: () => _restrict('unsuspend'),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }

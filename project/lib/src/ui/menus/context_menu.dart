@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/i18n.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 
 /// One row in a context menu.
@@ -70,6 +71,8 @@ String _capitalise(String s) => s.splitMapJoin(
 );
 
 /// Shows a floating context menu next to [position] (global coordinates).
+/// On phones it renders as a modal bottom sheet instead, matching the
+/// Android app's `*ContextSheet` pattern.
 Future<void> showContextMenu(
   BuildContext context,
   Offset position,
@@ -77,6 +80,22 @@ Future<void> showContextMenu(
 ) {
   final cleaned = _tidy(items);
   if (cleaned.isEmpty) return Future.value();
+  if (screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: SingleChildScrollView(
+          child: MenuPanel(
+            items: cleaned,
+            inSheet: true,
+            onClose: () => Navigator.of(c).pop(),
+          ),
+        ),
+      ),
+    );
+  }
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
@@ -146,9 +165,18 @@ class _MenuLayout extends SingleChildLayoutDelegate {
 }
 
 class MenuPanel extends StatelessWidget {
-  const MenuPanel({super.key, required this.items, required this.onClose});
+  const MenuPanel({
+    super.key,
+    required this.items,
+    required this.onClose,
+    this.inSheet = false,
+  });
   final List<MenuItem> items;
   final VoidCallback onClose;
+
+  /// True when rendered inside a bottom sheet — submenus open as stacked
+  /// sheets rather than hover flyouts.
+  final bool inSheet;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +196,8 @@ class MenuPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (final i in items) _Row(item: i, onClose: onClose),
+                for (final i in items)
+                  _Row(item: i, onClose: onClose, inSheet: inSheet),
               ],
             ),
           ),
@@ -179,9 +208,14 @@ class MenuPanel extends StatelessWidget {
 }
 
 class _Row extends StatefulWidget {
-  const _Row({required this.item, required this.onClose});
+  const _Row({
+    required this.item,
+    required this.onClose,
+    this.inSheet = false,
+  });
   final MenuItem item;
   final VoidCallback onClose;
+  final bool inSheet;
   @override
   State<_Row> createState() => _RowState();
 }
@@ -198,6 +232,24 @@ class _RowState extends State<_Row> {
 
   void _openSub() {
     if (_sub != null) return;
+    if (widget.inSheet) {
+      // Stacked bottom sheet for submenus on phones.
+      showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (c) => SafeArea(
+          child: SingleChildScrollView(
+            child: MenuPanel(
+              items: widget.item.children!,
+              inSheet: true,
+              onClose: () => Navigator.of(c).pop(),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     _sub = OverlayEntry(
       builder: (c) => CompositedTransformFollower(
         link: _link,

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
-import '../../core/links.dart';
 import '../../router.dart';
 import '../../state/draft_store.dart';
 import '../../state/settings_store.dart';
@@ -475,7 +474,7 @@ List<MenuItem> userMenu(
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.admin_panel_settings_outlined,
-        onTap: () => openUrl(adminInspectUrl('user', userId)),
+        onTap: () => context.goPath('/admin?s=users&uid=$userId'),
       ),
     if (settings.copyId)
       MenuItem.button(

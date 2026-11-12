@@ -1,7 +1,21 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'transport.dart';
+
+/// Bodies above this size are decoded on a worker isolate so large
+/// responses (Ready payloads, history, search) don't freeze the UI.
+const _decodeThreshold = 48 * 1024;
+
+dynamic _decodeBody(List<int> body) {
+  final text = utf8.decode(body, allowMalformed: true);
+  try {
+    return jsonDecode(text);
+  } catch (_) {
+    return text;
+  }
+}
 
 class ApiException implements Exception {
   ApiException(this.status, this.type, [this.body]);
@@ -125,11 +139,9 @@ class ApiClient {
     );
     dynamic parsed;
     if (res.body.isNotEmpty) {
-      try {
-        parsed = jsonDecode(res.text);
-      } catch (_) {
-        parsed = res.text;
-      }
+      parsed = res.body.length > _decodeThreshold
+          ? await compute(_decodeBody, res.body)
+          : _decodeBody(res.body);
     }
     if (res.status >= 400) {
       final type = parsed is Map ? (parsed['type'] as String? ?? '') : '';

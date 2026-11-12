@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../api/api_client.dart';
 import '../api/client_store.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
@@ -24,7 +25,16 @@ void showSnack(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(tr(message))));
 }
 
-String errorText(Object e) => e.toString();
+String errorText(Object e) {
+  // ApiException carries the server's error payload — prefer its
+  // human-readable message over the raw type name.
+  final body = e is ApiException ? e.body : null;
+  if (body is Map) {
+    final msg = body['message'];
+    if (msg is String && msg.isNotEmpty) return msg;
+  }
+  return e.toString();
+}
 
 Future<void> copyText(BuildContext context, String text) async {
   await Clipboard.setData(ClipboardData(text: text));

@@ -3,12 +3,14 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links_linux
   desktop_drop
   flutter_webrtc
   livekit_client
   media_kit_libs_linux
   media_kit_video
   pasteboard
+  record_linux
   screen_retriever_linux
   sentry_flutter
   url_launcher_linux

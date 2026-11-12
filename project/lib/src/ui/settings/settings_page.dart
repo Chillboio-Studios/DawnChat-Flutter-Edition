@@ -127,7 +127,7 @@ List<SettingsCategory> userSettingsList(BuildContext context) {
       ),
       const SettingsEntry(
         icon: Icons.memory,
-        title: 'We are a stoatchat based instance, View Source Code',
+        title: 'Source Code',
         href: sourceCodeUrl,
       ),
       SettingsEntry(

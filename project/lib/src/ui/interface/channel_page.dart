@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
-import '../../core/links.dart';
 import '../../push/push_service.dart';
 import '../../router.dart';
 import '../../state/settings_store.dart';
@@ -89,6 +88,36 @@ class _TextChannelViewState extends State<TextChannelView> {
   void dispose() {
     if (_push.activeChannel == id) _push.activeChannel = null;
     super.dispose();
+  }
+
+  /// Alt+↑/↓ — cycle text channels within the current server, matching the
+  /// web client's `NAVIGATION_CHANNEL_UP/DOWN` keybinds.
+  void _navChannel(int dir) {
+    final sid = serverId;
+    if (sid == null) return;
+    final list = context.read<ClientStore>().channelsOfServer(sid)
+        .where(
+          (c) =>
+              c['channel_type'] != 'VoiceChannel' && c['voice'] == null,
+        )
+        .toList();
+    if (list.isEmpty) return;
+    final i = list.indexWhere((c) => c['_id'] == id);
+    final next = list[(i + dir + list.length) % list.length];
+    context.goPath('/server/$sid/channel/${next['_id']}');
+  }
+
+  /// Ctrl+Alt+↑/↓ — cycle servers, matching `NAVIGATION_SERVER_UP/DOWN`.
+  void _navServer(int dir) {
+    final store = context.read<ClientStore>();
+    final sid = serverId;
+    if (sid == null) return;
+    final list = store.serverList;
+    if (list.length < 2) return;
+    final i = list.indexWhere((s) => s['_id'] == sid);
+    if (i < 0) return;
+    final next = list[(i + dir + list.length) % list.length];
+    context.goPath('/server/${next['_id']}');
   }
 
   @override
@@ -173,6 +202,20 @@ class _TextChannelViewState extends State<TextChannelView> {
 
     return CallbackShortcuts(
       bindings: {
+        const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true):
+            () => _navChannel(1),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
+            () => _navChannel(-1),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowDown,
+          alt: true,
+          control: true,
+        ): () => _navServer(1),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowUp,
+          alt: true,
+          control: true,
+        ): () => _navServer(-1),
         if (side)
           const SingleActivator(LogicalKeyboardKey.escape): () =>
               setState(() => mode = _SidebarMode.members),
@@ -273,8 +316,10 @@ class _ChannelHeader extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                store.user(other)?['username'] as String? ??
-                    store.displayName(other),
+                store.isDeletedUser(store.user(other))
+                    ? 'Deleted User'
+                    : store.user(other)?['username'] as String? ??
+                          store.displayName(other),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -305,7 +350,20 @@ class _ChannelHeader extends StatelessWidget {
     final inCall = voice.showCard(channel);
     final searchOpen = mode == _SidebarMode.search;
 
+    // Phones get a back button that returns to the server channel list (or
+    // Home for DMs), mirroring the Android conversation screen.
+    final Widget? leading = sc == ScreenClass.phone
+        ? IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: tr('Back'),
+            onPressed: () => context.canPop()
+                ? context.pop()
+                : context.goPath(sid != null ? '/server/$sid' : '/app'),
+          )
+        : null;
+
     return PageHeader(
+      leading: leading,
       icon: icon,
       title: title,
       subtitle: subtitle,
@@ -377,7 +435,7 @@ class _ChannelHeader extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.admin_panel_settings_outlined),
             tooltip: tr('Admin Panel'),
-            onPressed: () => openUrl(adminInspectUrl('channel', id)),
+            onPressed: () => context.goPath('/admin?s=lookup&id=$id'),
           ),
       ],
     );

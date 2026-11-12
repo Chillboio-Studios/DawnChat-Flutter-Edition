@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
-import '../../core/links.dart';
 import '../../router.dart';
 import '../../state/server_ordering.dart';
 import '../modals/channel_modals.dart';
@@ -190,7 +189,7 @@ List<MenuItem> serverMenu(BuildContext context, String serverId) {
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.shield_outlined,
-        onTap: () => openUrl(adminInspectUrl('server', serverId)),
+        onTap: () => context.goPath('/admin?s=lookup&id=$serverId'),
       ),
     if (settings.copyId)
       MenuItem.button(
@@ -273,7 +272,7 @@ List<MenuItem> channelMenu(BuildContext context, Json channel) {
       MenuItem.button(
         tr('Admin Panel'),
         icon: Icons.shield_outlined,
-        onTap: () => openUrl(adminInspectUrl('channel', id)),
+        onTap: () => context.goPath('/admin?s=lookup&id=$id'),
       ),
     MenuItem.button(
       tr('Copy link'),

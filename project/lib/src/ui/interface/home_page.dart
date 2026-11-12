@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../api/client_store.dart';
 import '../../core/links.dart';
 import '../../router.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../settings/settings_page.dart';
 import '../widgets.dart';
@@ -12,6 +13,7 @@ import '../menus/context_menu.dart';
 import '../menus/user_menu.dart';
 import '../modals/server_modals.dart';
 import '../profile/profile.dart' show showUserProfile;
+import 'server_channels_screen.dart';
 import '../../core/i18n.dart';
 
 /// Primary page header shared by Home, Friends and channels.
@@ -22,11 +24,15 @@ class PageHeader extends StatelessWidget {
     required this.title,
     this.actions = const [],
     this.subtitle,
+    this.leading,
   });
   final Widget icon;
   final Widget title;
   final Widget? subtitle;
   final List<Widget> actions;
+
+  /// Replaces the phone drawer button when set (e.g. a back button).
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +45,11 @@ class PageHeader extends StatelessWidget {
       child: Row(
         children: [
           if (isPhone)
-            IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
-            ),
+            leading ??
+                IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
+                ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.md),
             child: IconTheme(
@@ -747,6 +754,11 @@ class ServerHome extends StatelessWidget {
         if (context.mounted) context.goPath('/');
       });
       return const SizedBox.shrink();
+    }
+    // On phones the server route is the channel-list screen (the Android
+    // app's `ServerChannelsScreen`); wider layouts redirect to a channel.
+    if (screenClassOf(MediaQuery.sizeOf(context)) == ScreenClass.phone) {
+      return ServerChannelsScreen(serverId: serverId);
     }
     final chans = store
         .channelsOfServer(serverId)

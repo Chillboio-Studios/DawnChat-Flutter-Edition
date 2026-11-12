@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../api/client_store.dart';
 import '../../api/permissions.dart';
 import '../../core/css_colour.dart';
+import '../../media/voice_recorder.dart';
 import '../../router.dart';
 import '../../state/draft_store.dart';
 import '../../state/settings_store.dart';
@@ -23,6 +24,7 @@ import '../widgets.dart';
 import 'embeds.dart';
 import 'markdown_view.dart';
 import 'time_utils.dart';
+import 'voice_message_view.dart';
 import '../../core/i18n.dart';
 
 /// `isLink` of the web client: false, true, or "hide".
@@ -105,13 +107,14 @@ class _MessageTileState extends State<MessageTile> {
         !failed;
     final user = store.user(author);
 
-    final name =
-        masq?['name'] as String? ??
-        (webhook?['name'] as String?) ??
-        member?['nickname'] as String? ??
-        user?['display_name'] as String? ??
-        user?['username'] as String? ??
-        'Unknown User';
+    final name = store.isDeletedUser(user)
+        ? 'Deleted User'
+        : masq?['name'] as String? ??
+              (webhook?['name'] as String?) ??
+              member?['nickname'] as String? ??
+              user?['display_name'] as String? ??
+              user?['username'] as String? ??
+              'Unknown User';
     final colour =
         parseCssColour(masq?['colour'] as String?) ??
         store.roleColour(author, sid);
@@ -332,6 +335,10 @@ class _MessageTileState extends State<MessageTile> {
         content.replaceFirst(_urlRe, '').isEmpty;
     final attachments =
         (m['attachments'] as List?)?.cast<Map>() ?? const <Map>[];
+    final voiceMeta = parseVoiceMessageMeta(content);
+    final voiceUrl = voiceMeta == null || attachments.isEmpty
+        ? null
+        : ApiClientUrls.of(context).originalUrl(attachments.first);
 
     final bodyChildren = <Widget>[
       if (system != null)
@@ -344,13 +351,20 @@ class _MessageTileState extends State<MessageTile> {
         ),
       if (editing)
         InlineEditor(message: m)
+      else if (voiceMeta != null)
+        VoiceMessageView(
+          url: voiceUrl,
+          durationMs: voiceMeta.durationMs,
+          waveform: voiceMeta.waveform,
+        )
       else if (content != null &&
           content.isNotEmpty &&
           !onlyGif &&
           system == null)
         RichContent(content, serverId: sid),
-      for (final a in attachments)
-        Align(
+      if (voiceMeta == null)
+        for (final a in attachments)
+          Align(
           alignment: Alignment.centerLeft,
           child: AttachmentView(
             file: a,
@@ -508,7 +522,7 @@ class _MessageTileState extends State<MessageTile> {
           )
         : null;
 
-    return MouseRegion(
+    final gesture = MouseRegion(
       onEnter: (_) => setState(() => hover = true),
       onExit: (_) => setState(() => hover = false),
       child: GestureDetector(
@@ -534,6 +548,35 @@ class _MessageTileState extends State<MessageTile> {
         child: Stack(clipBehavior: Clip.none, children: [tile, ?toolbar]),
       ),
     );
+
+    // Swipe right to reply on phones, like the Android app.
+    if (_isMobile(context) &&
+        widget.isLink == MessageLink.none &&
+        !editing &&
+        !pending &&
+        !failed &&
+        store.userId != null) {
+      return Dismissible(
+        key: ValueKey('swipe-${m['_id']}'),
+        direction: DismissDirection.startToEnd,
+        confirmDismiss: (_) async {
+          HapticFeedback.selectionClick();
+          context.read<DraftStore>().addReply(m, store.userId!);
+          return false;
+        },
+        background: Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.only(left: Gap.xl),
+          decoration: BoxDecoration(
+            color: cs.primaryContainer,
+            borderRadius: br(Radius_.md),
+          ),
+          child: Icon(Icons.reply, color: cs.primary),
+        ),
+        child: gesture,
+      );
+    }
+    return gesture;
   }
 
   static DateTime _safeUlid(String id) {

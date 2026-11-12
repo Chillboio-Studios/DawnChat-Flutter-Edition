@@ -30,6 +30,7 @@ const _badgeDeveloper = 1,
     _badgeResponsibleDisclosure = 8,
     _badgeFounder = 16,
     _badgeModeration = 32,
+    _badgeActiveSupporter = 64,
     _badgePaw = 128,
     _badgeEarlyAdopter = 256,
     _badgeJoke1 = 512;
@@ -279,7 +280,7 @@ class _ProfileBannerState extends State<ProfileBanner> {
                               onTap: () async {
                                 await Clipboard.setData(
                                   ClipboardData(
-                                    text: '$username#${u['discriminator']}',
+                                    text: store.userTag(u),
                                   ),
                                 );
                                 setState(() => copied = true);
@@ -290,14 +291,16 @@ class _ProfileBannerState extends State<ProfileBanner> {
                               child: Text.rich(
                                 TextSpan(
                                   text: username,
-                                  children: [
-                                    TextSpan(
-                                      text: '#${u['discriminator']}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w200,
-                                      ),
-                                    ),
-                                  ],
+                                  children: store.isDeletedUser(u)
+                                      ? const []
+                                      : [
+                                          TextSpan(
+                                            text: '#${u['discriminator']}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w200,
+                                            ),
+                                          ),
+                                        ],
                                 ),
                               ),
                             ),
@@ -527,6 +530,8 @@ ProfileCell? _badges(BuildContext context, ProfileData d) {
               b('developer', 'DawnChat Developer'),
             if (bits & _badgeSupporter != 0)
               b('supporter', 'Donated to DawnChat'),
+            if (bits & _badgeActiveSupporter != 0)
+              b('active_supporter', 'Active DawnChat Supporter'),
             if (bits & _badgeTranslator != 0)
               b('translator', 'Helped translate DawnChat'),
             if (bits & _badgeEarlyAdopter != 0)
@@ -635,6 +640,8 @@ class _OwnerCardState extends State<_OwnerCard> {
             child: Text(
               u == null
                   ? ''
+                  : store.isDeletedUser(u)
+                  ? 'Deleted User'
                   : (u['display_name'] as String? ??
                         '${u['username']}#${u['discriminator']}'),
               overflow: TextOverflow.ellipsis,

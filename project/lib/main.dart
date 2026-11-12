@@ -35,14 +35,20 @@ Future<void> _run(List<String> args) async {
     ..maximumSize = 2000
     ..maximumSizeBytes = 400 << 20;
   if (kIsWeb) usePathUrlStrategy();
-  if (!kIsWeb) await RustLib.init();
-  final settings = await SettingsStore.load();
-  await I18n.load(settings.lang);
-  if (isDesktop) {
-    await DesktopIntegration.init(
-      settings,
-      launchedAtStartup: args.contains('--autostart'),
-    );
-  }
+  // Native lib load and disk settings are independent — fetch both at once.
+  final results = await Future.wait<Object?>([
+    if (!kIsWeb) RustLib.init(),
+    SettingsStore.load(),
+  ]);
+  final settings = results.last! as SettingsStore;
+  // Language pack and desktop integration both only need settings.
+  await Future.wait<void>([
+    I18n.load(settings.lang),
+    if (isDesktop)
+      DesktopIntegration.init(
+        settings,
+        launchedAtStartup: args.contains('--autostart'),
+      ),
+  ]);
   runApp(DawnChatApp(settings: settings, store: ClientStore(settings)));
 }

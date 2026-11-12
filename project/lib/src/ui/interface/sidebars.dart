@@ -386,7 +386,7 @@ class ServerSidebar extends StatelessWidget {
     return Column(
       children: [
         InkWell(
-          onTap: () => _serverMenu(context, server),
+          onTap: () => showServerActionsSheet(context, server),
           child: Container(
             height: banner != null ? 120 : 48,
             width: double.infinity,
@@ -492,11 +492,16 @@ class ServerSidebar extends StatelessWidget {
     }
   }
 
-  Future<void> _serverMenu(
-    BuildContext context,
-    Map<String, dynamic> server,
-  ) async {
+}
+
+/// Server overflow menu shown as a bottom sheet — shared by the desktop
+/// sidebar header and the phone channel-list screen.
+Future<void> showServerActionsSheet(
+  BuildContext context,
+  Map<String, dynamic> server,
+) async {
     final store = context.read<ClientStore>();
+    final serverId = server['_id'] as String? ?? '';
     final isOwner = server['owner'] == store.userId;
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -599,5 +604,4 @@ class ServerSidebar extends StatelessWidget {
           if (context.mounted) context.goPath('/app');
         }
     }
-  }
 }
