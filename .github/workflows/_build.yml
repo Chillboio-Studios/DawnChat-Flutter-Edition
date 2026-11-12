@@ -90,7 +90,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev libxext-dev libxfixes-dev libxrandr-dev libxrender-dev libxcursor-dev libxdamage-dev libxtst-dev libxss-dev libxcb1-dev libasound2-dev libsecret-1-dev libayatana-appindicator3-dev libcurl4-openssl-dev
+      # PR builds stay unsigned: no keystore env -> Gradle falls back to the
+      # debug signing config, producing a debug-signed (unpublishable) artifact.
       - name: Prepare release signing key
+        if: github.event_name != 'pull_request'
         env:
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
