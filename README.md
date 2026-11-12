@@ -1,7 +1,7 @@
 # DawnChat
 
 A user-first chat application — Flutter client with a Rust core, backed by the
-[DawnChat API](https://git.chillboiostudios.com/Chillboio-Studios-Internal/dawnchat-backend-RUST).
+DawnChat API (private repository).
 
 ![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-blue)
 
@@ -66,7 +66,6 @@ PRs may not modify `project/lib/src/ui/admin/` — enforced by CI.
 ## Links
 
 - **Issues / feedback** — [GitHub Issues](https://github.com/Chillboio-Studios/DawnChat-Flutter-Edition/issues)
-- **Backend API** — [dawnchat-backend-RUST](https://git.chillboiostudios.com/Chillboio-Studios-Internal/dawnchat-backend-RUST)
 - **Contributing** — [CONTRIBUTING.md](.github/CONTRIBUTING.md)
 - **Security** — [SECURITY.md](.github/SECURITY.md)
 
