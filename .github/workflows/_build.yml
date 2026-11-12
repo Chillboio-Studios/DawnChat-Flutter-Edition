@@ -643,20 +643,6 @@ jobs:
             --generate-notes \
             release-assets/*
 
-  update-release-branch:
-    name: Update release branch
-    # Only on successful stable releases: points release/<version> at the
-    # released commit so hotfixes can branch off any shipped release line.
-    if: inputs.version != ''
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Point release/<version> at the released commit
-        run: git push origin "HEAD:refs/heads/release/${{ inputs.version }}" --force
-
   edge-release:
     name: Edge Prerelease
     if: inputs.edge

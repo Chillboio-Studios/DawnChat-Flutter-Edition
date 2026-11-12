@@ -1,11 +1,11 @@
 name: Bleeding Edge
 
-# Every push to bleeding or a release/* hotfix branch: builds all platforms,
-# pushes the web Docker image tagged edge-<run>, and publishes a prerelease
+# Every push to bleeding: builds all platforms, pushes the web
+# Docker image tagged bleeding-edge, and publishes a prerelease
 # GitHub release. Never uploads to the App Store or Google Play.
 on:
   push:
-    branches: [bleeding, 'release/**']
+    branches: [bleeding]
 
 jobs:
   build:
