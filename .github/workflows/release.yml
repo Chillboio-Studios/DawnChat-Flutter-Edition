@@ -1,0 +1,19 @@
+name: Release
+
+# Manual release: builds all platforms, uploads to Google Play / App Store
+# Connect, pushes the web Docker image (version + latest tags), and creates
+# the stable GitHub release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.2.3)"
+        required: true
+        type: string
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      version: ${{ inputs.version }}

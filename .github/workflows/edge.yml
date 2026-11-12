@@ -1,0 +1,15 @@
+name: Bleeding Edge
+
+# Every push to the mainline branches: builds all platforms, pushes the web
+# Docker image tagged edge-<run>, and publishes a prerelease GitHub release.
+# Never uploads to the App Store or Google Play.
+on:
+  push:
+    branches: [development, production]
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      edge: true

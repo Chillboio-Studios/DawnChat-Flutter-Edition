@@ -1,18 +1,24 @@
-name: Build all platforms
+name: Build (reusable)
 
 on:
-  push:
-    branches: [master, main]
-  pull_request:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       version:
-        description: "Release version (e.g. 1.2.3). When set, a GitHub release v<version> is created with all build artifacts."
+        description: "Release version (e.g. 1.2.3). When set, publishes stores + a stable GH release."
         required: false
         type: string
+        default: ""
+      edge:
+        description: "Bleeding-edge build: publish a prerelease GH release, never touch stores."
+        required: false
+        type: boolean
+        default: false
 
 env:
   FLUTTER_VERSION: "3.47.9"
+  # GHCR requires a lowercase repository path — do NOT use
+  # ${{ github.repository }} here (it preserves casing).
+  IMAGE_NAME: ghcr.io/chillboio-studios/dawnchat-flutter-edition
   # Optional: Firebase values for FCM/APNs push (repository secrets). Empty values disable mobile push registration.
   FIREBASE_DEFINES: >-
     --dart-define=FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
@@ -106,7 +112,7 @@ jobs:
       # On releases, the version input becomes the app version (versionName /
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
@@ -123,7 +129,7 @@ jobs:
 
   play-store:
     name: Google Play
-    if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+    if: inputs.version != ''
     needs: android
     runs-on: ubuntu-latest
     steps:
@@ -161,7 +167,7 @@ jobs:
       # On releases, the version input becomes the app version (versionName /
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
@@ -179,7 +185,7 @@ jobs:
           path: project/dawnchat-ios-unsigned.ipa
       # --- Release only: signed IPA uploaded to App Store Connect ---
       - name: Import signing certificate
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         env:
           MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -196,7 +202,7 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
       - name: App Store Connect API key
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -209,7 +215,7 @@ jobs:
             echo "$APPLE_API_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
           fi
       - name: Build signed IPA and upload to App Store Connect
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -266,7 +272,7 @@ jobs:
       # On releases, the version input becomes the app version (versionName /
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
@@ -282,7 +288,7 @@ jobs:
           path: project/dawnchat-macos.zip
       # --- Release only: signed .pkg uploaded to App Store Connect ---
       - name: Import signing certificate and provisioning profile
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         env:
           MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -331,7 +337,7 @@ jobs:
           echo "APP_IDENTIFIER=$APP_IDENTIFIER" >> "$GITHUB_ENV"
           echo "PROFILE_TEAM_ID=$PROFILE_TEAM_ID" >> "$GITHUB_ENV"
       - name: App Store Connect API key
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -344,7 +350,7 @@ jobs:
             echo "$APPLE_API_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
           fi
       - name: Sign, package, and upload macOS app to App Store Connect
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
@@ -417,7 +423,7 @@ jobs:
       # On releases, the version input becomes the app version (versionName /
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
@@ -458,7 +464,7 @@ jobs:
       # On releases, the version input becomes the app version (versionName /
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
@@ -521,7 +527,7 @@ jobs:
       # On releases, the version input becomes the app version (versionName /
       # CFBundleShortVersionString); --build-number still supplies the +N.
       - name: Set app version from release input
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: inputs.version != ''
         # awk is POSIX — identical on Linux, macOS, and Git-Bash Windows.
         shell: bash
         run: |
@@ -536,9 +542,74 @@ jobs:
           name: dawnchat-web
           path: project/build/web
 
+  docker:
+    name: Web Docker Image
+    # amd64 only — the web container doesn't need an arm64 build.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Fork PRs get a read-only GITHUB_TOKEN — build without pushing there.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        run: |
+          {
+            echo 'tags<<EOF'
+            echo "${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA:0:7}"
+            if [ -n "${{ inputs.version }}" ]; then
+              echo "${{ env.IMAGE_NAME }}:${{ inputs.version }}"
+              echo "${{ env.IMAGE_NAME }}:latest"
+            fi
+            if [ "${{ inputs.edge }}" = "true" ]; then
+              echo "${{ env.IMAGE_NAME }}:edge-${{ github.run_number }}"
+            fi
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}"
+            fi
+            echo 'EOF'
+            echo 'labels<<EOF'
+            echo "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"
+            echo "org.opencontainers.image.revision=${{ github.sha }}"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: project
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+            FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}
+            FIREBASE_SENDER_ID=${{ secrets.FIREBASE_SENDER_ID }}
+            FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+            KLIPY_API_KEY=${{ secrets.KLIPY_API_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   release:
     name: Release
-    if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+    if: inputs.version != ''
     needs: [android, ios, macos, windows, linux, web]
     runs-on: ubuntu-latest
     permissions:
@@ -569,5 +640,42 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "DawnChat v${{ inputs.version }}" \
+            --generate-notes \
+            release-assets/*
+
+  edge-release:
+    name: Edge Prerelease
+    if: inputs.edge
+    needs: [android, ios, macos, windows, linux, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect release assets
+        working-directory: .
+        run: |
+          mkdir -p release-assets
+          cp artifacts/dawnchat-android/flutter-apk/app-release.apk release-assets/dawnchat-android.apk
+          cp artifacts/dawnchat-android/bundle/release/app-release.aab release-assets/dawnchat-android.aab
+          cp artifacts/dawnchat-ios/dawnchat-ios-unsigned.ipa release-assets/ 2>/dev/null || cp artifacts/dawnchat-ios/* release-assets/
+          cp artifacts/dawnchat-macos/dawnchat-macos.zip release-assets/
+          cp artifacts/dawnchat-windows/dawnchat-windows.zip release-assets/
+          cp artifacts/dawnchat-linux/dawnchat-linux.tar.gz release-assets/
+          cp artifacts/dawnchat-linux/DawnChat-x86_64.AppImage release-assets/
+          (cd artifacts/dawnchat-web && zip -qry ../../release-assets/dawnchat-web.zip .)
+          ls -la release-assets
+      - name: Create prerelease
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "edge-${{ github.run_number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "DawnChat Edge #${{ github.run_number }}" \
+            --prerelease \
             --generate-notes \
             release-assets/*
