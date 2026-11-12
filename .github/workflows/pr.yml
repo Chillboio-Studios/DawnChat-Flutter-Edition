@@ -2,9 +2,10 @@ name: Pull Request
 
 # Builds everything — all platforms plus the web Docker image pushed as
 # pr-<number> — without touching the stores or creating a GitHub release.
+# Covers PRs into bleeding (regular work) and in-prod (hotfixes).
 on:
   pull_request:
-    branches: [developement, production]
+    branches: [bleeding, in-prod]
 
 jobs:
   build:

@@ -643,6 +643,20 @@ jobs:
             --generate-notes \
             release-assets/*
 
+  update-in-prod:
+    name: Update in-prod branch
+    # Only on successful stable releases: fast-forwards in-prod to the
+    # released commit so hotfixes can branch off the shipped state.
+    if: inputs.version != ''
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point in-prod at the released commit
+        run: git push origin "HEAD:refs/heads/in-prod" --force
+
   edge-release:
     name: Edge Prerelease
     if: inputs.edge
