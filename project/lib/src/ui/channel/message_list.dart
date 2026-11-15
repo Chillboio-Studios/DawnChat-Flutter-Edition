@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -339,7 +338,7 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
         if (m['author'] != prev['author'] ||
             (a.millisecondsSinceEpoch - b.millisecondsSinceEpoch).abs() >=
                 420000 ||
-            jsonEncode(m['masquerade']) != jsonEncode(prev['masquerade']) ||
+            !_sameJson(m['masquerade'], prev['masquerade']) ||
             m['system'] != null ||
             prev['system'] != null ||
             (m['replies'] as List?)?.isNotEmpty == true ||
@@ -365,6 +364,27 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
     }
     flushBlocked();
     return out.reversed.toList();
+  }
+
+  static bool _sameJson(Object? a, Object? b) {
+    if (identical(a, b)) return true;
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+      for (final e in a.entries) {
+        if (!b.containsKey(e.key) || !_sameJson(e.value, b[e.key])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (!_sameJson(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    return a == b;
   }
 
   static DateTime _t(Json m) {

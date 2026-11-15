@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'api/client_store.dart';
 import 'core/desktop_wrapper.dart';
 import 'core/i18n.dart';
+import 'core/image_cache.dart';
 import 'core/links.dart';
 import 'desktop/desktop.dart';
 import 'push/push_service.dart';
@@ -69,6 +70,18 @@ class _DawnChatAppState extends State<DawnChatApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _push.appInForeground = state == AppLifecycleState.resumed;
+    // Backgrounded apps get killed first under memory pressure — release
+    // the byte caches proactively; they warm back up on resume.
+    if (state != AppLifecycleState.resumed) collectGarbage();
+  }
+
+  /// Fired by the engine on Android `onTrimMemory` / iOS memory warnings.
+  /// Releases the byte caches and decoded images — both are re-fetchable,
+  /// so this is cheap insurance against the OS killing the process.
+  @override
+  void didHaveMemoryPressure() {
+    collectGarbage();
+    PaintingBinding.instance.imageCache.clear();
   }
 
   @override

@@ -889,7 +889,11 @@ class ClientStore extends ChangeNotifier {
         if (m['_id'] == id) return m;
       }
     }
-    return fetchedMessages[id];
+    // LRU touch: keep recently used reply lookups alive under the cap.
+    final hit = fetchedMessages.remove(id);
+    if (hit == null) return null;
+    fetchedMessages[id] = hit;
+    return hit;
   }
 
   Future<void> fetchMessage(String channel, String id) async {
@@ -898,6 +902,9 @@ class ClientStore extends ChangeNotifier {
       final m = (await api.get('/channels/$channel/messages/$id') as Map)
           .cast<String, dynamic>();
       fetchedMessages[id] = m;
+      if (fetchedMessages.length > 500) {
+        fetchedMessages.remove(fetchedMessages.keys.first);
+      }
       if (users[m['author']] == null) {
         try {
           await fetchUser(m['author'] as String);

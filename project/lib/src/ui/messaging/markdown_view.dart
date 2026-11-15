@@ -344,6 +344,15 @@ class _RichContentState extends State<RichContent> {
   // mid-gesture.
   final Map<String, TapGestureRecognizer> _recognizers = {};
 
+  // The markdown parse and emoji checks are pure functions of the content,
+  // so they are memoized: ClientStore notifies on every gateway event and
+  // each notification rebuilds every visible tile — re-parsing every
+  // message's markdown each time is what makes web feel slow.
+  String? _parsedKey;
+  bool _onlyEmoji = false;
+  int _emojiCount = 0;
+  List<md.Node> _nodes = const [];
+
   @override
   void dispose() {
     for (final r in _recognizers.values) {
@@ -365,11 +374,18 @@ class _RichContentState extends State<RichContent> {
     final cs = context.cs;
     final content = widget.content;
 
-    final onlyEmoji =
-        !widget.disallowBigEmoji &&
-        content.trim().isNotEmpty &&
-        _onlyEmojiRe.hasMatch(content);
-    final emojiCount = onlyEmoji ? _anyEmojiRe.allMatches(content).length : 0;
+    final cacheKey = '${widget.disallowBigEmoji}\u0000$content';
+    if (_parsedKey != cacheKey) {
+      _parsedKey = cacheKey;
+      _onlyEmoji =
+          !widget.disallowBigEmoji &&
+          content.trim().isNotEmpty &&
+          _onlyEmojiRe.hasMatch(content);
+      _emojiCount = _onlyEmoji ? _anyEmojiRe.allMatches(content).length : 0;
+      _nodes = _document.parseLines(content.split('\n'));
+    }
+    final onlyEmoji = _onlyEmoji;
+    final emojiCount = _emojiCount;
     final base =
         widget.style ??
         TextStyle(
@@ -381,7 +397,7 @@ class _RichContentState extends State<RichContent> {
         ? (emojiCount > 1 ? 48.0 : 96.0)
         : (base.fontSize ?? 14) * 1.4;
 
-    final nodes = _document.parseLines(content.split('\n'));
+    final nodes = _nodes;
     final ctx = _Ctx(
       context,
       store,

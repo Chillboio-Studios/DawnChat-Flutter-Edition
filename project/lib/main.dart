@@ -7,6 +7,8 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'src/api/client_store.dart';
 import 'src/app.dart';
 import 'src/core/i18n.dart';
+import 'src/core/image_cache.dart';
+import 'src/core/memory_pressure.dart';
 import 'src/desktop/desktop.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/state/settings_store.dart';
@@ -32,8 +34,10 @@ Future<void> _run(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   PaintingBinding.instance.imageCache
-    ..maximumSize = 2000
-    ..maximumSizeBytes = 400 << 20;
+    ..maximumSize = 1000
+    ..maximumSizeBytes = 128 << 20;
+  startImageJanitor();
+  startMemoryPressureMonitor();
   if (kIsWeb) usePathUrlStrategy();
   // Native lib load and disk settings are independent — fetch both at once.
   final results = await Future.wait<Object?>([

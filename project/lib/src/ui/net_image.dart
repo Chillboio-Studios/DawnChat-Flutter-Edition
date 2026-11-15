@@ -35,19 +35,33 @@ class NetImage extends StatelessWidget {
           SizedBox(width: width, height: height);
     }
     if (!useDiskImageCache) {
-      return Image.network(
-        url,
-        width: width,
-        height: height,
-        fit: fit,
-        cacheWidth: width != null && width!.isFinite
-            ? (width! * MediaQuery.devicePixelRatioOf(context)).ceil()
-            : null,
-        cacheHeight: height != null && height!.isFinite
-            ? (height! * MediaQuery.devicePixelRatioOf(context)).ceil()
-            : null,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: errorBuilder,
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      return FutureBuilder<Uint8List>(
+        future: cachedBytes(url),
+        builder: (c, snap) {
+          final bytes = snap.data;
+          if (bytes == null) {
+            return snap.hasError
+                ? errorBuilder?.call(c, snap.error!, snap.stackTrace) ??
+                    SizedBox(width: width, height: height)
+                : SizedBox(width: width, height: height);
+          }
+          return Image.memory(
+            bytes,
+            width: width,
+            height: height,
+            fit: fit,
+            cacheWidth: width != null && width!.isFinite
+                ? (width! * dpr).ceil()
+                : null,
+            cacheHeight: height != null && height!.isFinite
+                ? (height! * dpr).ceil()
+                : null,
+            filterQuality: FilterQuality.medium,
+            gaplessPlayback: true,
+            errorBuilder: errorBuilder,
+          );
+        },
       );
     }
     final dpr = MediaQuery.devicePixelRatioOf(context);
@@ -99,15 +113,6 @@ class NetSvg extends StatelessWidget {
     if (url.isEmpty) {
       return errorBuilder?.call(context, 'Empty URL', null) ??
           const SizedBox.shrink();
-    }
-    if (!useDiskImageCache) {
-      return SvgPicture.network(
-        url,
-        width: width,
-        height: height,
-        placeholderBuilder: placeholderBuilder,
-        errorBuilder: errorBuilder,
-      );
     }
     return FutureBuilder(
       future: cachedBytes(url),
