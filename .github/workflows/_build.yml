@@ -623,9 +623,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Only the dawnchat-* artifacts — an unfiltered download also pulls the
+      # buildx GHA cache blob, which fails to download and kills the job.
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: dawnchat-*
       - name: Collect release assets
         working-directory: .
         run: |
@@ -659,9 +662,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Only the dawnchat-* artifacts — an unfiltered download also pulls the
+      # buildx GHA cache blob, which fails to download and kills the job.
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: dawnchat-*
       - name: Collect release assets
         working-directory: .
         run: |
