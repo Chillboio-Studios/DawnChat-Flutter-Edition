@@ -292,7 +292,6 @@ class VoiceManager extends ChangeNotifier {
         connectOptions: const ConnectOptions(autoSubscribe: false),
       );
       state = VoiceState.connected;
-      _syncCallService();
       for (final p in r.remoteParticipants.values) {
         for (final pub in p.trackPublications.values) {
           if (pub.kind == TrackType.AUDIO && !settings.deafen) {
@@ -327,6 +326,9 @@ class VoiceManager extends ChangeNotifier {
               'Microphone unavailable — check the app\'s microphone permission.';
         }
       }
+      // Start the ongoing-call service only after the mic permission flow has
+      // run — its foreground-service type requires RECORD_AUDIO on Android 14+.
+      _syncCallService();
       sounds.play('userJoinVoice');
       unawaited(_applyDeviceSettings());
     } catch (e) {

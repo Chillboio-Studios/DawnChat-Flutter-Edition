@@ -93,17 +93,43 @@ class CallService : Service() {
                 channelName =
                     intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: "Voice call"
                 startedAt = System.currentTimeMillis()
-                ServiceCompat.startForeground(
-                    this,
-                    NOTIFICATION_ID,
-                    buildNotification(),
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL or
-                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                    } else {
-                        0
-                    },
-                )
+                // The microphone FGS type requires RECORD_AUDIO to be granted
+                // at startForeground time (Android 14+) — claiming it without
+                // the permission throws SecurityException and crashes the app.
+                val micGranted =
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        android.Manifest.permission.RECORD_AUDIO,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                // phoneCall only requires the install-time MANAGE_OWN_CALLS
+                // permission, so it is the safest claim; microphone is added
+                // only when RECORD_AUDIO is actually granted.
+                val types = mutableListOf<Int>()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    types.add(ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
+                    if (micGranted) {
+                        types.add(ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                    }
+                }
+                var promoted = false
+                for (type in types + listOf(0)) {
+                    try {
+                        ServiceCompat.startForeground(
+                            this,
+                            NOTIFICATION_ID,
+                            buildNotification(),
+                            type,
+                        )
+                        promoted = true
+                        break
+                    } catch (e: Exception) {
+                        // SecurityException (permission not held) or
+                        // MissingForegroundServiceTypeException — try the next
+                        // claim. The service MUST reach startForeground before
+                        // the startForegroundService timeout or the app dies.
+                    }
+                }
+                if (!promoted) stopSelf(startId)
             }
 
             ACTION_STOP -> {
