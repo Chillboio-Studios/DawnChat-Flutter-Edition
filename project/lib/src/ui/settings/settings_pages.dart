@@ -175,7 +175,7 @@ class _AccountPageState extends State<AccountPage> {
       try {
         await fn();
       } catch (e) {
-        if (mounted) showSnack(context, errorText(e));
+        if (context.mounted) showSnack(context, errorText(e));
       }
     }
 
@@ -354,7 +354,7 @@ class _AccountPageState extends State<AccountPage> {
                           '/auth/mfa/recovery',
                           headers: {'x-mfa-ticket': ticket},
                         );
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   final list = (codes as List).cast<String>();
                   await showAppDialog<void>(
                     context,
@@ -390,7 +390,7 @@ class _AccountPageState extends State<AccountPage> {
                             '/auth/mfa/recovery',
                             headers: {'x-mfa-ticket': t2},
                           );
-                          if (!mounted) return false;
+                          if (!context.mounted) return false;
                           await showAppDialog<void>(
                             context,
                             title: tr('Your recovery codes'),
@@ -442,7 +442,7 @@ class _AccountPageState extends State<AccountPage> {
                               headers: hdr,
                             )) as Map)['secret']
                             as String;
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     final code = await promptText(
                       context,
                       'Enable authenticator',
@@ -628,7 +628,7 @@ class _SessionsPageState extends State<SessionsPage> {
               try {
                 await signOutAll();
               } catch (e) {
-                if (mounted) showSnack(context, errorText(e));
+                if (context.mounted) showSnack(context, errorText(e));
               }
             }
           },
@@ -666,7 +666,7 @@ class _SessionsPageState extends State<SessionsPage> {
                           });
                           _load();
                         } catch (e) {
-                          if (mounted) showSnack(context, errorText(e));
+                          if (context.mounted) showSnack(context, errorText(e));
                         }
                       },
                     ),
@@ -734,7 +734,7 @@ class _BotsPageState extends State<BotsPage> {
               await store.api.post('/bots/create', {'name': name});
               _load();
             } catch (e) {
-              if (mounted) showSnack(context, errorText(e));
+              if (context.mounted) showSnack(context, errorText(e));
             }
           },
         ),
@@ -792,11 +792,12 @@ class _BotViewState extends State<BotView> {
         });
       }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = errorText(error);
         });
+      }
     }
   }
 
@@ -820,13 +821,14 @@ class _BotViewState extends State<BotView> {
     final store = context.read<ClientStore>();
     final cs = context.cs;
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null)
+    if (_error != null) {
       return Column(
         children: [
           Text(_error!),
           TextButton(onPressed: _load, child: Text(tr('Try again'))),
         ],
       );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -849,8 +851,9 @@ class _BotViewState extends State<BotView> {
                   label: tr('Username'),
                   initial: store.user(widget.id)?['username'] as String?,
                 );
-                if (name != null && name.trim().isNotEmpty)
+                if (name != null && name.trim().isNotEmpty) {
                   await _update({'name': name.trim()});
+                }
               },
             ),
             CategoryButton(
@@ -881,8 +884,9 @@ class _BotViewState extends State<BotView> {
                 try {
                   final invite =
                       await store.api.get('/bots/${widget.id}/invite') as Map;
-                  if (context.mounted)
+                  if (context.mounted) {
                     await showAddBot(context, invite.cast<String, dynamic>());
+                  }
                 } catch (error) {
                   if (context.mounted) showSnack(context, errorText(error));
                 }
@@ -1009,6 +1013,161 @@ class GoRouterNav {
 
 // ---------------- Voice ----------------
 
+<<<<<<< Updated upstream
+=======
+/// Live mic level meter for the currently selected input device. Runs without
+/// a call so users can verify their selection before joining one.
+class _MicTest extends StatefulWidget {
+  const _MicTest({required this.deviceId});
+  final String? deviceId;
+
+  @override
+  State<_MicTest> createState() => _MicTestState();
+}
+
+class _MicTestState extends State<_MicTest> {
+  lk.LocalAudioTrack? _track;
+  lk.AudioVisualizer? _viz;
+  lk.CancelListenFunc? _cancelSub;
+  List<double> _bands = const [];
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MicTest old) {
+    super.didUpdateWidget(old);
+    if (old.deviceId != widget.deviceId) _restart();
+  }
+
+  Future<void> _restart() async {
+    await _stop();
+    await _start();
+  }
+
+  Future<void> _start() async {
+    _failed = false;
+    try {
+      final track = await lk.LocalAudioTrack.create(
+        lk.AudioCaptureOptions(deviceId: widget.deviceId),
+      );
+      final viz = lk.createVisualizer(track);
+      _cancelSub = viz.events.listen((e) {
+        if (!mounted) return;
+        setState(() {
+          _bands = [
+            for (final b in e.event)
+              b is num ? b.toDouble().clamp(0.0, 1.0).toDouble() : 0.0,
+          ];
+        });
+      });
+      await viz.start();
+      if (!mounted) {
+        await _stop();
+        return;
+      }
+      setState(() {
+        _track = track;
+        _viz = viz;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  Future<void> _stop() async {
+    final cancel = _cancelSub;
+    _cancelSub = null;
+    if (cancel != null) await cancel();
+    final viz = _viz;
+    _viz = null;
+    if (viz != null) {
+      await viz.stop();
+      unawaited(viz.dispose());
+    }
+    final track = _track;
+    _track = null;
+    if (track != null) {
+      await track.stop();
+      unawaited(track.dispose());
+    }
+    if (mounted) setState(() => _bands = const []);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stop());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.cs;
+    var level = 0.0;
+    for (final b in _bands) {
+      if (b > level) level = b;
+    }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: br(Radius_.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _failed
+                ? tr('Microphone unavailable — check permission')
+                : tr('Speak to test your microphone'),
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 36,
+            child: _bands.isEmpty
+                ? Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: cs.primary,
+                      ),
+                    ),
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    spacing: 4,
+                    children: [
+                      for (final b in _bands)
+                        Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 90),
+                            curve: Curves.easeOut,
+                            height: 4 + 32 * b,
+                            decoration: BoxDecoration(
+                              color: level > 0.02
+                                  ? cs.primary
+                                  : cs.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+>>>>>>> Stashed changes
 class VoicePage extends StatefulWidget {
   const VoicePage({super.key});
   @override

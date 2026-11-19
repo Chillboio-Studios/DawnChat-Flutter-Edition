@@ -191,12 +191,14 @@ class VoiceManager extends ChangeNotifier {
             (node['public_url'] as String).replaceFirst('wss', 'https'),
           )
           .then((_) {
-            if (!completer.isCompleted)
+            if (!completer.isCompleted) {
               completer.complete(node['name'] as String?);
+            }
           })
           .catchError((_) {
-            if (--pending == 0 && !completer.isCompleted)
+            if (--pending == 0 && !completer.isCompleted) {
               completer.complete(null);
+            }
             return null;
           });
     }
@@ -265,8 +267,9 @@ class VoiceManager extends ChangeNotifier {
           _applyVolumes();
         })
         ..on<TrackUnpublishedEvent>((e) {
-          if (_screenShareTracks.remove(e.publication.sid))
+          if (_screenShareTracks.remove(e.publication.sid)) {
             sounds.play('streamEnd');
+          }
         })
         ..on<RoomReconnectingEvent>((_) {
           state = VoiceState.reconnecting;
@@ -291,16 +294,20 @@ class VoiceManager extends ChangeNotifier {
       _syncCallService();
       for (final p in r.remoteParticipants.values) {
         for (final pub in p.trackPublications.values) {
-          if (pub.kind == TrackType.AUDIO && !settings.deafen) pub.subscribe();
-          if (pub.source == TrackSource.screenShareVideo)
+          if (pub.kind == TrackType.AUDIO && !settings.deafen) {
+            pub.subscribe();
+          }
+          if (pub.source == TrackSource.screenShareVideo) {
             _screenShareTracks.add(pub.sid);
+          }
         }
       }
       if (settings.audioOutput != null) {
         final outs = await Hardware.instance.audioOutputs();
         final match = outs.where((d) => d.deviceId == settings.audioOutput);
-        if (match.isNotEmpty)
+        if (match.isNotEmpty) {
           await Hardware.instance.selectAudioOutput(match.first);
+        }
       }
       if (speakingPermission) {
         try {

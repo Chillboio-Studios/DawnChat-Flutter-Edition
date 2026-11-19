@@ -280,7 +280,7 @@ Future<void> toggleScreenshareUi(
             context.read<ClientStore>().api.config?.videoResolution ?? [0, 0],
       ),
     );
-    if (res == null) return;
+    if (res == null || !context.mounted) return;
     quality = res.$1;
     audio = res.$2;
   }
@@ -693,8 +693,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
       _zoomController.value = Matrix4.identity();
     }
 
-    if (isScreen && (t.publication?.muted ?? true))
+    if (isScreen && (t.publication?.muted ?? true)) {
       return const SizedBox.shrink();
+    }
 
     Widget? videoChild;
     if (hasVideo) {

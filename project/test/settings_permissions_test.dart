@@ -22,13 +22,18 @@ class _Api extends ApiClient {
       'display_name': 'Helper',
       'bot': {'owner': 'owner'},
     };
-    if (path == '/bots/bot')
+    if (path == '/bots/bot') {
       return {
         'bot': {'token': 'test-token', 'public': true},
         'user': user,
       };
-    if (path == '/users/bot/profile') return {'content': 'Existing bot bio'};
-    if (path == '/users/bot') return user;
+    }
+    if (path == '/users/bot/profile') {
+      return {'content': 'Existing bot bio'};
+    }
+    if (path == '/users/bot') {
+      return user;
+    }
     throw StateError('Unexpected GET $path');
   }
 

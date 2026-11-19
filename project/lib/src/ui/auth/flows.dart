@@ -392,7 +392,7 @@ class FlowCreate extends StatelessWidget {
     final store = context.read<ClientStore>();
     final cfg = store.api.config;
     final cs = context.cs;
-    final inviteOnly = cfg?.invite_only ?? false;
+    final inviteOnly = cfg?.inviteOnly ?? false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

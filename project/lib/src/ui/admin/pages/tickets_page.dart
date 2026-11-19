@@ -149,7 +149,7 @@ class TicketsViewState extends State<TicketsView> {
                   _chip(context, 'By: ${full['created_by']}'),
                   _chip(
                     context,
-                    '${(full['created_at'] as String? ?? '').split('T').first}',
+                    (full['created_at'] as String? ?? '').split('T').first,
                   ),
                 ],
               ),

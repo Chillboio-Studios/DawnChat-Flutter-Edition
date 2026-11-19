@@ -518,7 +518,7 @@ class _OverviewState extends State<_Overview> {
                       s.addAll(response.cast<String, dynamic>());
                     store.refresh();
                     if (mounted) _reset();
-                    if (mounted) showSnack(context, 'Saved');
+                    if (context.mounted) showSnack(context, 'Saved');
                   } finally {
                     if (mounted) setState(() => _busy = false);
                   }
@@ -628,8 +628,9 @@ class _EmojisState extends State<_Emojis> {
                   );
                   if (name == null ||
                       !RegExp(r'^[a-z0-9_]{1,32}$').hasMatch(name) ||
-                      !context.mounted)
+                      !context.mounted) {
                     return;
+                  }
                   await _guard(context, () async {
                     await store.api.patch('/custom/emoji/${e['_id']}', {
                       'name': name,

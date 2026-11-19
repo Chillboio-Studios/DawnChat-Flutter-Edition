@@ -44,7 +44,7 @@ class InstanceConfig {
   String get captchaKey =>
       ((features['captcha'] as Map?)?['key'] as String?) ?? '';
   bool get emailVerification => (features['email'] as bool?) ?? false;
-  bool get invite_only => (features['invite_only'] as bool?) ?? false;
+  bool get inviteOnly => (features['invite_only'] as bool?) ?? false;
   Map<String, dynamic> get legalLinks =>
       (features['legal_links'] as Map?)?.cast<String, dynamic>() ?? {};
   Map<String, dynamic> get limits =>
