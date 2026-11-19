@@ -823,6 +823,7 @@ class _ProfileModalState extends State<_ProfileModal> {
                   : () => showImageViewer(
                       c,
                       imageUrl: urls.originalUrl(bgFile),
+                      fallbackUrl: urls.previewUrl(bgFile),
                       filename: bgFile['filename'] as String?,
                       size: humanFileSize((bgFile['size'] as num?) ?? 0),
                       downloadUrl: urls.originalUrl(bgFile),
@@ -832,6 +833,7 @@ class _ProfileModalState extends State<_ProfileModal> {
                   : () => showImageViewer(
                       c,
                       imageUrl: urls.originalUrl(avatarFile),
+                      fallbackUrl: urls.previewUrl(avatarFile),
                       filename: avatarFile['filename'] as String?,
                       size: humanFileSize((avatarFile['size'] as num?) ?? 0),
                       downloadUrl: urls.originalUrl(avatarFile),
