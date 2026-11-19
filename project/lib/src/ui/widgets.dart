@@ -364,7 +364,7 @@ class CategoryButton extends StatelessWidget {
           builder: (context, box) {
             // Wide action rows (session buttons, sound preview + check) would
             // squeeze the text on narrow screens — stack the action below it.
-            if (box.maxWidth < 360 && action != null) {
+            if (box.maxWidth < 480 && action != null) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

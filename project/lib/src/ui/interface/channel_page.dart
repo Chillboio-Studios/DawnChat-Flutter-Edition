@@ -350,15 +350,22 @@ class _ChannelHeader extends StatelessWidget {
     final inCall = voice.showCard(channel);
     final searchOpen = mode == _SidebarMode.search;
 
-    // Phones get a back button that returns to the server channel list (or
-    // Home for DMs), mirroring the Android conversation screen.
+    // Phones get a back button that opens the server/channel drawer, like the
+    // Android conversation screen's menu button.
     final Widget? leading = sc == ScreenClass.phone
         ? IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: tr('Back'),
-            onPressed: () => context.canPop()
-                ? context.pop()
-                : context.goPath(sid != null ? '/server/$sid' : '/app'),
+            onPressed: () {
+              final scaffold = Scaffold.maybeOf(context);
+              if (scaffold != null && scaffold.hasDrawer) {
+                scaffold.openDrawer();
+              } else if (context.canPop()) {
+                context.pop();
+              } else {
+                context.goPath(sid != null ? '/server/$sid' : '/app');
+              }
+            },
           )
         : null;
 

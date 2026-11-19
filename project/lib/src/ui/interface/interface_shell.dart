@@ -486,14 +486,57 @@ class _InterfaceShellState extends State<InterfaceShell> {
   }
 }
 
-class _PhoneContent extends StatelessWidget {
+class _PhoneContent extends StatefulWidget {
   const _PhoneContent({required this.scaffold, required this.child});
   final GlobalKey<ScaffoldState> scaffold;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      Container(color: context.cs.surfaceContainerLow, child: child);
+  State<_PhoneContent> createState() => _PhoneContentState();
+}
+
+class _PhoneContentState extends State<_PhoneContent> {
+  // A rightward swipe starting near the left edge opens the drawer. This uses
+  // a raw Listener rather than a gesture recognizer so it isn't swallowed by
+  // the message list's swipe-to-reply detector.
+  static const _edge = 48.0;
+  int? _pointer;
+  double _downX = 0;
+  double _downY = 0;
+  bool _fired = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: context.cs.surfaceContainerLow,
+      child: Listener(
+        onPointerDown: (e) {
+          if (e.localPosition.dx < _edge) {
+            _pointer = e.pointer;
+            _downX = e.localPosition.dx;
+            _downY = e.localPosition.dy;
+            _fired = false;
+          }
+        },
+        onPointerMove: (e) {
+          if (e.pointer != _pointer || _fired) return;
+          final dx = e.localPosition.dx - _downX;
+          final dy = e.localPosition.dy - _downY;
+          if (dx > 64 && dx > dy.abs() * 1.5) {
+            _fired = true;
+            widget.scaffold.currentState?.openDrawer();
+          }
+        },
+        onPointerUp: (e) {
+          if (e.pointer == _pointer) _pointer = null;
+        },
+        onPointerCancel: (e) {
+          if (e.pointer == _pointer) _pointer = null;
+        },
+        child: widget.child,
+      ),
+    );
+  }
 }
 
 class _Offline extends StatelessWidget {

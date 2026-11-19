@@ -1,4 +1,6 @@
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1556,7 +1558,7 @@ class AppearancePage extends StatelessWidget {
         ),
         _gap(8),
         DropdownMenu<String>(
-          width: 320,
+          width: math.min(320, MediaQuery.sizeOf(context).width - 48),
           label: Text(tr('Interface Font')),
           initialSelection: s.interfaceFont,
           dropdownMenuEntries: [
@@ -1567,7 +1569,7 @@ class AppearancePage extends StatelessWidget {
         ),
         _gap(16),
         DropdownMenu<String>(
-          width: 320,
+          width: math.min(320, MediaQuery.sizeOf(context).width - 48),
           label: Text(tr('Monospace Font')),
           initialSelection: s.monospaceFont,
           dropdownMenuEntries: [
@@ -1586,7 +1588,7 @@ class AppearancePage extends StatelessWidget {
         ),
         _gap(8),
         DropdownMenu<String>(
-          width: 320,
+          width: math.min(320, MediaQuery.sizeOf(context).width - 48),
           label: Text(tr('Emoji Pack (affects your messages only)')),
           initialSelection: s.unicodeEmoji,
           dropdownMenuEntries: [
