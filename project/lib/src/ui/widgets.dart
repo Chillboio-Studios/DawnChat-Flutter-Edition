@@ -318,6 +318,40 @@ class CategoryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = context.cs;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DefaultTextStyle.merge(
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: destructive ? cs.error : cs.onSurface,
+          ),
+          child: title,
+        ),
+        if (description != null)
+          DefaultTextStyle.merge(
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+            child: description!,
+          ),
+      ],
+    );
+    final iconWidget = icon == null
+        ? null
+        : [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: br(Radius_.md),
+              ),
+              child: IconTheme(
+                data: IconThemeData(color: cs.onPrimaryContainer, size: 20),
+                child: Center(child: icon!),
+              ),
+            ),
+            const SizedBox(width: Gap.l),
+          ];
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -326,47 +360,33 @@ class CategoryButton extends StatelessWidget {
           horizontal: Gap.l + 4,
           vertical: Gap.md,
         ),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer,
-                  borderRadius: br(Radius_.md),
-                ),
-                child: IconTheme(
-                  data: IconThemeData(color: cs.onPrimaryContainer, size: 20),
-                  child: Center(child: icon!),
-                ),
-              ),
-              const SizedBox(width: Gap.l),
-            ],
-            Expanded(
-              child: Column(
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // Wide action rows (session buttons, sound preview + check) would
+            // squeeze the text on narrow screens — stack the action below it.
+            if (box.maxWidth < 360 && action != null) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DefaultTextStyle.merge(
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: destructive ? cs.error : cs.onSurface,
-                    ),
-                    child: title,
+                  Row(
+                    children: [
+                      ...?iconWidget,
+                      Expanded(child: text),
+                    ],
                   ),
-                  if (description != null)
-                    DefaultTextStyle.merge(
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      child: description!,
-                    ),
+                  const SizedBox(height: Gap.sm),
+                  Align(alignment: Alignment.centerRight, child: action!),
                 ],
-              ),
-            ),
-            ?action,
-          ],
+              );
+            }
+            return Row(
+              children: [
+                ...?iconWidget,
+                Expanded(child: text),
+                ?action,
+              ],
+            );
+          },
         ),
       ),
     );
