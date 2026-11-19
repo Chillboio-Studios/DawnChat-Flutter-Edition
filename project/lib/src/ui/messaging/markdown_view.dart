@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../net_image.dart';
@@ -338,12 +337,6 @@ class RichContent extends StatefulWidget {
 }
 
 class _RichContentState extends State<RichContent> {
-  // Recognizers are cached per link and only disposed with the state.
-  // Recreating them on every build broke taps: ClientStore notifies on
-  // every gateway event, so a rebuild could dispose the recognizer
-  // mid-gesture.
-  final Map<String, TapGestureRecognizer> _recognizers = {};
-
   // The markdown parse and emoji checks are pure functions of the content,
   // so they are memoized: ClientStore notifies on every gateway event and
   // each notification rebuilds every visible tile — re-parsing every
@@ -352,20 +345,6 @@ class _RichContentState extends State<RichContent> {
   bool _onlyEmoji = false;
   int _emojiCount = 0;
   List<md.Node> _nodes = const [];
-
-  @override
-  void dispose() {
-    for (final r in _recognizers.values) {
-      r.dispose();
-    }
-    super.dispose();
-  }
-
-  TapGestureRecognizer _tap(String key, VoidCallback fn) =>
-      _recognizers.putIfAbsent(key, () {
-        final r = TapGestureRecognizer()..onTap = fn;
-        return r;
-      });
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +383,6 @@ class _RichContentState extends State<RichContent> {
       settings,
       cs,
       emojiSize,
-      _tap,
       widget.serverId,
     );
 
@@ -437,7 +415,6 @@ class _Ctx {
     this.settings,
     this.cs,
     this.emojiSize,
-    this.tap,
     this.serverId,
   );
   final BuildContext context;
@@ -445,7 +422,6 @@ class _Ctx {
   final SettingsStore settings;
   final ColorScheme cs;
   final double emojiSize;
-  final TapGestureRecognizer Function(String, VoidCallback) tap;
   final String? serverId;
 }
 
@@ -932,11 +908,21 @@ List<InlineSpan> _anchor(
       ];
     }
   }
+  // A WidgetSpan with a real GestureDetector: TextSpan recognizers never
+  // fire inside the message list's SelectionArea (selection claims the
+  // pointers), which left links unclickable.
   return [
-    TextSpan(
-      children: _inline(children, c, base),
-      style: TextStyle(color: cs.primary),
-      recognizer: c.tap('$href|$text', () => handleLink(c.context, href, display: text)),
+    WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      child: GestureDetector(
+        onTap: () => handleLink(c.context, href, display: text),
+        child: Text.rich(
+          TextSpan(
+            style: base.merge(TextStyle(color: cs.primary)),
+            children: _inline(children, c, base),
+          ),
+        ),
+      ),
     ),
   ];
 }
