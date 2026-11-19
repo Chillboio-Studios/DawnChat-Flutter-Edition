@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1009,6 +1011,158 @@ class GoRouterNav {
 
 // ---------------- Voice ----------------
 
+/// Live mic level meter for the currently selected input device. Runs without
+/// a call so users can verify their selection before joining one.
+class _MicTest extends StatefulWidget {
+  const _MicTest({required this.deviceId});
+  final String? deviceId;
+
+  @override
+  State<_MicTest> createState() => _MicTestState();
+}
+
+class _MicTestState extends State<_MicTest> {
+  lk.LocalAudioTrack? _track;
+  lk.AudioVisualizer? _viz;
+  StreamSubscription<lk.AudioVisualizerEvent>? _sub;
+  List<double> _bands = const [];
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MicTest old) {
+    super.didUpdateWidget(old);
+    if (old.deviceId != widget.deviceId) _restart();
+  }
+
+  Future<void> _restart() async {
+    await _stop();
+    await _start();
+  }
+
+  Future<void> _start() async {
+    _failed = false;
+    try {
+      final track = await lk.LocalAudioTrack.create(
+        lk.AudioCaptureOptions(deviceId: widget.deviceId),
+      );
+      final viz = lk.createVisualizer(track);
+      _sub = viz.events.listen((e) {
+        final bands = e.event;
+        if (!mounted || bands is! List) return;
+        setState(() {
+          _bands = [
+            for (final b in bands)
+              ((b as num).toDouble()).clamp(0.0, 1.0),
+          ];
+        });
+      });
+      await viz.start();
+      if (!mounted) {
+        await _stop();
+        return;
+      }
+      setState(() {
+        _track = track;
+        _viz = viz;
+      });
+    } catch (_) {
+      _failed = true;
+    }
+  }
+
+  Future<void> _stop() async {
+    await _sub?.cancel();
+    _sub = null;
+    final viz = _viz;
+    _viz = null;
+    if (viz != null) {
+      await viz.stop();
+      viz.dispose();
+    }
+    final track = _track;
+    _track = null;
+    if (track != null) {
+      await track.stop();
+      track.dispose();
+    }
+    if (mounted) setState(() => _bands = const []);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stop());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.cs;
+    var level = 0.0;
+    for (final b in _bands) {
+      if (b > level) level = b;
+    }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: br(Radius_.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _failed
+                ? tr('Microphone unavailable — check permission')
+                : tr('Speak to test your microphone'),
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 36,
+            child: _bands.isEmpty
+                ? Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: cs.primary,
+                      ),
+                    ),
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    spacing: 4,
+                    children: [
+                      for (final b in _bands)
+                        Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 90),
+                            curve: Curves.easeOut,
+                            height: 4 + 32 * b,
+                            decoration: BoxDecoration(
+                              color: level > 0.02
+                                  ? cs.primary
+                                  : cs.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class VoicePage extends StatefulWidget {
   const VoicePage({super.key});
   @override
@@ -1026,6 +1180,15 @@ class _VoicePageState extends State<VoicePage> {
 
   Future<void> _load() async {
     try {
+      final d = await lk.Hardware.instance.enumerateDevices();
+      if (mounted) setState(() => _devices = d);
+    } catch (_) {}
+    // Web/desktop hide device labels until mic permission is granted — grab it
+    // once here so the selectors show real names before the first call.
+    try {
+      final probe = await lk.LocalAudioTrack.create();
+      await probe.stop();
+      probe.dispose();
       final d = await lk.Hardware.instance.enumerateDevices();
       if (mounted) setState(() => _devices = d);
     } catch (_) {}
@@ -1079,6 +1242,9 @@ class _VoicePageState extends State<VoicePage> {
               ),
           ],
         ),
+        _gap(16),
+        SectionTitle(tr('Microphone Test')),
+        _MicTest(deviceId: s.audioInput),
         _gap(16),
         Text(
           'Input Volume  ${pct(s.inputVolume)}',
