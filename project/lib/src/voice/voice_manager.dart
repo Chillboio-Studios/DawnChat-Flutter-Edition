@@ -229,6 +229,10 @@ class VoiceManager extends ChangeNotifier {
             deviceId: settings.videoInput,
             params: VideoParametersPresets.h720_169,
           ),
+          defaultScreenShareCaptureOptions: ScreenShareCaptureOptions(
+            useiOSBroadcastExtension:
+                !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+          ),
           defaultVideoPublishOptions: const VideoPublishOptions(
             videoEncoding: VideoEncoding(maxBitrate: 1700000, maxFramerate: 30),
           ),
@@ -302,6 +306,7 @@ class VoiceManager extends ChangeNotifier {
         try {
           final pub = await r.localParticipant?.setMicrophoneEnabled(
             settings.micOn && !settings.deafen,
+            audioCaptureOptions: _audioCaptureOptions,
           );
           settings.micOn = pub != null || !settings.micOn
               ? settings.micOn && pub != null
@@ -315,6 +320,7 @@ class VoiceManager extends ChangeNotifier {
         }
       }
       sounds.play('userJoinVoice');
+      unawaited(_applyDeviceSettings());
     } catch (e) {
       _report(e);
       await disconnect(playSound: false);
@@ -333,6 +339,9 @@ class VoiceManager extends ChangeNotifier {
     focusId = null;
     speaking.clear();
     _screenShareTracks.clear();
+    _appliedAudioInput = _unset;
+    _appliedAudioOutput = _unset;
+    _appliedVideoInput = _unset;
     _listener?.dispose();
     _listener = null;
     r?.removeListener(_onRoomChanged);
@@ -363,7 +372,109 @@ class VoiceManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _applySettings() => _applyVolumes();
+  void _applySettings() {
+    _applyVolumes();
+    unawaited(_applyDeviceSettings());
+  }
+
+  /// Capture options built from current device/processing settings, used when
+  /// (re)publishing mic/camera tracks.
+  AudioCaptureOptions get _audioCaptureOptions => AudioCaptureOptions(
+    deviceId: settings.audioInput,
+    echoCancellation: settings.echoCancellation,
+    noiseSuppression: settings.noiseSuppression != 'disabled',
+    autoGainControl: settings.autoGainControl,
+  );
+
+  CameraCaptureOptions get _cameraCaptureOptions => CameraCaptureOptions(
+    deviceId: settings.videoInput,
+    params: VideoParametersPresets.h720_169,
+  );
+
+  /// Last device ids pushed to the native/WebRTC layer. Settings changes are
+  /// frequent (volume sliders etc.), so each is only applied once.
+  static const _unset = Object();
+  Object? _appliedAudioInput = _unset;
+  Object? _appliedAudioOutput = _unset;
+  Object? _appliedVideoInput = _unset;
+
+  /// Applies mic/speaker/camera selections made in Settings to the live call.
+  /// Capture constraints alone don't cover every platform — Android ignores
+  /// `sourceId` for audio input, so the native device switch is used there.
+  Future<void> _applyDeviceSettings() async {
+    final r = room;
+    if (r == null) return;
+    final ai = settings.audioInput;
+    if (ai != _appliedAudioInput) {
+      _appliedAudioInput = ai;
+      await _switchAudioInput(ai);
+    }
+    final ao = settings.audioOutput;
+    if (ao != _appliedAudioOutput) {
+      _appliedAudioOutput = ao;
+      await _switchAudioOutput(ao);
+    }
+    final vi = settings.videoInput;
+    if (vi != _appliedVideoInput) {
+      _appliedVideoInput = vi;
+      await _switchVideoInput(vi);
+    }
+  }
+
+  Future<void> _switchAudioInput(String? deviceId) async {
+    final r = room;
+    if (r == null) return;
+    // Native switch — honoured on Android (AudioDeviceModule) and desktop
+    // (SetRecordingDevice). No-op/unsupported elsewhere.
+    if (deviceId != null && deviceId.isNotEmpty) {
+      try {
+        await rtc.Helper.selectAudioInput(deviceId);
+      } catch (_) {}
+    }
+    // Recreate capture where `sourceId` is honoured (desktop, web).
+    final mobile =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+    if (mobile) return;
+    final mic = r.localParticipant?.audioTrackPublications
+        .where((p) => p.source == TrackSource.microphone)
+        .map((p) => p.track)
+        .whereType<LocalAudioTrack>()
+        .firstOrNull;
+    if (mic == null) return;
+    try {
+      await mic.setDeviceId(deviceId ?? '');
+    } catch (_) {}
+  }
+
+  Future<void> _switchAudioOutput(String? deviceId) async {
+    if (deviceId == null || deviceId.isEmpty) return;
+    try {
+      final outs = await Hardware.instance.audioOutputs();
+      final match = outs.where((d) => d.deviceId == deviceId).firstOrNull;
+      if (match != null) await Hardware.instance.selectAudioOutput(match);
+    } catch (_) {}
+  }
+
+  Future<void> _switchVideoInput(String? deviceId) async {
+    final r = room;
+    if (r == null) return;
+    final cam = r.localParticipant?.videoTrackPublications
+        .where((p) => p.source == TrackSource.camera)
+        .map((p) => p.track)
+        .whereType<LocalVideoTrack>()
+        .firstOrNull;
+    if (cam == null || cam.muted) return;
+    try {
+      await cam.restartTrack(
+        CameraCaptureOptions(
+          deviceId: deviceId == null || deviceId.isEmpty ? null : deviceId,
+          params: VideoParametersPresets.h720_169,
+        ),
+      );
+    } catch (_) {}
+  }
 
   void _applyVolumes() {
     final r = room;
@@ -415,7 +526,10 @@ class VoiceManager extends ChangeNotifier {
       if (next) {
         await r.localParticipant?.setMicrophoneEnabled(false);
       } else if (settings.micOn || fromMute) {
-        await r.localParticipant?.setMicrophoneEnabled(true);
+        await r.localParticipant?.setMicrophoneEnabled(
+          true,
+          audioCaptureOptions: _audioCaptureOptions,
+        );
         if (fromMute) settings.micOn = true;
       }
       sounds.play(next ? 'deafen' : 'undeafen');
@@ -432,7 +546,10 @@ class VoiceManager extends ChangeNotifier {
     if (r == null) return;
     try {
       final enable = !(r.localParticipant?.isMicrophoneEnabled() ?? false);
-      await r.localParticipant?.setMicrophoneEnabled(enable);
+      await r.localParticipant?.setMicrophoneEnabled(
+        enable,
+        audioCaptureOptions: _audioCaptureOptions,
+      );
       settings.micOn = r.localParticipant?.isMicrophoneEnabled() ?? false;
       sounds.play(settings.micOn ? 'unmute' : 'mute');
     } catch (e) {
@@ -446,7 +563,10 @@ class VoiceManager extends ChangeNotifier {
     final r = room;
     if (r == null) return;
     try {
-      await r.localParticipant?.setCameraEnabled(!video);
+      await r.localParticipant?.setCameraEnabled(
+        !video,
+        cameraCaptureOptions: _cameraCaptureOptions,
+      );
     } catch (e) {
       _report(e);
     }
@@ -508,8 +628,18 @@ class VoiceManager extends ChangeNotifier {
           notificationText: 'DawnChat is sharing your screen.',
           notificationImportance: AndroidNotificationImportance.normal,
         );
-        await FlutterBackground.initialize(androidConfig: androidConfig);
-        if (!FlutterBackground.isBackgroundExecutionEnabled) {
+        // Mirrors the livekit example: check permissions first and retry once —
+        // enableBackgroundExecution can throw while permissions settle.
+        var hasPermissions = await FlutterBackground.initialize(
+          androidConfig: androidConfig,
+        );
+        if (!hasPermissions) {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          hasPermissions = await FlutterBackground.initialize(
+            androidConfig: androidConfig,
+          );
+        }
+        if (hasPermissions && !FlutterBackground.isBackgroundExecutionEnabled) {
           await FlutterBackground.enableBackgroundExecution();
         }
       }
@@ -519,6 +649,8 @@ class VoiceManager extends ChangeNotifier {
         screenShareCaptureOptions: ScreenShareCaptureOptions(
           sourceId: sourceId,
           captureScreenAudio: audio,
+          useiOSBroadcastExtension:
+              !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
           params: params,
           maxFrameRate: quality == 'text' ? 5 : 30,
         ),
