@@ -172,7 +172,8 @@ class VoiceManager extends ChangeNotifier {
   bool showCard(Map<String, dynamic> channel) {
     final id = channel['_id'] as String;
     return store.isVoice(channel) &&
-        (channelId == id ||
+        (channel['channel_type'] == 'VoiceChannel' ||
+            channelId == id ||
             channel['channel_type'] == 'TextChannel' ||
             (store.voiceStates[id]?.isNotEmpty ?? false));
   }

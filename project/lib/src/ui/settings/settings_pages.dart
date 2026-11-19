@@ -1024,7 +1024,7 @@ class _MicTest extends StatefulWidget {
 class _MicTestState extends State<_MicTest> {
   lk.LocalAudioTrack? _track;
   lk.AudioVisualizer? _viz;
-  StreamSubscription<lk.AudioVisualizerEvent>? _sub;
+  lk.CancelListenFunc? _cancelSub;
   List<double> _bands = const [];
   bool _failed = false;
 
@@ -1052,7 +1052,7 @@ class _MicTestState extends State<_MicTest> {
         lk.AudioCaptureOptions(deviceId: widget.deviceId),
       );
       final viz = lk.createVisualizer(track);
-      _sub = viz.events.listen((e) {
+      _cancelSub = viz.events.listen((e) {
         final bands = e.event;
         if (!mounted || bands is! List) return;
         setState(() {
@@ -1072,24 +1072,25 @@ class _MicTestState extends State<_MicTest> {
         _viz = viz;
       });
     } catch (_) {
-      _failed = true;
+      if (mounted) setState(() => _failed = true);
     }
   }
 
   Future<void> _stop() async {
-    await _sub?.cancel();
-    _sub = null;
+    final cancel = _cancelSub;
+    _cancelSub = null;
+    if (cancel != null) await cancel();
     final viz = _viz;
     _viz = null;
     if (viz != null) {
       await viz.stop();
-      viz.dispose();
+      unawaited(viz.dispose());
     }
     final track = _track;
     _track = null;
     if (track != null) {
       await track.stop();
-      track.dispose();
+      unawaited(track.dispose());
     }
     if (mounted) setState(() => _bands = const []);
   }
@@ -1179,19 +1180,25 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   Future<void> _load() async {
-    try {
-      final d = await lk.Hardware.instance.enumerateDevices();
-      if (mounted) setState(() => _devices = d);
-    } catch (_) {}
-    // Web/desktop hide device labels until mic permission is granted — grab it
-    // once here so the selectors show real names before the first call.
+    // Prime the WebRTC stack first: after a call the audio module may be
+    // torn down, so enumeration returns nothing until capture runs again.
+    // This also grants mic permission so device labels populate on web/desktop.
     try {
       final probe = await lk.LocalAudioTrack.create();
       await probe.stop();
-      probe.dispose();
-      final d = await lk.Hardware.instance.enumerateDevices();
-      if (mounted) setState(() => _devices = d);
+      unawaited(probe.dispose());
     } catch (_) {}
+    // Retry — enumeration can transiently come back empty right after a call.
+    for (var i = 0; i < 3; i++) {
+      try {
+        final d = await lk.Hardware.instance.enumerateDevices();
+        if (d.isNotEmpty) {
+          if (mounted) setState(() => _devices = d);
+          return;
+        }
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
   }
 
   Map<String?, (String, String?)> _opts(String kind, String fallback) {
