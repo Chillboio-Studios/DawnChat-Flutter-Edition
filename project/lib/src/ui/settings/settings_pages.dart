@@ -1,6 +1,8 @@
 
 import 'dart:math' as math;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1015,8 +1017,6 @@ class GoRouterNav {
 
 // ---------------- Voice ----------------
 
-<<<<<<< Updated upstream
-=======
 /// Live mic level meter for the currently selected input device. Runs without
 /// a call so users can verify their selection before joining one.
 class _MicTest extends StatefulWidget {
@@ -1169,7 +1169,6 @@ class _MicTestState extends State<_MicTest> {
   }
 }
 
->>>>>>> Stashed changes
 class VoicePage extends StatefulWidget {
   const VoicePage({super.key});
   @override
@@ -1186,10 +1185,24 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   Future<void> _load() async {
+    // After a call the WebRTC audio stack can take a moment to come back —
+    // prime capture first, then retry enumeration and never wipe a good
+    // device list with a transient empty result.
     try {
-      final d = await lk.Hardware.instance.enumerateDevices();
-      if (mounted) setState(() => _devices = d);
+      final prime = await lk.LocalAudioTrack.create(lk.AudioCaptureOptions());
+      await prime.stop();
+      unawaited(prime.dispose());
     } catch (_) {}
+    for (var i = 0; i < 3; i++) {
+      try {
+        final d = await lk.Hardware.instance.enumerateDevices();
+        if (d.isNotEmpty) {
+          if (mounted) setState(() => _devices = d);
+          return;
+        }
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
   }
 
   Map<String?, (String, String?)> _opts(String kind, String fallback) {
@@ -1240,6 +1253,8 @@ class _VoicePageState extends State<VoicePage> {
               ),
           ],
         ),
+        _gap(16),
+        _MicTest(deviceId: s.audioInput),
         _gap(16),
         Text(
           'Input Volume  ${pct(s.inputVolume)}',
