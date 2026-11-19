@@ -438,7 +438,7 @@ class ClientStore extends ChangeNotifier {
         typing[e['id']]?.remove(e['user']);
       case 'ChannelAck':
         if (e['user'] == userId) {
-          unreads.remove(e['id']);
+          _applyAck(e['id'] as String, e['message_id'] as String);
         }
       case 'VoiceCallUpdate':
         dmCall.value = e;
@@ -589,15 +589,42 @@ class ClientStore extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Records that [messageId] was read in [channel] by this account (on any
+  /// device). Keeps the unread entry so `last_id` acts as a read cursor —
+  /// deleting it would let a late-arriving Message event re-mark the channel
+  /// unread (ChannelAck and Message travel on different topics, so their
+  /// ordering is not guaranteed).
+  void _applyAck(String channel, String messageId) {
+    final u = unreads[channel] ??= {
+      '_id': {'channel': channel, 'user': userId},
+      'last_id': null,
+      'mentions': <dynamic>[],
+    };
+    final seen = u['last_id'] as String?;
+    if (seen != null && messageId.compareTo(seen) <= 0) return;
+    u['last_id'] = messageId;
+    u.remove('unread');
+    final mentions = u['mentions'];
+    if (mentions is List) {
+      mentions.removeWhere(
+        (m) => m is String && m.compareTo(messageId) <= 0,
+      );
+    }
+  }
+
   void _markUnread(String ch, Json msg) {
-    final mentioned = (msg['mentions'] as List?)?.contains(userId) ?? false;
+    final mid = msg['_id'] as String;
     final u = unreads[ch] ??= {
       '_id': {'channel': ch, 'user': userId},
       'last_id': null,
       'mentions': <dynamic>[],
     };
+    // Already read on another device — the ack cursor covers this message.
+    final seen = u['last_id'] as String?;
+    if (seen != null && mid.compareTo(seen) <= 0) return;
+    final mentioned = (msg['mentions'] as List?)?.contains(userId) ?? false;
     u['unread'] = true;
-    if (mentioned) (u['mentions'] as List).add(msg['_id']);
+    if (mentioned) (u['mentions'] as List).add(mid);
   }
 
   bool isMuted(String channel) {
@@ -644,7 +671,7 @@ class ClientStore extends ChangeNotifier {
     // Only clear if no newer message arrived while the request was in flight.
     final last = channels[channel]?['last_message_id'] as String?;
     if (last == null || last.compareTo(messageId) <= 0) {
-      unreads.remove(channel);
+      _applyAck(channel, messageId);
       notifyListeners();
     }
   }
