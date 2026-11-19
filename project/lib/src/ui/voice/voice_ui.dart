@@ -915,7 +915,6 @@ class VoiceActiveRoom extends StatelessWidget {
     final v = context.watch<VoiceManager>();
     final collapsed = v.layout == VoiceLayout.collapsed;
     final fullscreen = v.layout == VoiceLayout.fullscreen;
-    final phone = MediaQuery.sizeOf(context).width <= 640;
 
     return Padding(
       padding: collapsed
@@ -928,53 +927,59 @@ class VoiceActiveRoom extends StatelessWidget {
         spacing: Gap.md,
         children: [
           if (!collapsed) const Expanded(child: _Participants()),
-          if (phone)
-            Column(
-              children: [
-                Row(
+          LayoutBuilder(
+            builder: (context, box) {
+              // Stack controls vertically when the card is narrow — a Row of
+              // action buttons would overflow and break the layout.
+              if (box.maxWidth < 560) {
+                return Column(
                   children: [
-                    Expanded(
-                      child: Opacity(
-                        opacity: collapsed ? 0 : 1,
-                        child: const VoiceCallCardStatus(),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Opacity(
+                            opacity: collapsed ? 0 : 1,
+                            child: const VoiceCallCardStatus(),
+                          ),
+                        ),
+                        Opacity(
+                          opacity: collapsed ? 0 : 1,
+                          child: _LayoutButtons(),
+                        ),
+                      ],
                     ),
-                    Opacity(
-                      opacity: collapsed ? 0 : 1,
-                      child: _LayoutButtons(),
-                    ),
+                    const VoiceActions(),
                   ],
-                ),
-                const VoiceActions(),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.md),
-                      child: Opacity(
-                        opacity: collapsed ? 0 : 1,
-                        child: const VoiceCallCardStatus(),
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(Gap.md),
+                        child: Opacity(
+                          opacity: collapsed ? 0 : 1,
+                          child: const VoiceCallCardStatus(),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const VoiceActions(),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.md),
-                      child: _LayoutButtons(),
+                  const VoiceActions(),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(Gap.md),
+                        child: _LayoutButtons(),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -989,7 +994,6 @@ class _Participants extends StatelessWidget {
     final v = context.watch<VoiceManager>();
     final tiles = v.tiles;
     final focus = v.focusTile;
-    final fullscreen = v.layout == VoiceLayout.fullscreen;
 
     return LayoutBuilder(
       builder: (context, box) {
@@ -1053,14 +1057,23 @@ class _Participants extends StatelessWidget {
         }
 
         final w = box.maxWidth;
-        final phone = MediaQuery.sizeOf(context).width <= 640;
-        final minW = phone
-            ? min(MediaQuery.sizeOf(context).width * .42, 180.0)
-            : 250.0;
+        final h = box.maxHeight.isFinite ? box.maxHeight : 360.0;
         final count = max(1, tiles.length);
-        var tileW = max(minW, w / count - Gap.md);
-        if (fullscreen) tileW = min(w, max(minW, w / min(count, 3) - Gap.lg));
-        tileW = min(tileW, w);
+        // Fewest columns whose 16:9 grid still fits the height — that gives the
+        // widest tiles. If nothing fits, max columns minimise the height and
+        // the scroll view below handles the rest.
+        var tileW = w;
+        for (var c = 1; c <= count; c++) {
+          final tw = (w - Gap.md * (c - 1)) / c;
+          if (tw <= 0) continue;
+          final rows = (count / c).ceil();
+          final gridH = rows * (tw * 9 / 16) + Gap.md * (rows - 1);
+          if (gridH <= h || c == count) {
+            tileW = tw;
+            break;
+          }
+        }
+        tileW = min(tileW, 720.0);
         return SingleChildScrollView(
           child: Center(
             child: Wrap(
@@ -1150,12 +1163,14 @@ class _VoiceOverlayState extends State<VoiceOverlay> {
     final v = context.watch<VoiceManager>();
     final cs = context.cs;
     final size = MediaQuery.sizeOf(context);
+    final w = max(0.0, min(300.0, size.width - 24));
+    final h = max(0.0, min(170.0, size.height - 144));
     final showPip =
         v.inCall &&
         v.layout != VoiceLayout.fullscreen &&
-        widget.currentChannelId != v.channelId;
-    final w = min(300.0, size.width - 24);
-    const h = 170.0;
+        widget.currentChannelId != v.channelId &&
+        w > 120 &&
+        h > 80;
 
     return Stack(
       children: [
