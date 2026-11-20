@@ -7,7 +7,7 @@ platform, targeting Android, iOS, Windows, macOS, Linux, and Web.
 
 ### Prerequisites
 
-- **Flutter** `3.47.9` stable (see `.github/workflows/_build.yml` for the pinned version)
+- **Flutter** `3.50.0` stable (see `.github/workflows/_build.yml` for the pinned version)
 - **Rust** stable toolchain — the app embeds a Rust core under `project/rust`
 - Platform toolchains for your target (Android SDK/NDK, Xcode for Apple platforms,
   Visual Studio for Windows, clang/GTK for Linux)

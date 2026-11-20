@@ -15,9 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Pinned to match CI (FLUTTER_VERSION in .github/workflows/build.yml) —
+# Pinned to match CI (FLUTTER_VERSION in .github/workflows/_build.yml) —
 # pubspec requires Dart ^3.13.7.
-ARG FLUTTER_VERSION=3.47.9
+ARG FLUTTER_VERSION=3.50.0
 RUN curl -fsSL \
     "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
     | tar -xJ -C /opt

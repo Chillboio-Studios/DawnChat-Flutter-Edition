@@ -15,7 +15,9 @@ on:
         default: false
 
 env:
-  FLUTTER_VERSION: "3.47.9"
+  # 3.50 is the first stable built and tested against the Xcode 27 / iOS 27 SDKs
+  # (required by App Store Connect from April 2027, ITMS-90725).
+  FLUTTER_VERSION: "3.50.0"
   # GHCR requires a lowercase repository path — do NOT use
   # ${{ github.repository }} here (it preserves casing).
   IMAGE_NAME: ghcr.io/chillboio-studios/dawnchat-flutter-edition
@@ -155,7 +157,8 @@ jobs:
   ios:
     name: iOS
     needs: analyze
-    runs-on: macos-latest
+    # xcode-27 image ships Xcode 27.x / iOS 27 SDK (arm64 only).
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -260,7 +263,8 @@ jobs:
   macos:
     name: macOS
     needs: analyze
-    runs-on: macos-latest
+    # xcode-27 image ships Xcode 27.x / macOS 27 SDK (arm64 only).
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
