@@ -555,6 +555,7 @@ jobs:
 
   docker:
     name: Web Docker Image
+    needs: analyze
     # amd64 only — the web container doesn't need an arm64 build.
     runs-on: ubuntu-latest
     permissions:
