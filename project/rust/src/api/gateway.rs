@@ -55,7 +55,7 @@ pub async fn gateway_connect(
                         cmd = rx.recv() => {
                             match cmd {
                                 Some(Command::Send(text)) => {
-                                    if write.send(Message::Text(text)).await.is_err() {
+                                    if write.send(Message::Text(text.into())).await.is_err() {
                                         let _ = sink.add(GatewayEvent::Closed("send failed".into()));
                                         break;
                                     }
@@ -69,7 +69,7 @@ pub async fn gateway_connect(
                         msg = read.next() => {
                             match msg {
                                 Some(Ok(Message::Text(text))) => {
-                                    if sink.add(GatewayEvent::Text(text)).is_err() {
+                                    if sink.add(GatewayEvent::Text(text.to_string())).is_err() {
                                         break 'outer;
                                     }
                                 }

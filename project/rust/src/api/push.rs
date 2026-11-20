@@ -10,8 +10,10 @@ use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
 use hkdf::Hkdf;
 use once_cell::sync::Lazy;
-use p256::{elliptic_curve::sec1::ToEncodedPoint, PublicKey, SecretKey};
-use rand::RngCore;
+use p256::elliptic_curve::sec1::ToSec1Point;
+use p256::elliptic_curve::Generate;
+use p256::{PublicKey, SecretKey};
+use rand::rand_core::TryRng;
 use serde_json::{json, Value};
 use sha2::Sha256;
 use std::sync::Mutex;
@@ -41,7 +43,9 @@ static STOP: Lazy<Mutex<Option<UnboundedSender<()>>>> = Lazy::new(|| Mutex::new(
 
 fn new_channel_id() -> String {
     let mut b = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut b);
+    rand::rngs::SysRng
+        .try_fill_bytes(&mut b)
+        .expect("os rng");
     b[6] = (b[6] & 0x0f) | 0x40;
     b[8] = (b[8] & 0x3f) | 0x80;
     let h: Vec<String> = b.iter().map(|x| format!("{x:02x}")).collect();
@@ -64,7 +68,7 @@ fn decrypt(sub: &PushSubscription, payload: &[u8]) -> anyhow::Result<Vec<u8>> {
     let ciphertext = &payload[21 + id_len..];
 
     let secret = SecretKey::from_slice(&B64.decode(&sub.private_key)?)?;
-    let ua_public = secret.public_key().to_encoded_point(false);
+    let ua_public = secret.public_key().to_sec1_point(false);
     let as_public = PublicKey::from_sec1_bytes(as_public_bytes)?;
     let shared = p256::ecdh::diffie_hellman(secret.to_nonzero_scalar(), as_public.as_affine());
     let auth = B64.decode(&sub.auth)?;
@@ -87,7 +91,7 @@ fn decrypt(sub: &PushSubscription, payload: &[u8]) -> anyhow::Result<Vec<u8>> {
 
     let cipher = Aes128Gcm::new_from_slice(&cek)?;
     let mut plain = cipher
-        .decrypt(Nonce::from_slice(&nonce), ciphertext)
+        .decrypt(&Nonce::from(nonce), ciphertext)
         .map_err(|e| anyhow::anyhow!("decrypt: {e}"))?;
     while let Some(&last) = plain.last() {
         plain.pop();
@@ -99,10 +103,13 @@ fn decrypt(sub: &PushSubscription, payload: &[u8]) -> anyhow::Result<Vec<u8>> {
 }
 
 fn fresh_subscription() -> PushSubscription {
-    let secret = SecretKey::random(&mut rand::rngs::OsRng);
-    let public = secret.public_key().to_encoded_point(false);
+    let secret = SecretKey::try_generate_from_rng(&mut rand::rngs::SysRng)
+        .expect("key generation");
+    let public = secret.public_key().to_sec1_point(false);
     let mut auth = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut auth);
+    rand::rngs::SysRng
+        .try_fill_bytes(&mut auth)
+        .expect("os rng");
     PushSubscription {
         endpoint: String::new(),
         p256dh: B64.encode(public.as_bytes()),
@@ -127,7 +134,7 @@ async fn session(
         hello["uaid"] = json!(sub.uaid);
         hello["channelIDs"] = json!([sub.channel_id]);
     }
-    write.send(Message::Text(hello.to_string())).await?;
+    write.send(Message::Text(hello.to_string().into())).await?;
 
     let mut keepalive = tokio::time::interval(Duration::from_secs(45));
     keepalive.tick().await;
@@ -144,7 +151,7 @@ async fn session(
             msg = read.next() => {
                 let Some(msg) = msg else { return Ok(false) };
                 let Message::Text(text) = msg? else { continue };
-                let Ok(v) = serde_json::from_str::<Value>(&text) else { continue };
+                let Ok(v) = serde_json::from_str::<Value>(text.as_str()) else { continue };
                 match v["messageType"].as_str() {
                     Some("hello") => {
                         sub.uaid = v["uaid"].as_str().unwrap_or_default().to_owned();
@@ -153,7 +160,7 @@ async fn session(
                             "channelID": sub.channel_id,
                             "key": vapid_key,
                         });
-                        write.send(Message::Text(reg.to_string())).await?;
+                        write.send(Message::Text(reg.to_string().into())).await?;
                     }
                     Some("register") => {
                         if let Some(ep) = v["pushEndpoint"].as_str() {
@@ -178,7 +185,7 @@ async fn session(
                                 "messageType": "ack",
                                 "updates": [{"channelID": channel, "version": version, "code": 100}],
                             });
-                            write.send(Message::Text(ack.to_string())).await?;
+                            write.send(Message::Text(ack.to_string().into())).await?;
                         }
                     }
                     _ => {}
