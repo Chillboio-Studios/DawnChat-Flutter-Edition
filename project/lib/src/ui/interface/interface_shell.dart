@@ -353,7 +353,13 @@ class _InterfaceShellState extends State<InterfaceShell> {
     super.didUpdateWidget(old);
     if (old.location != widget.location) {
       _trackPath();
-      _scaffold.currentState?.closeDrawer();
+      // On phones the drawer stays open while the user browses a server's
+      // channel list; it closes once a channel or another destination is
+      // chosen.
+      final target = NavTarget.parse(widget.location, _store);
+      if (target.channelId != null || target.serverId == null) {
+        _scaffold.currentState?.closeDrawer();
+      }
     }
   }
 

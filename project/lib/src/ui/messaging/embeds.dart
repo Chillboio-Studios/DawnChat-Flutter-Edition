@@ -341,6 +341,7 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
 Future<void> showImageViewer(
   BuildContext context, {
   String? imageUrl,
+  String? fallbackUrl,
   String? videoUrl,
   String? filename,
   String? size,
@@ -392,7 +393,10 @@ Future<void> showImageViewer(
                         maxScale: 5,
                         child: AspectRatio(
                           aspectRatio:
-                              (width != null && height != null && height > 0)
+                              (width != null &&
+                                  height != null &&
+                                  width > 0 &&
+                                  height > 0)
                               ? width / height
                               : 1,
                           child: Container(
@@ -405,7 +409,12 @@ Future<void> showImageViewer(
                                     autoplay: true,
                                     controls: false,
                                   )
-                                : NetImage(imageUrl!, fit: BoxFit.contain),
+                                : imageUrl == null
+                                ? const SizedBox.shrink()
+                                : _ViewerImage(
+                                    url: imageUrl,
+                                    fallbackUrl: fallbackUrl,
+                                  ),
                           ),
                         ),
                       ),
@@ -490,6 +499,69 @@ Future<void> showImageViewer(
       );
     },
   );
+}
+
+/// Fullscreen image that retries with [fallbackUrl] (e.g. an attachment's
+/// preview) when the primary URL can't be fetched or decoded, and shows a
+/// visible error instead of a blank screen.
+class _ViewerImage extends StatefulWidget {
+  const _ViewerImage({required this.url, this.fallbackUrl});
+  final String url;
+  final String? fallbackUrl;
+
+  @override
+  State<_ViewerImage> createState() => _ViewerImageState();
+}
+
+class _ViewerImageState extends State<_ViewerImage> {
+  /// 0 = primary URL, 1 = fallback URL, 2 = gave up.
+  var _stage = 0;
+
+  void _fail() {
+    if (_stage == 0 &&
+        widget.fallbackUrl != null &&
+        widget.fallbackUrl != widget.url) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _stage == 0) setState(() => _stage = 1);
+      });
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _stage != 2) setState(() => _stage = 2);
+    });
+  }
+
+  Widget _error() {
+    final cs = context.cs;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.broken_image, size: 48, color: cs.onSurfaceVariant),
+          const SizedBox(height: Gap.sm),
+          Text(
+            tr('Could not load image'),
+            style: TextStyle(color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_stage == 2) return _error();
+    final url = _stage == 0 ? widget.url : widget.fallbackUrl;
+    if (url == null) return _error();
+    return NetImage(
+      url,
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) {
+        _fail();
+        return const SizedBox.shrink();
+      },
+    );
+  }
 }
 
 class _InfoRow extends StatelessWidget {
@@ -671,6 +743,7 @@ class AttachmentView extends StatelessWidget {
                   onTap: () => showImageViewer(
                     context,
                     imageUrl: original,
+                    fallbackUrl: urls.previewUrl(file),
                     filename: file['filename'] as String?,
                     size: humanFileSize((file['size'] as num?) ?? 0),
                     downloadUrl: original,
