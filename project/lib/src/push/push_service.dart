@@ -9,10 +9,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../api/client_store.dart';
 import '../core/i18n.dart';
-import '../rust/api/push.dart' as rust_push;
 import '../state/settings_store.dart';
 import '../ui/widgets.dart';
 import '../voice/voice_manager.dart';
+import 'desktop_push.dart';
 import 'web_push_stub.dart'
     if (dart.library.js_interop) 'web_push.dart'
     as web_push;
@@ -97,7 +97,7 @@ bool get _isDesktopPush =>
 
 /// Push + local notifications for every platform:
 /// Android: FCM, iOS/macOS: APNs token via Firebase, web: VAPID web push,
-/// Windows/Linux: Rust Web Push client (autopush) while the app runs in tray/background.
+/// Windows/Linux: Web Push client (autopush) while the app runs in tray/background.
 class PushService extends ChangeNotifier {
   PushService(this.store, this.settings);
 
@@ -106,7 +106,7 @@ class PushService extends ChangeNotifier {
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
   StreamSubscription<Json>? _events;
-  StreamSubscription<dynamic>? _rustSub;
+  StreamSubscription<dynamic>? _pushSub;
   StreamSubscription<String>? _tokenSub;
   bool _localReady = false;
   bool _firebaseReady = false;
@@ -281,9 +281,9 @@ class PushService extends ChangeNotifier {
     try {
       await _tokenSub?.cancel();
       _tokenSub = null;
-      await _rustSub?.cancel();
-      _rustSub = null;
-      if (_isDesktopPush) await rust_push.pushStop();
+      await _pushSub?.cancel();
+      _pushSub = null;
+      if (_isDesktopPush) await pushStop();
       if (kIsWeb) await web_push.unsubscribe();
       await store.api.post('/push/unsubscribe');
     } catch (_) {}
@@ -334,12 +334,12 @@ class PushService extends ChangeNotifier {
 
   Future<void> _enableDesktopPush() async {
     final vapid = store.api.config?.vapid ?? '';
-    rust_push.PushSubscription? saved;
+    PushSubscription? saved;
     final raw = settings.savedPush;
     if (raw != null) {
       try {
         final m = jsonDecode(raw) as Map<String, dynamic>;
-        saved = rust_push.PushSubscription(
+        saved = PushSubscription(
           endpoint: m['endpoint'] as String,
           p256Dh: m['p256dh'] as String,
           auth: m['auth'] as String,
@@ -350,33 +350,31 @@ class PushService extends ChangeNotifier {
       } catch (_) {}
     }
     final done = Completer<void>();
-    await _rustSub?.cancel();
-    _rustSub = rust_push.pushStart(vapidKey: vapid, saved: saved).listen((
-      e,
-    ) async {
+    await _pushSub?.cancel();
+    _pushSub = pushStart(vapidKey: vapid, saved: saved).listen((e) async {
       switch (e) {
-        case rust_push.PushEvent_Registered(:final field0):
+        case PushEventRegistered(:final subscription):
           settings.savedPush = jsonEncode({
-            'endpoint': field0.endpoint,
-            'p256dh': field0.p256Dh,
-            'auth': field0.auth,
-            'private_key': field0.privateKey,
-            'uaid': field0.uaid,
-            'channel_id': field0.channelId,
+            'endpoint': subscription.endpoint,
+            'p256dh': subscription.p256Dh,
+            'auth': subscription.auth,
+            'private_key': subscription.privateKey,
+            'uaid': subscription.uaid,
+            'channel_id': subscription.channelId,
           });
           try {
             await store.api.post('/push/subscribe', {
-              'endpoint': field0.endpoint,
-              'p256dh': field0.p256Dh,
-              'auth': field0.auth,
+              'endpoint': subscription.endpoint,
+              'p256dh': subscription.p256Dh,
+              'auth': subscription.auth,
             });
             if (!done.isCompleted) done.complete();
           } catch (err) {
             if (!done.isCompleted) done.completeError(err);
           }
-        case rust_push.PushEvent_Notification(:final field0):
-          _showFromPayload(field0);
-        case rust_push.PushEvent_Closed():
+        case PushEventNotification(:final payload):
+          _showFromPayload(payload);
+        case PushEventClosed():
           break;
       }
     });
@@ -510,7 +508,7 @@ class PushService extends ChangeNotifier {
   void dispose() {
     _incomingCallTimeout?.cancel();
     _events?.cancel();
-    _rustSub?.cancel();
+    _pushSub?.cancel();
     _tokenSub?.cancel();
     store.removeListener(_onStoreChanged);
     super.dispose();

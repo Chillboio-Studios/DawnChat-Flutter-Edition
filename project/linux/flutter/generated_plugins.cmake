@@ -8,18 +8,17 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_webrtc
   livekit_client
   media_kit_libs_linux
-  media_kit_video
   pasteboard
   record_linux
   screen_retriever_linux
   sentry_flutter
   url_launcher_linux
+  media_kit_video
   window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
-  rust_lib_project
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

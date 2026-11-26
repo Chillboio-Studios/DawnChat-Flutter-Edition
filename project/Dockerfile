@@ -28,10 +28,8 @@ RUN git config --global --add safe.directory /opt/flutter
 
 WORKDIR /app
 
-# Dependencies first for layer caching. rust_builder is a path
-# dependency, so its pubspec must exist for version solving.
+# Dependencies first for layer caching.
 COPY pubspec.yaml pubspec.lock ./
-COPY rust_builder/pubspec.yaml rust_builder/pubspec.yaml
 RUN flutter pub get
 
 COPY . .

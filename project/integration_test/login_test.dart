@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:dawnchat/src/api/client_store.dart';
 import 'package:dawnchat/src/app.dart';
-import 'package:dawnchat/src/rust/frb_generated.dart';
 import 'package:dawnchat/src/state/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +11,6 @@ const _pass = String.fromEnvironment('DC_PASSWORD');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async => await RustLib.init());
 
   testWidgets('logs in with the developer account and syncs', (tester) async {
     SharedPreferences.setMockInitialValues({});

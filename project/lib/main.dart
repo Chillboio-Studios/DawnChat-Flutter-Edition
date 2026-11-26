@@ -10,7 +10,6 @@ import 'src/core/i18n.dart';
 import 'src/core/image_cache.dart';
 import 'src/core/memory_pressure.dart';
 import 'src/desktop/desktop.dart';
-import 'src/rust/frb_generated.dart';
 import 'src/state/settings_store.dart';
 
 const _sentryDsn =
@@ -39,12 +38,7 @@ Future<void> _run(List<String> args) async {
   startImageJanitor();
   startMemoryPressureMonitor();
   if (kIsWeb) usePathUrlStrategy();
-  // Native lib load and disk settings are independent — fetch both at once.
-  final results = await Future.wait<Object?>([
-    if (!kIsWeb) RustLib.init(),
-    SettingsStore.load(),
-  ]);
-  final settings = results.last! as SettingsStore;
+  final settings = await SettingsStore.load();
   // Language pack and desktop integration both only need settings.
   await Future.wait<void>([
     I18n.load(settings.lang),

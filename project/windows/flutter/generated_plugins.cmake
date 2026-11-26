@@ -10,19 +10,18 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_webrtc
   livekit_client
   media_kit_libs_windows_video
-  media_kit_video
   pasteboard
   record_windows
   screen_retriever_windows
   sentry_flutter
   url_launcher_windows
+  media_kit_video
   window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   flutter_local_notifications_windows
   jni
-  rust_lib_project
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
